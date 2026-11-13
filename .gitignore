@@ -1,0 +1,8 @@
+.DS_Store
+dist/
+private/
+backups/
+*.zip
+*kopia*.json
+*backup*.json
+node_modules/
