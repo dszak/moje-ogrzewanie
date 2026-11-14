@@ -3,7 +3,7 @@
 const VERSION='development-1.2';
 const PREFIX='moje-ogrzewanie:'+self.registration.scope+':';
 const CACHE=PREFIX+VERSION;
-const ASSETS=['./','./index.html','./app.js','./storage.js','./manifest.webmanifest','./icons/icon192.png','./icons/icon512.png'];
+const ASSETS=['./','./index.html','./app.js','./storage.js','./insights.js','./manifest.webmanifest','./icons/icon192.png','./icons/icon512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 // No skipWaiting: finish using the current release before activating the next.
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith(PREFIX)&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
