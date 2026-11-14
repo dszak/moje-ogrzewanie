@@ -19,7 +19,7 @@ const DOORS={
 };
 const DOORSTATUS={unknown:'Nie ustalono',open:'Otwarte',ajar:'Uchylone',closed:'Zamknięte'};
 const RM=Object.fromEntries(ROOMS.map(x=>[x.id,x]));
-const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:'',electric:null},rooms:Object.fromEntries(ROOMS.map(r=>[r.id,{target:r.id==='bedroom'?22:null,readings:[]}])),radiators:Object.fromEntries(Object.keys(RADS).map(k=>[k,null])),doors:Object.fromEntries(Object.keys(DOORS).map(k=>[k,'unknown'])),events:[],experiments:[],conditions:[]});
+const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:'',electric:null},rooms:Object.fromEntries(ROOMS.map(r=>[r.id,{target:r.id==='bedroom'?22:null,readings:[]}])),radiators:Object.fromEntries(Object.keys(RADS).map(k=>[k,null])),doors:Object.fromEntries(Object.keys(DOORS).map(k=>[k,'unknown'])),events:[],experiments:[],conditions:[],gasHistory:[],heatingEvents:[],weather:{hourly:[],updated:null}});
 let historyLimit=120;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
 function load(){return DataStore.load(seed)}
 function save(){DataStore.save(state);const el=document.getElementById('storageAlert');el.hidden=!DataStore.warning;if(DataStore.warning)el.textContent=DataStore.warning}
