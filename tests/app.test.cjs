@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false;
@@ -15,7 +15,7 @@ function boot(initial={}){
 const KEY='moje-ogrzewanie-data-v1';
 test('six rooms, eight heads, doors, all screens render',()=>{
  const b=boot();assert.equal(b.run('ROOMS.length'),6);assert.equal(b.run('Object.keys(RADS).length'),8);
- for(const page of ['home','experiments','history','map','settings'])b.run(`setPage('${page}')`);
+ for(const page of ['home','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
  for(const r of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])b.run(`setPage('room','${r}')`);
  assert.equal(b.run('Object.keys(DOORS).length'),6);
 });
