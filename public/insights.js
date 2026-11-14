@@ -52,7 +52,7 @@ const Insights=(()=>{
     const result=[];
     for(let i=0;i<lines.length;i++){
       const part=lines[i].split(';').map(x=>x.trim());
-      if(part.length!==3)throw Error('Wiersz '+(i+1)+': wpisz data;licznik;stan, np. 2026-04-01;nowy;141');
+      if(part.length!==3)throw Error('Wiersz '+(i+1)+': wpisz data;licznik;stan, np. 2026-04-01;nowy;100');
       const [d,m,g]=part;
       if(!/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2})?$/.test(d))throw Error('Wiersz '+(i+1)+': nieprawidłowa data.');
       const date=new Date(d.replace(' ','T').length===10?d+'T12:00:00':d.replace(' ','T')+':00');
