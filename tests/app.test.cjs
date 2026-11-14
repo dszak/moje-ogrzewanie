@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false;
