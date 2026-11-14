@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "last_sync": "2026-11-14T22:12:12+00:00",
+  "heads": {
+    "g1": {
+      "temperature": 21.3,
+      "target_temperature": 22.0,
+      "calibration": -2,
+      "mode_raw": "standy"
+    },
+    "g2": {
+      "temperature": 22.7,
+      "target_temperature": 22.0,
+      "calibration": -3,
+      "mode_raw": "standy"
+    },
+    "g3": {
+      "temperature": 21.4,
+      "target_temperature": 21.0,
+      "calibration": -2,
+      "mode_raw": "standy"
+    },
+    "g4": {
+      "temperature": 21.8,
+      "target_temperature": 21.5,
+      "calibration": -1,
+      "mode_raw": "standy"
+    },
+    "g5": {
+      "temperature": 22.0,
+      "target_temperature": 21.5,
+      "calibration": -3,
+      "mode_raw": "standy"
+    },
+    "g6": {
+      "temperature": 21.2,
+      "target_temperature": 20.0,
+      "calibration": -1,
+      "mode_raw": "standy"
+    },
+    "g7": {
+      "temperature": 23.3,
+      "target_temperature": 25.0,
+      "calibration": -1,
+      "mode_raw": "standy"
+    },
+    "g8": {
+      "temperature": 20.5,
+      "target_temperature": 22.5,
+      "calibration": -4,
+      "mode_raw": "standy"
+    }
+  }
+}
