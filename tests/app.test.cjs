@@ -131,3 +131,48 @@ test('historical ORLEN entries and stale sensor readings do not acquire current 
   assert.equal(b.run('state.gasHistory[0].setti'),undefined);
   assert.throws(()=>b.run("{let bad=seed();bad.gasHistory.push({id:'x',at:now(),gas:1,meter:'new',source:'manual',setti:{version:1,last_sync:now(),rooms:{}}});DataStore.validate(bad)}"));
 });
+
+
+test('gas history mobile cards show full meter reading and all saved Setti+ rooms',()=>{
+ const b=boot();
+ const ids=['bedroom','salon','kitchen','bigbath','smallbath','hall'];
+ const rooms=Object.fromEntries(ids.map((id,i)=>[id,{temperature:20.5+i*.2,humidity:46+i}]));
+ const entries=[
+   {id:'g-new',at:'2026-11-14T20:00:00Z',gas:739.733,meter:'new',source:'manual',
+    setti:{version:1,last_sync:'2026-11-14T19:51:00Z',rooms}},
+   {id:'g-old',at:'2026-10-14T12:00:00Z',gas:680.125,meter:'old',source:'orlen'}
+ ];
+ b.run('state.gasHistory.push(...'+JSON.stringify(entries)+');save()');
+ const before=b.data.get(KEY);
+ b.run("setPage('insights')");
+ const view=b.element('view').innerHTML;
+ assert.match(view,/class="table-scroll gas-history-table-wrap"/);
+ assert.match(view,/class="gas-history-mobile"/);
+ assert.match(view,/class="gas-history-entry"/);
+ assert.match(view,/739,733/);
+ assert.match(view,/680,125/);
+ assert.match(view,/Nowy gazomierz/);
+ assert.match(view,/Stary gazomierz/);
+ assert.match(view,/Źródło: Odczyt ręczny/);
+ assert.match(view,/Źródło: ORLEN/);
+ assert.match(view,/6 pomiarów Setti\+/);
+ assert.match(view,/Synchronizacja: 14\.11\.2026/);
+ assert.equal((view.match(/class="gas-history-entry-room"/g)||[]).length,6);
+ for(const label of ['Sypialnia','Salon','Kuchnia','Duża łazienka','Mała łazienka','Przedpokój'])
+   assert.ok(view.includes(label));
+ assert.match(view,/Brak dołączonych pomiarów Setti\+/);
+ assert.equal(b.data.get(KEY),before,'rendering does not write or migrate user data');
+ b.run('DataStore.validate(state)');
+ const reloaded=boot(Object.fromEntries(b.data));
+ assert.equal(reloaded.run('state.gasHistory[0].setti.rooms.salon.humidity'),47);
+ assert.equal(reloaded.run('state.gasHistory[1].setti'),undefined);
+});
+
+test('narrow screens use gas cards while desktop keeps a scrollable table',()=>{
+ const html=fs.readFileSync('public/index.html','utf8');
+ assert.match(html,/\.gas-history-mobile\{display:none\}/);
+ assert.match(html,/@media\(max-width:640px\)\{[\s\S]*?\.gas-history-table-wrap\{display:none\}/);
+ assert.match(html,/@media\(max-width:640px\)\{[\s\S]*?\.gas-history-mobile\{display:grid;gap:12px\}/);
+ assert.match(html,/\.gas-history-entry-rooms\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+ assert.match(html,/\.gas-history-entry-value\{[^}]*white-space:nowrap/);
+});
