@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Ogrzewanie">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://archive-api.open-meteo.com https://api.open-meteo.com; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="theme-color" content="#0c3531">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon192.png">
@@ -22,7 +22,7 @@
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.1</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
+<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.2</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
 <div id="storageAlert" role="alert" class="banner warn" hidden></div><main id="view" class="wrap" aria-live="polite"></main>
 <input type="file" id="importFile" accept="application/json,.json" style="display:none">
 <input type="file" id="mapFile" accept="image/svg+xml,image/png,image/jpeg" hidden>
