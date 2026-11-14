@@ -25,6 +25,14 @@ const DataStore = (() => {
     // Early v1 files may not have observations yet; never replace existing arrays.
     if(p.conditions===undefined)p.conditions=[];
     arr(p.conditions).forEach(c=>{obj(c);date(c.at);number(c.outdoor,-45,50);number(c.gas,0,100000000);if(!['unknown','sun','clouds','mixed'].includes(c.sky))fail()});
+    if(p.gasHistory===undefined)p.gasHistory=[];
+    arr(p.gasHistory).forEach(r=>{obj(r);str(r.id,100);date(r.at);number(r.gas,0,100000000,false);if(!['old','new'].includes(r.meter))fail();if(!['orlen','manual'].includes(r.source))fail()});
+    if(p.heatingEvents===undefined)p.heatingEvents=[];
+    arr(p.heatingEvents).forEach(e=>{obj(e);str(e.id,100);date(e.at);number(e.engo,10,30,false);str(e.note,300)});
+    if(p.weather===undefined)p.weather={hourly:[],updated:null};
+    obj(p.weather);if(p.weather.updated!==null)date(p.weather.updated);
+    arr(p.weather.hourly);if(p.weather.hourly.length>30000)fail();
+    p.weather.hourly.forEach(h=>{obj(h);number(h.at,1400000000,2500000000,false);number(h.temp,-45,50,false)});
     if(p.privateMap!==undefined&&p.privateMap!==null){str(p.privateMap,3*1024*1024);if(!/^data:image\/(?:png|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(p.privateMap))fail()}
     return p;
   }
