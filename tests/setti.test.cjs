@@ -18,7 +18,7 @@ function payload(when = new Date().toISOString()) {
 test('public Setti data are validated and accepted only while fresh', async () => {
   const run = instance();
   const good = payload();
-  assert.equal(await run(`Setti.refresh(async()=>({ok:true,json:async()=>${JSON.stringify(good)}}))`), true);
+  assert.equal(await run(`Setti.refresh(async()=>({ok:true,json:async()=>(${JSON.stringify(good)})}))`), true);
   assert.equal(run('Setti.room("bedroom").temp'), 21.5);
   assert.equal(run('Object.keys(Setti.snapshot().rooms).length'), 6);
   assert.equal(run('Setti.status().ok'), true);
@@ -27,7 +27,7 @@ test('public Setti data are validated and accepted only while fresh', async () =
 test('stale readings are not presented as current', async () => {
   const run = instance();
   const old = payload(new Date(Date.now()-30*60*1000).toISOString());
-  assert.equal(await run(`Setti.refresh(async()=>({ok:true,json:async()=>${JSON.stringify(old)}}))`), false);
+  assert.equal(await run(`Setti.refresh(async()=>({ok:true,json:async()=>(${JSON.stringify(old)})}))`), false);
   assert.equal(run('Setti.snapshot()'), null);
   assert.equal(run('Setti.room("salon")'), null);
   assert.equal(run('Setti.status().ok'), false);
@@ -36,7 +36,7 @@ test('invalid and failed public responses cannot create false measurements', asy
   const run = instance();
   const bad = payload();
   bad.rooms.kitchen.temperature = '21.5';
-  assert.equal(await run(`Setti.refresh(async()=>({ok:true,json:async()=>${JSON.stringify(bad)}}))`), false);
+  assert.equal(await run(`Setti.refresh(async()=>({ok:true,json:async()=>(${JSON.stringify(bad)})}))`), false);
   assert.equal(run('Setti.snapshot()'), null);
   assert.equal(await run('Setti.refresh(async()=>{throw Error("offline")})'), false);
 });
