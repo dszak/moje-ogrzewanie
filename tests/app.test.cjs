@@ -76,3 +76,17 @@ test('new gas and ENGO history forms save without touching existing observations
  const roundtrip=boot(Object.fromEntries(b.data));
  assert.equal(roundtrip.run('state.heatingEvents.length'),1);assert.equal(roundtrip.run('state.gasHistory.length'),3);
 });
+
+test('room wording and automatic weather do not require a manual outdoor field',()=>{
+ const b=boot();b.run("setPage('room','smallbath')");
+ assert.match(b.element('view').innerHTML,/Chcę mieć w pomieszczeniu/);
+ b.run("setPage('home')");
+ assert.doesNotMatch(b.element('view').innerHTML,/id="outdoor"/);
+ b.element('gas').value='500.125';b.element('sky').value='unknown';
+ b.listeners.click({target:{closest:()=>({dataset:{action:'record-conditions'}})}});
+ assert.equal(b.run('state.conditions.length'),1);
+ assert.equal(b.run('state.conditions[0].gas'),500.125);
+ assert.equal(b.run('state.conditions[0].outdoor'),null);
+ b.run("setPage('insights')");
+ assert.match(b.element('view').innerHTML,/Gaz i pogoda/);
+});

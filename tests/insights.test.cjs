@@ -39,3 +39,14 @@ test('weather update retains prior hours when only recent forecast endpoint is a
  const fresh=await vm.runInContext("Insights.refresh(old,async u=>{if(u.includes('archive-api'))throw Error('offline archive');return {ok:true,json:async()=>({hourly:{time:[Math.floor(clock/1000)-3600],temperature_2m:[8.5]}})}} ,clock)",c);
  assert.equal(fresh.hourly.length,2);assert.equal(fresh.hourly.at(-1).temp,8.5);
 });
+
+test('short gas intervals keep gas usage but do not extrapolate to m³ per day',()=>{
+ const c=insight(),start=Date.parse('2026-11-14T06:00:00Z');
+ const hourly=Array.from({length:3},(_,i)=>({at:start/1000+i*3600,temp:3}));
+ c.data={gasHistory:[{at:new Date(start).toISOString(),gas:500,meter:'new',source:'manual'},{at:new Date(start+2*3600000).toISOString(),gas:501.1,meter:'new',source:'manual'}],conditions:[],weather:{hourly}};
+ const r=vm.runInContext('Insights.intervals(data)[0]',c);
+ assert.ok(Math.abs(r.gas-1.1)<1e-7);
+ assert.equal(r.perDay,null);
+ assert.equal(r.normalized,null);
+ assert.ok(r.days<0.75);
+});

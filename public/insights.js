@@ -41,7 +41,7 @@ const Insights=(()=>{
         const coverage=Math.min(1,hourly.length/(days*24)),have=coverage>=.75&&hourly.length>0;
         const avg=have?hourly.reduce((s,h)=>s+h.temp,0)/hourly.length:null;
         const dd=have?hourly.reduce((s,h)=>s+Math.max(0,BASE-h.temp),0)/24:null;
-        rows.push({meter,start:b.at,end:e.at,gas,days,perDay:gas/days,avg,dd,normalized:dd>0?gas/dd:null,coverage,from:b.source,to:e.source});
+        rows.push({meter,start:b.at,end:e.at,gas,days,perDay:days>=.75?gas/days:null,avg,dd,normalized:days>=.75&&dd>0?gas/dd:null,coverage,from:b.source,to:e.source});
       }
     }
     return rows.sort((a,b)=>b.end-a.end);

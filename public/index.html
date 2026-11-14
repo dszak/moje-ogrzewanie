@@ -19,10 +19,26 @@
 @media print{.nav,.top .sun,.action,.back,.filecontrols{display:none!important}.top{background:white;color:black}.card{break-inside:avoid}.wrap{max-width:none}.room-card{break-inside:avoid}}
 
 [hidden]{display:none!important}input,select,textarea{font-size:16px}body{overflow-wrap:anywhere}.grid>*,.stack>*,.brand>div{min-width:0}.event>div{min-width:0}.group-heading{flex-wrap:wrap}.top{padding-top:max(21px,env(safe-area-inset-top))}.wrap{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));padding-bottom:calc(90px + env(safe-area-inset-bottom))}.nav button,.back,.text-link{min-height:44px}.table-scroll{max-width:100%}#storageAlert{margin:16px}#toast{bottom:calc(20px + env(safe-area-inset-bottom))!important}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.room-card{transition:none}}
+
+/* Gas intervals: wide tables stay legible, phone layout uses cards instead. */
+.gas-table{min-width:820px;table-layout:fixed}
+.gas-table th,.gas-table td{white-space:nowrap;overflow-wrap:normal;word-break:normal}
+.gas-mobile{display:none}
+@media(max-width:640px){
+  .gas-table-wrap{display:none}
+  .gas-mobile{display:grid;gap:11px}
+  .gas-record{padding:15px;border:1px solid var(--line);background:#f9fcf9;border-radius:13px}
+  .gas-record-header{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+  .gas-record-header strong{font-size:13px}
+  .gas-record-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+  .gas-record-grid>div{min-width:0}
+  .gas-record-grid span{font-size:11px;color:var(--ink2);display:block}
+  .gas-record-grid b{font-size:16px;display:block;overflow-wrap:normal;word-break:normal}
+}
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.2</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
+<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.2.1</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
 <div id="storageAlert" role="alert" class="banner warn" hidden></div><main id="view" class="wrap" aria-live="polite"></main>
 <input type="file" id="importFile" accept="application/json,.json" style="display:none">
 <input type="file" id="mapFile" accept="image/svg+xml,image/png,image/jpeg" hidden>
