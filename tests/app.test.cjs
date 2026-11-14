@@ -63,3 +63,16 @@ test('door, radiator, ENGO, boiler and gas entries persist',()=>{
  b.element('outdoor').value='4';b.element('gas').value='123.456';b.element('sky').value='clouds';click('record-conditions');
  const c=boot(Object.fromEntries(b.data));assert.equal(c.run('state.radiators.G7'),23);assert.equal(c.run('state.global.boiler'),56);assert.equal(c.run('state.global.engo'),22.5);assert.equal(c.run("state.doors['bed-hall']"),'ajar');assert.equal(c.run('state.conditions[0].gas'),123.456);
 });
+
+test('new gas and ENGO history forms save without touching existing observations',()=>{
+ const b=boot();b.run("state.conditions.push({at:'2026-11-01T10:00:00Z',outdoor:4,gas:500,sky:'clouds'});save()");
+ const click=(action)=>b.listeners.click({target:{closest:()=>({dataset:{action}})}});
+ b.element('gasAt').value='2026-11-05T12:00';b.element('gasMeter').value='new';b.element('gasSource').value='orlen';b.element('gasValue').value='641';
+ click('add-gas');assert.equal(b.run('state.gasHistory.length'),1);
+ b.element('engoAt').value='2026-11-05T12:00';b.element('engoHistoryValue').value='22';b.element('engoHistoryNote').value='Ustawienie';
+ click('add-engo-history');assert.equal(b.run('state.heatingEvents.length'),1);
+ b.element('gasBulk').value='2026-04-01;nowy;100\n2026-05-01;nowy;200';click('bulk-gas');
+ assert.equal(b.run('state.gasHistory.length'),3);assert.equal(b.run('state.conditions.length'),1);
+ const roundtrip=boot(Object.fromEntries(b.data));
+ assert.equal(roundtrip.run('state.heatingEvents.length'),1);assert.equal(roundtrip.run('state.gasHistory.length'),3);
+});
