@@ -12,5 +12,5 @@ for name in files:
     target.parent.mkdir(parents=True,exist_ok=True)
     shutil.copy2(root/'public'/name,target)
 p=out/'sw.js'
-p.write_text(p.read_text().replace("'development-1.3'",repr(digest)))
+p.write_text(p.read_text().replace("'development-1.3.1'",repr(digest)))
 print('Prepared public release '+digest)

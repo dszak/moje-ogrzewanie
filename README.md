@@ -15,6 +15,10 @@ Zakładka **Gaz i pogoda** pobiera temperaturę godzinową dla Katowic z Open-Me
 - Przy nowym bieżącym odczycie gazu (nie przy imporcie ORLEN) aplikacja zapisuje lokalnie także migawkę sześciu pomiarów Setti+, jeśli są aktualne. Czas synchronizacji nie jest gwarantowanym czasem fizycznego pomiaru.
 - Publiczne temperatury i wilgotność są odczytywane z `https://raw.githubusercontent.com/dszak/moje-ogrzewanie/setti-data/pomiary.json` bez jakichkolwiek tokenów w aplikacji. GitHub ani MacBook nie otrzymują historii gazu.
 
+## Wersja 1.3.1 · czytelna historia gazu na telefonie
+
+Na ekranach o szerokości do 640 px historia odczytów gazomierza jest wyświetlana jako karty z datą, wartością w m³, źródłem i — jeśli dostępne — rozwijanymi pomiarami sześciu pomieszczeń. Na większych ekranach pozostaje tabela z możliwością przewijania poziomego. Zmiana dotyczy tylko wyglądu: nie modyfikuje formatu danych, klucza zapisu ani historii.
+
 ## Uruchomienie i publikacja
 
 Aplikacja nie wymaga instalowania bibliotek. Podgląd: `python3 -m http.server 8765 --directory public`. Otwórz `http://localhost:8765`.
