@@ -2,7 +2,7 @@ from pathlib import Path
 import json,re
 root=Path(__file__).resolve().parents[1]
 public=root/'public'
-allowed={'index.html','app.js','storage.js','sw.js','manifest.webmanifest','.nojekyll','icons/icon192.png','icons/icon512.png'}
+allowed={'index.html','app.js','storage.js','insights.js','sw.js','manifest.webmanifest','.nojekyll','icons/icon192.png','icons/icon512.png'}
 actual={str(p.relative_to(public)) for p in public.rglob('*') if p.is_file()}
 assert actual==allowed|{'icons/.gitkeep'}, 'Unexpected public files'
 text='\n'.join(p.read_text() for p in public.iterdir() if p.is_file())
