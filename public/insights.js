@@ -24,8 +24,8 @@ const Insights=(()=>{
   }
   function near(hourly,ms){const ts=ms/1000;let best=null,d=5401;for(const h of hourly||[]){const delta=Math.abs(h.at-ts);if(delta<d){best=h;d=delta}}return d<=5400?best:null}
   function readings(state){
-    const a=(state.gasHistory||[]).map(r=>({at:Date.parse(r.at),gas:r.gas,meter:r.meter,source:r.source}));
-    for(const c of state.conditions||[])if(validNum(c.gas))a.push({at:Date.parse(c.at),gas:c.gas,meter:c.meter||'new',source:'pomiar'});
+    const a=(state.gasHistory||[]).map(r=>({at:Date.parse(r.at),gas:r.gas,meter:r.meter,source:r.source,setti:r.setti||null}));
+    for(const c of state.conditions||[])if(validNum(c.gas))a.push({at:Date.parse(c.at),gas:c.gas,meter:c.meter||'new',source:'pomiar',setti:c.setti||null});
     return a.filter(x=>validNum(x.at)&&validNum(x.gas)).sort((x,y)=>x.at-y.at);
   }
   function intervals(state){

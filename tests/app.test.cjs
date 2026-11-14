@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false;
@@ -89,4 +89,45 @@ test('room wording and automatic weather do not require a manual outdoor field',
  assert.equal(b.run('state.conditions[0].outdoor'),null);
  b.run("setPage('insights')");
  assert.match(b.element('view').innerHTML,/Gaz i pogoda/);
+});
+
+
+test('fresh public Setti measurements display without overwriting manual readings and attach to a current gas log', async()=>{
+  const b=boot();
+  const rooms={};
+  for(const id of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])rooms[id]={temperature:21.6,humidity:51};
+  const payload={version:1,last_sync:new Date().toISOString(),rooms};
+  await b.run('Setti.refresh(async()=>({ok:true,json:async()=>('+JSON.stringify(payload)+')}))');
+  b.run("setPage('home')");
+  assert.match(b.element('view').innerHTML,/Setti\+ automatycznie/);
+  assert.equal(b.run('latestReading("bedroom").temp'),21.6);
+  assert.equal(b.run('state.rooms.bedroom.readings.length'),0);
+
+  b.element('gasAt').value=b.run('dateLocal(Date.now())');
+  b.element('gasMeter').value='new';
+  b.element('gasSource').value='manual';
+  b.element('gasValue').value='735.2';
+  b.listeners.click({target:{closest:()=>({dataset:{action:'add-gas'}})}});
+  assert.equal(b.run('state.gasHistory.length'),1);
+  assert.equal(b.run('state.gasHistory[0].setti.rooms.bedroom.temperature'),21.6);
+  b.run('DataStore.validate(state)');
+  const restored=boot(Object.fromEntries(b.data));
+  assert.equal(restored.run('state.gasHistory[0].setti.rooms.hall.humidity'),51);
+  restored.run("setPage('insights')");
+  assert.match(restored.element('view').innerHTML,/6 pomiarów/);
+});
+test('historical ORLEN entries and stale sensor readings do not acquire current snapshots', async()=>{
+  const b=boot();
+  const rooms={};
+  for(const id of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])rooms[id]={temperature:21.6,humidity:51};
+  const payload={version:1,last_sync:new Date(Date.now()-30*60000).toISOString(),rooms};
+  await b.run('Setti.refresh(async()=>({ok:true,json:async()=>('+JSON.stringify(payload)+')}))');
+  b.element('gasAt').value='2026-05-01T12:00';
+  b.element('gasMeter').value='new';
+  b.element('gasSource').value='orlen';
+  b.element('gasValue').value='702';
+  b.listeners.click({target:{closest:()=>({dataset:{action:'add-gas'}})}});
+  assert.equal(b.run('state.gasHistory.length'),1);
+  assert.equal(b.run('state.gasHistory[0].setti'),undefined);
+  assert.throws(()=>b.run("{let bad=seed();bad.gasHistory.push({id:'x',at:now(),gas:1,meter:'new',source:'manual',setti:{version:1,last_sync:now(),rooms:{}}});DataStore.validate(bad)}"));
 });

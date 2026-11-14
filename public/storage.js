@@ -14,6 +14,7 @@ const DataStore = (() => {
   function date(v){str(v,60);if(!Number.isFinite(Date.parse(v)))fail()}
   function radiators(v){obj(v);radIds.forEach(k=>number(v[k],5,35))}
   function doors(v){obj(v);doorIds.forEach(k=>{if(!['unknown','open','ajar','closed'].includes(v[k]))fail()})}
+  function setti(v){obj(v);if(v.version!==1)fail();date(v.last_sync);obj(v.rooms);roomIds.forEach(k=>{const r=obj(v.rooms[k]);number(r.temperature,-10,45,false);number(r.humidity,0,100,false)})}
   function snapshot(v){obj(v);number(v.boiler,25,85,false);number(v.engo,10,30,false);str(v.engoPlace,220);radiators(v.radiators);doors(v.doors);obj(v.targets);obj(v.measurements);roomIds.forEach(k=>{number(v.targets[k],10,30);number(v.measurements[k],-10,45)})}
   function validate(input){
     const p=JSON.parse(JSON.stringify(input));obj(p);if(p.version!==1)fail();
@@ -24,9 +25,9 @@ const DataStore = (() => {
     let active=0;arr(p.experiments).forEach(e=>{obj(e);str(e.id,100);str(e.title,100);str(e.description,1500);date(e.started);snapshot(e.start);if(e.status==='active'){active++}else if(e.status==='done'){date(e.ended);snapshot(e.end);str(e.notes,3000)}else fail()});if(active>1)fail();
     // Early v1 files may not have observations yet; never replace existing arrays.
     if(p.conditions===undefined)p.conditions=[];
-    arr(p.conditions).forEach(c=>{obj(c);date(c.at);number(c.outdoor,-45,50);number(c.gas,0,100000000);if(!['unknown','sun','clouds','mixed'].includes(c.sky))fail()});
+    arr(p.conditions).forEach(c=>{obj(c);date(c.at);number(c.outdoor,-45,50);number(c.gas,0,100000000);if(!['unknown','sun','clouds','mixed'].includes(c.sky))fail();if(c.setti!==undefined)setti(c.setti)});
     if(p.gasHistory===undefined)p.gasHistory=[];
-    arr(p.gasHistory).forEach(r=>{obj(r);str(r.id,100);date(r.at);number(r.gas,0,100000000,false);if(!['old','new'].includes(r.meter))fail();if(!['orlen','manual'].includes(r.source))fail()});
+    arr(p.gasHistory).forEach(r=>{obj(r);str(r.id,100);date(r.at);number(r.gas,0,100000000,false);if(!['old','new'].includes(r.meter))fail();if(!['orlen','manual'].includes(r.source))fail();if(r.setti!==undefined)setti(r.setti)});
     if(p.heatingEvents===undefined)p.heatingEvents=[];
     arr(p.heatingEvents).forEach(e=>{obj(e);str(e.id,100);date(e.at);number(e.engo,10,30,false);str(e.note,300)});
     if(p.weather===undefined)p.weather={hourly:[],updated:null};
