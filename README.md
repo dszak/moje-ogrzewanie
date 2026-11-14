@@ -1,6 +1,6 @@
 # Moje Ogrzewanie
 
-Prosty dziennik komfortu i zużycia gazu. Zachowuje sześć pomieszczeń, osiem głowic, drzwi, ENGO Smart, nastawę kotła, cele temperatury, pomiary Setti+, warunki i licznik gazu, eksperymenty oraz historię. Temperatura zewnętrzna dla Katowic jest pobierana automatycznie z Open-Meteo; odczyty gazomierza, Setti+ i nastawy wpisuje się ręcznie. Aplikacja nie steruje urządzeniami.
+Prosty dziennik komfortu i zużycia gazu. Zachowuje sześć pomieszczeń, osiem głowic, drzwi, ENGO Smart, nastawę kotła, cele temperatury, pomiary Setti+, warunki i licznik gazu, eksperymenty oraz historię. Temperatura zewnętrzna dla Katowic jest pobierana automatycznie z Open-Meteo; odczyty gazomierza i nastawy wpisuje się ręcznie, a aktualne pomiary Setti+ aplikacja pobiera z publicznego pliku JSON w gałęzi `setti-data`. Aplikacja nie steruje urządzeniami.
 
 ## Wersja 1.2 · Gaz i pogoda
 
@@ -10,7 +10,10 @@ Zakładka **Gaz i pogoda** pobiera temperaturę godzinową dla Katowic z Open-Me
 - Dwa odczyty z tego samego licznika dają m³ w okresie i m³/dobę; nigdy nie odejmuje się odczytów różnych liczników.
 - Przy ≥75% dostępności godzin pomiarowych pokazuje średnią temperaturę zewnętrzną i m³ na stopniodzień przy **stałej temperaturze odniesienia 21,5°C**. Wskaźnik nie oznacza sprawności pieca ani nie rozdziela podgrzewania wody i ogrzewania.
 - Historię zmian nastawy ENGO wprowadza się oddzielnym formularzem z datą, np. zmiana w czasie eksperymentu. Nie są pobierane dane z ENGO ani z ORLEN.
-- Offline dotychczasowe dane działają dalej. Nowej pogody aplikacja nie pobierze bez internetu.
+- Offline dotychczasowe dane działają dalej. Nowej pogody ani nowych pomiarów Setti+ aplikacja nie pobierze bez internetu.
+- Automatyczne pomiary Setti+ służą tylko do odczytu; po 20 minutach od ostatniej synchronizacji oznaczane są jako nieaktualne. Można nadal wprowadzać własne pomiary ręcznie.
+- Przy nowym bieżącym odczycie gazu (nie przy imporcie ORLEN) aplikacja zapisuje lokalnie także migawkę sześciu pomiarów Setti+, jeśli są aktualne. Czas synchronizacji nie jest gwarantowanym czasem fizycznego pomiaru.
+- Publiczne temperatury i wilgotność są odczytywane z `https://raw.githubusercontent.com/dszak/moje-ogrzewanie/setti-data/pomiary.json` bez jakichkolwiek tokenów w aplikacji. GitHub ani MacBook nie otrzymują historii gazu.
 
 ## Uruchomienie i publikacja
 
