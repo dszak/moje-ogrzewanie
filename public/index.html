@@ -86,15 +86,28 @@
 .gas-edit{border:2px solid #9bcabd}
 .gas-edit h3{font-size:20px}
 @media(max-width:560px){.panel-readings{grid-template-columns:repeat(2,minmax(0,1fr))}.panel-heads{grid-template-columns:1fr}.panel-readings strong{font-size:23px}}
+/* v1.5: legible, private ENGO cycle import and activity cards */
+.engo-example{background:var(--base);border:1px solid var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;font:14px/1.5 ui-monospace,SFMono-Regular,monospace}
+.engo-preview{border:2px solid #99c7bc}
+.engo-event-list{max-height:300px;overflow:auto;padding-left:25px}
+.engo-event-list li{padding:4px 0;font-variant-numeric:tabular-nums}
+.engo-days{display:grid;gap:8px;margin-top:12px}
+.engo-day,.engo-history-item{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.engo-day span{color:var(--ink2);font-size:14px}
+.engo-history-item{min-height:64px}
+.engo-history-item b{font-variant-numeric:tabular-nums}
+@media(max-width:560px){.engo-day,.engo-history-item{align-items:flex-start;flex-direction:column}.engo-history-item .gas-actions{margin:0}}
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.4.2</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
+<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.5.0</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
 <div id="storageAlert" role="alert" class="banner warn" hidden></div><main id="view" class="wrap" aria-live="polite"></main>
 <input type="file" id="importFile" accept="application/json,.json" style="display:none">
 <input type="file" id="mapFile" accept="image/svg+xml,image/png,image/jpeg" hidden>
+<input type="file" id="engoFile" accept=".csv,text/csv,text/plain,.txt" hidden>
 <script src="./storage.js"></script>
 <script src="./insights.js"></script>
+<script src="./engo.js"></script>
 <script src="./setti.js"></script>
 <script src="./heads.js"></script>
 <script src="./app.js"></script>
