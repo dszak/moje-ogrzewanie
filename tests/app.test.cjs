@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false;
@@ -15,7 +15,7 @@ function boot(initial={}){
 const KEY='moje-ogrzewanie-data-v1';
 test('six rooms, eight heads, doors, all screens render',()=>{
  const b=boot();assert.equal(b.run('ROOMS.length'),6);assert.equal(b.run('Object.keys(RADS).length'),8);
- for(const page of ['home','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
+ for(const page of ['home','heads','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
  for(const r of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])b.run(`setPage('room','${r}')`);
  assert.equal(b.run('Object.keys(DOORS).length'),6);
 });
@@ -175,4 +175,22 @@ test('narrow screens use gas cards while desktop keeps a scrollable table',()=>{
  assert.match(html,/@media\(max-width:640px\)\{[\s\S]*?\.gas-history-mobile\{display:grid;gap:12px\}/);
  assert.match(html,/\.gas-history-entry-rooms\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.match(html,/\.gas-history-entry-value\{[^}]*white-space:nowrap/);
+});
+
+test('head screen shows eight validated readings without changing local data or history', async () => {
+  const b=boot(), when=new Date().toISOString();
+  const heads={};
+  for(let i=1;i<=8;i++)heads['g'+i]={temperature:21+i/10,target_temperature:22,calibration:-1,mode_raw:'standy'};
+  const payload={version:1,last_sync:when,heads};
+  await b.run('Heads.refresh(async()=>({ok:true,json:async()=>('+JSON.stringify(payload)+')}))');
+  const before=b.data.get(KEY);
+  b.run("setPage('heads')");
+  const view=b.element('view').innerHTML;
+  assert.match(view,/Osiem głowic TRV001/);
+  assert.equal((view.match(/class="head-reading"/g)||[]).length,8);
+  assert.match(view,/Tryb \(surowy\):/);
+  assert.match(view,/21,1°C/);
+  assert.match(view,/Odśwież z GitHub/);
+  assert.equal(b.data.get(KEY),before);
+  assert.equal(b.run('state.events.length'),0);
 });
