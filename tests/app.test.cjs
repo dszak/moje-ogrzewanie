@@ -303,7 +303,7 @@ test('boiler counters: add, compare, correct and delete without changing origina
  const firstSnapshot=b.run("JSON.stringify(state.gasHistory)");
  b.run("setPage('boiler')");
  assert.match(b.element('view').innerHTML,/Liczniki BRÖTJE/);
- b.element('boilerAt').value='2026-11-15T14:00';
+ b.element('boilerAt').value='2026-11-01T14:00';
  b.element('boilerAc001').value='20000';
  b.element('boilerAc005').value='50000';
  b.element('boilerAc006').value='1000';
@@ -313,7 +313,7 @@ test('boiler counters: add, compare, correct and delete without changing origina
  assert.equal(b.run('state.boilerReadings[0].ac005'),50000);
  assert.match(b.element('view').innerHTML,/Pierwszy odczyt/);
  assert.equal(b.run("JSON.stringify(state.gasHistory)"),firstSnapshot);
- b.element('boilerAt').value='2026-11-22T14:00';
+ b.element('boilerAt').value='2026-11-08T14:00';
  b.element('boilerAc001').value='20168';
  b.element('boilerAc005').value='50250';
  b.element('boilerAc006').value='1030';
