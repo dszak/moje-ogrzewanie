@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/review.js','utf8')+'\n'+fs.readFileSync('public/review-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/research.js','utf8')+'\n'+fs.readFileSync('public/memory.js','utf8')+'\n'+fs.readFileSync('public/memory-view.js','utf8')+'\n'+fs.readFileSync('public/review.js','utf8')+'\n'+fs.readFileSync('public/review-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false,allowConfirm=true;
@@ -15,7 +15,7 @@ function boot(initial={}){
 const KEY='moje-ogrzewanie-data-v1';
 test('six rooms, eight heads, doors, all screens render',()=>{
  const b=boot();assert.equal(b.run('ROOMS.length'),6);assert.equal(b.run('Object.keys(RADS).length'),8);
- for(const page of ['home','heads','boiler','engo-cycles','temperatures','review','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
+ for(const page of ['home','heads','boiler','engo-cycles','temperatures','review','memory','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
  for(const r of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])b.run(`setPage('room','${r}')`);
  assert.equal(b.run('Object.keys(DOORS).length'),6);
 });
@@ -526,4 +526,115 @@ test('See–Judge–Act: report download is explicit, private and does not mutat
  assert.equal(file.period.hours,168);
  assert.ok(!JSON.stringify(file).includes('PERSONAL_DIARY_SECRET'));
  assert.ok(!JSON.stringify(file).includes('QUJD'));
+});
+
+
+test('v1.8: legacy v1.7 backup safely gains empty optional project memory without wiping readings',()=>{
+ const b=boot();
+ const parsed=b.run('{const p=seed();delete p.projectMemory;delete p.knowledgeLog;p.rooms.bedroom.readings.push({at:now(),temp:21.6,humidity:42,note:"existing"});DataStore.validate(p)}');
+ assert.equal(parsed.projectMemory.currentQuestion,'');
+ assert.equal(parsed.knowledgeLog.length,0);
+ assert.equal(parsed.rooms.bedroom.readings.length,1);
+});
+
+test('v1.8: project card is saved privately and survives app restart',()=>{
+ const b=boot(),click=(ac,ex={})=>b.listeners.click({target:{closest:()=>({dataset:{action:ac,...ex}})}});
+ b.run("setPage('memory')");
+ assert.match(b.element('view').innerHTML,/Pamięć i optymalizacja/);
+ b.element('memory-overview').value='Nad pokojami jest strych (prywatne).';
+ b.element('memory-installation').value='Kocioł gazowy i grzejniki.';
+ b.element('memory-sensors').value='ENGO niezależny od Setti+.';
+ b.element('memory-comfort').value='Komfort jest ważniejszy niż pozorne oszczędności.';
+ b.element('memory-constraints').value='Czasem pracuje grzejnik elektryczny.';
+ b.element('memory-currentQuestion').value='Czy 50°C wystarczy bez niedogrzania?';
+ click('memory-card-save');
+ assert.equal(b.run('state.projectMemory.currentQuestion'),'Czy 50°C wystarczy bez niedogrzania?');
+ assert.equal(b.run('state.projectMemory.overview'),'Nad pokojami jest strych (prywatne).');
+ const c=boot(Object.fromEntries(b.data));
+ assert.equal(c.run('state.projectMemory.sensors'),'ENGO niezależny od Setti+.');
+ c.run("setPage('memory')");
+ assert.match(c.element('view').innerHTML,/Nad pokojami jest strych/);
+});
+
+test('v1.8: manual knowledge is append-only and superseding preserves negative results',()=>{
+ const b=boot(),click=(ac,ex={})=>b.listeners.click({target:{closest:()=>({dataset:{action:ac,...ex}})}});
+ b.run("setPage('memory')");
+ b.element('memoryKind').value='result';
+ b.element('memoryConfidence').value='medium';
+ b.element('memoryOutcome').value='negative';
+ b.element('memoryExperiment').value='none';
+ b.element('memoryTitle').value='Zimniejsza nastawa nie działa';
+ b.element('memoryConclusion').value='W testowej próbie pojawiło się niedogrzanie.';
+ b.element('memoryEvidence').value='Syntetyczny test nr 2.';
+ b.element('memoryConditions').value='Gdy temperatura zewnętrzna jest ujemna.';
+ click('memory-add');
+ assert.equal(b.run('state.knowledgeLog.length'),1);
+ assert.equal(b.run('state.knowledgeLog[0].outcome'),'negative');
+ assert.match(b.element('view').innerHTML,/Niekorzystny/);
+ const id=b.run('state.knowledgeLog[0].id');
+ click('memory-supersede',{id});
+ assert.equal(b.run('state.knowledgeLog[0].status'),'superseded');
+ assert.equal(b.run('state.knowledgeLog.length'),1);
+ const c=boot(Object.fromEntries(b.data));
+ assert.equal(c.run('state.knowledgeLog[0].status'),'superseded');
+});
+
+test('v1.8: ChatGPT proposal import previews, protects against duplicates and requires confirmation',()=>{
+ const b=boot(),click=(ac,ex={})=>b.listeners.click({target:{closest:()=>({dataset:{action:ac,...ex}})}});
+ b.run("setPage('memory')");
+ const obj={format:'moje-ogrzewanie-propozycje-wiedzy',version:1,items:[
+   {kind:'observation',title:'Stabilność sypialni',conclusion:'Pomiar 21,4–21,8°C.',evidence:'Testowe dane.',conditions:'Jedna doba.',
+     confidence:'medium',outcome:'none',experimentId:null}
+ ]};
+ b.element('memoryBulk').value=JSON.stringify(obj);
+ click('memory-preview');
+ assert.equal(b.run('memoryPreview.items.length'),1);
+ assert.equal(b.run('state.knowledgeLog.length'),0);
+ b.setConfirm(false);click('memory-confirm');
+ assert.equal(b.run('state.knowledgeLog.length'),0,'declined import leaves state unchanged');
+ b.setConfirm(true);click('memory-confirm');
+ assert.equal(b.run('state.knowledgeLog.length'),1);
+ assert.equal(b.run('state.knowledgeLog[0].source'),'chatgpt-reviewed');
+ b.element('memoryBulk').value=JSON.stringify(obj);
+ click('memory-preview');
+ assert.equal(b.run('memoryPreview.items.length'),0);
+ assert.equal(b.run('memoryPreview.duplicates'),1);
+ click('memory-confirm');
+ assert.equal(b.run('state.knowledgeLog.length'),1);
+});
+
+test('v1.8: report includes complete prior memory and experiments outside selected measurement window',()=>{
+ const b=boot();
+ b.run("state.projectMemory.overview='PRIV_CONTEXT_FOR_CHATGPT';state.projectMemory.currentQuestion='My open question';"+
+    "state.knowledgeLog.push(MemoryKit.createRecord({kind:'result',title:'Old negative test',conclusion:'Failed.',evidence:'Old test.',"+
+    "conditions:'Cold day',confidence:'high',outcome:'negative',experimentId:null},'manual','2024-01-10T12:00:00Z'));"+
+    "state.decisionLog.push({id:'old',at:'2024-01-10T12:00:00Z',periodStart:'2024-01-09T12:00:00Z',"+
+    "periodEnd:'2024-01-10T12:00:00Z',periodKey:'day',choice:'keep',assessment:'Previous decision.',"+
+    "action:'Keep boiler.',reviewOn:null,experimentId:null,settings:{boiler:55,engo:22}});"+
+    "state.privateMap='data:image/png;base64,QUJD';state.events.push({id:'private',at:now(),label:'secret',detail:'NEVER_COPY_RAW_EVENTS'});save()");
+ const before=b.data.get(KEY);
+ b.run("downloadText=(filename,body,mime)=>{globalThis.savedReport={filename,body,mime}};exportAnalysisReport()");
+ assert.equal(b.data.get(KEY),before);
+ const report=JSON.parse(b.run('savedReport.body'));
+ assert.equal(report.format_version,2);
+ assert.equal(report.memory_context.durable_project_card.overview,'PRIV_CONTEXT_FOR_CHATGPT');
+ assert.equal(report.memory_context.entire_knowledge_history[0].outcome,'negative');
+ assert.equal(report.memory_context.complete_decision_history[0].assessment,'Previous decision.');
+ assert.equal(report.memory_context.open_problem,'My open question');
+ assert.ok(b.run('savedReport.filename').includes('pamiec-i-analiza'));
+ assert.ok(!JSON.stringify(report).includes('NEVER_COPY_RAW_EVENTS'));
+ assert.ok(!JSON.stringify(report).includes('QUJD'));
+});
+
+test('v1.8: reject corrupt memory and knowledge instead of accepting unsafe backup',()=>{
+ const b=boot();
+ for(const change of [
+  "p.projectMemory.overview=42",
+  "p.projectMemory.currentQuestion='a'.repeat(1501)",
+  "p.projectMemory.updatedAt='bad'",
+  "p.knowledgeLog=[{id:'bad',at:now(),kind:'auto-control'}]",
+  "p.knowledgeLog=[MemoryKit.createRecord({kind:'result',title:'x',conclusion:'x',evidence:'x',conditions:'',confidence:'low',outcome:'negative',experimentId:null})];p.knowledgeLog.push(p.knowledgeLog[0])"
+ ]){
+  assert.throws(()=>b.run('{const p=seed();'+change+';DataStore.validate(p)}'),change);
+ }
 });

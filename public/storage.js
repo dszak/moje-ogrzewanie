@@ -78,6 +78,29 @@ const DataStore = (() => {
       if(d.experimentId!==null)str(d.experimentId,100);
       obj(d.settings);number(d.settings.boiler,25,85,false);number(d.settings.engo,10,30,false);
     });
+    // The v1.8 project card is optional for old backups and remains device-private.
+    if(p.projectMemory===undefined)p.projectMemory={overview:'',installation:'',sensors:'',comfort:'',constraints:'',currentQuestion:'',updatedAt:null};
+    obj(p.projectMemory);
+    for(const [field,max] of [['overview',4000],['installation',4000],['sensors',4000],
+      ['comfort',3000],['constraints',3000],['currentQuestion',1500]])str(p.projectMemory[field],max);
+    if(p.projectMemory.updatedAt!==null)date(p.projectMemory.updatedAt);
+    if(p.knowledgeLog===undefined)p.knowledgeLog=[];
+    if(arr(p.knowledgeLog).length>4000)fail();
+    const knowledgeIds=new Set();
+    for(const k of p.knowledgeLog){
+      obj(k);str(k.id,100);if(knowledgeIds.has(k.id))fail();knowledgeIds.add(k.id);
+      date(k.at);
+      if(!['observation','hypothesis','result','configuration'].includes(k.kind)||
+         !['low','medium','high'].includes(k.confidence)||
+         !['positive','negative','inconclusive','none'].includes(k.outcome)||
+         !['current','superseded'].includes(k.status)||
+         !['manual','chatgpt-reviewed'].includes(k.source))fail();
+      if(k.kind==='result'&&k.outcome==='none'||k.kind!=='result'&&k.outcome!=='none')fail();
+      str(k.title,120);if(!k.title.trim())fail();
+      str(k.conclusion,1800);if(!k.conclusion.trim())fail();
+      str(k.evidence,1800);str(k.conditions,800);
+      if(k.experimentId!==null)str(k.experimentId,100);
+    }
     if(p.heatingEvents===undefined)p.heatingEvents=[];
     arr(p.heatingEvents).forEach(e=>{obj(e);str(e.id,100);date(e.at);number(e.engo,10,30,false);str(e.note,300)});
     if(p.weather===undefined)p.weather={hourly:[],updated:null};

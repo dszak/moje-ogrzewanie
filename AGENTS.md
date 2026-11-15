@@ -4,6 +4,8 @@
 
 **Przeczytaj i zachowaj zasady z [docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md](docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md).** Dokument jest kartą celów i metodologii projektu, ma pierwszeństwo przed pomysłami na nowe funkcje. Każda nowa wersja musi wspierać kumulowanie wiedzy o instalacji, a nie samą prezentację pomiarów. Nie wolno wracać do odrzuconych eksperymentów bez uzasadnienia nowymi danymi. Komfort, porównywalna ekonomia i bezpieczeństwo są równorzędnymi warunkami optymalizacji.
 
+**Wiedza zastana:** przed projektowaniem eksperymentów przeczytaj [docs/BAZA-WIEDZY-TECHNICZNEJ.md](docs/BAZA-WIEDZY-TECHNICZNEJ.md) i korzystaj z wiarygodnych źródeł inżynierskich, producentów i badań. Rozróżniaj wyniki z literatury od wyników tej instalacji; nie przepisuj cudzych oszczędności jako własnych. Aktualizuj źródła i stawiaj hipotezy wynikające z wiedzy, nie z przypuszczeń. Nie modyfikuj instalacji gazowej ani zabezpieczeń bez fachowca.
+
 **Metoda:** WIDZIEĆ → OCENIĆ → DZIAŁAĆ → UCZYĆ SIĘ. Oddzielaj obserwacje od hipotez. Nie nazywaj ENGO czasem pracy palnika. Utrwalaj również negatywne i nierozstrzygnięte wyniki. W wersji 1.8 priorytet to przenośna pamięć wiedzy i eksperymentów, która pozwala rozpocząć nowy czat bez utraty dotychczasowych ustaleń.
 
 ## Zasady bezpieczeństwa danych i publikacji

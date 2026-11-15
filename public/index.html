@@ -120,20 +120,29 @@
 .review-entry:first-of-type{border-top:0}
 .review-entry p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
 @media(max-width:560px){.review-rooms{grid-template-columns:1fr}.review-summary{max-height:240px}.review-entry .group-heading{align-items:flex-start;flex-direction:column}}
+/* v1.8: private project memory and evidence registry, narrow-screen safe */
+.memory-card{margin-top:12px}
+.memory-card textarea{resize:vertical}
+.review-entry p{overflow-wrap:anywhere}
+@media(max-width:560px){.memory-card .actions{flex-direction:column}.memory-card .actions button{width:100%}}
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.7.0</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
+<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.8.0</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
 <div id="storageAlert" role="alert" class="banner warn" hidden></div><main id="view" class="wrap" aria-live="polite"></main>
 <input type="file" id="importFile" accept="application/json,.json" style="display:none">
 <input type="file" id="mapFile" accept="image/svg+xml,image/png,image/jpeg" hidden>
 <input type="file" id="engoFile" accept=".csv,text/csv,text/plain,.txt" hidden>
 <input type="file" id="tempFile" accept=".csv,text/csv,text/plain,.txt" hidden>
+<input type="file" id="memoryFile" accept=".json,application/json,text/plain" hidden>
 <script src="./storage.js"></script>
 <script src="./insights.js"></script>
 <script src="./engo.js"></script>
 <script src="./temperatures.js"></script>
 <script src="./temperature-view.js"></script>
+<script src="./research.js"></script>
+<script src="./memory.js"></script>
+<script src="./memory-view.js"></script>
 <script src="./review.js"></script>
 <script src="./review-view.js"></script>
 <script src="./setti.js"></script>

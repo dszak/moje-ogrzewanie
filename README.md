@@ -37,6 +37,19 @@ Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotnoś
 
 Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy subiektywnego komfortu (obniżony komfort, optymalnie, przegrzanie). Te funkcje wymagają osobnego projektu interfejsu i testów bezpiecznej rozbudowy zapisu — **nie są jeszcze wprowadzone**.
 
+## Wersja 1.8.0 · Pamięć i Optymalizacja
+
+**Biblioteka wiedzy technicznej:** wersja 1.8 zawiera osobną, źródłową bazę wiedzy (BRÖTJE, ENGO, Nesta, Energy Saving Trust, CIBSE, ASHRAE, PKN i Citizens Advice). Każdy materiał ma podaną tezę, praktyczne zastosowanie i ograniczenia. Źródła są widoczne w zakładce „Pamięć projektu” i dołączane do pakietu JSON; są oddzielone od lokalnych pomiarów i zatwierdzonych wyników eksperymentów. Patrz [metodyka badań i literatura](docs/BAZA-WIEDZY-TECHNICZNEJ.md). **Nie przepisuj ogólnych wyników z literatury jako potwierdzonych oszczędności tego mieszkania.**
+
+**Cel nadrzędny:** nie gromadzić samych wykresów, lecz stopniowo *uczyć się zachowania instalacji*, łącząc komfort i ekonomię oraz wykorzystując wyniki wszystkich wcześniejszych eksperymentów. Zasady projektu: [najważniejsza karta metodologii](docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md).
+
+- Nowa prywatna zakładka **Pamięć projektu**: karta charakterystyki mieszkania, instalacji, czujników, indywidualnych kryteriów komfortu, ograniczeń i aktualnego pytania badawczego. Pola startują puste: szczegóły budynku i instalacji wpisuje użytkownik **lokalnie**, nie są publikowane w kodzie aplikacji.
+- **Rejestr wiedzy**: obserwacje, hipotezy, wyniki eksperymentów (korzystny/niekorzystny/nierozstrzygnięty), sprawdzone konfiguracje; dla każdego wpisu: źródło, dowody, warunki stosowalności, poziom pewności, powiązany eksperyment. Wpisy można **oznaczyć jako zastąpione bez kasowania historii**. Żaden wpis nie jest automatycznie potwierdzanym faktem.
+- **Pakiet dla ChatGPT** z zakładki **Analiza i decyzje**: raport z temperaturami, gazem, ENGO, pogodą i licznikami dla wybranego okresu otrzymuje pełny trwały kontekst **bez ograniczenia do 7/30 dni**: kartę projektu, wszystkie zapisane wnioski (łącznie ze zastąpionymi), wszystkie decyzje oraz eksperymenty, aktywne hipotezy i następne zagadnienie. Nowy raport zachowuje format `moje-ogrzewanie-analiza` i ma `format_version:2` oraz obiekt `memory_context`. Nie migruje ani nie usuwa zapisów z wersji 1.7.
+- **Pętla uczenia się z ChatGPT:** skopiuj instrukcję rozpoczęcia nowej rozmowy albo instrukcję propozycji wniosków. ChatGPT może przygotować JSON `moje-ogrzewanie-propozycje-wiedzy` (`version:1`), który można wkleić lub wybrać z Plików na iPhonie. Aplikacja waliduje go, usuwa duplikaty, pokazuje pełny podgląd i dopiero po potwierdzeniu użytkownika **dopisuje** nowe wnioski. ChatGPT nie ma bezpośredniego połączenia z danymi iPhone'a.
+- **Bezpieczeństwo danych:** prywatna karta i rejestr wiedzy są zapisane w dotychczasowym kluczu `moje-ogrzewanie-data-v1` jako opcjonalne `projectMemory` i `knowledgeLog`; stare kopie JSON działają bez migracji niszczącej. W kopii bezpieczeństwa zostaje cała pamięć. Nie publikujemy użytkownikowych danych, map ani geometrii; raport dla ChatGPT jest pobierany ręcznie i może zawierać dane prywatne — przed wysłaniem należy go przejrzeć.
+- **Ograniczenia:** brak automatycznego treningu modelu AI i brak zdalnego sterowania kotłem. Ekonomiczne korzyści są rozstrzygane dopiero po kontrolowanym eksperymencie, na podstawie porównywalnej pogody, komfortu i wiarygodnych danych gazowych. Etykieta „sprawdzona konfiguracja” oznacza **wpis użytkownika**, a nie obliczony automatycznie optymalny wariant.
+
 ## Wersja 1.7.0 · Widzieć – Ocenić – Działać
 
 Zakładka **Analiza i decyzje** wprowadza trzy etapy świadomej oceny ogrzewania:

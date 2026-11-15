@@ -28,10 +28,10 @@ const ReviewView=(()=>{
     '<pre class="review-summary">'+esc(current.readable_summary)+'</pre>'+
     '<div class="actions"><button class="action" data-action="review-export">Pobierz raport dla ChatGPT (JSON)</button>'+
     '<button class="action ghost" data-action="review-copy">Kopiuj podsumowanie</button></div>'+
-    '<p class="hint">Raport zawiera podsumowanie oraz szczegółowe pomiary, cykle ENGO, dostępne odczyty gazu, pogodę i decyzje z wybranego okresu. '+ 
-    'Nie zawiera prywatnej mapy mieszkania ani danych logowania. Jest zapisywany na urządzeniu — niczego nie wysyłamy automatycznie. Przejrzyj go przed załączeniem do rozmowy.</p></section>';
+    '<p class="hint">Pakiet zawiera pomiary z wybranego okresu oraz całą kartę projektu, wiedzę, decyzje i eksperymenty także sprzed tego okresu. '+ 
+    'Nie zawiera mapy, dziennika zdarzeń ani danych logowania. Zawiera natomiast informacje z prywatnej karty projektu i zapisane wnioski. Jest zapisywany na urządzeniu — niczego nie wysyłamy automatycznie. Przejrzyj go przed załączeniem do rozmowy.</p></section>';
    out+='<section class="card" style="margin-bottom:16px"><h3>2. OCENIĆ — omów raport w ChatGPT</h3>'+
-    '<p>Prześlij pobrany plik JSON w rozmowie o ogrzewaniu. Poproś o oddzielenie <b>pomiarów</b>, <b>wniosków</b> i <b>niepewności</b>.'+
+    '<p>Prześlij pobrany plik JSON w rozmowie o ogrzewaniu — także nowej. Poproś o oddzielenie <b>pomiarów</b>, <b>wniosków</b> i <b>niepewności</b>.'+
     ' Rozważymy stabilność temperatur, możliwą bezwładność cieplną i zużycie gazu z uwzględnieniem pogody.</p>'+
     '<div class="note" style="margin-top:12px">Nie wyznaczamy sprawności palnika na podstawie samych cykli ENGO. Przedział bez odczytów gazomierza nie jest „zerowym zużyciem”.</div></section>';
    out+='<section class="card" style="margin-bottom:16px"><h3>3. DZIAŁAĆ — zapisz wynik oceny</h3>'+
