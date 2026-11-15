@@ -186,11 +186,54 @@ test('head screen shows eight validated readings without changing local data or 
   const before=b.data.get(KEY);
   b.run("setPage('heads')");
   const view=b.element('view').innerHTML;
-  assert.match(view,/Osiem głowic TRV001/);
-  assert.equal((view.match(/class="head-reading"/g)||[]).length,8);
-  assert.match(view,/Tryb \(surowy\):/);
+  assert.match(view,/Panel ogrzewania/);
+  assert.equal((view.match(/class="panel-head"/g)||[]).length,8);
+  assert.match(view,/Tryb:/);
   assert.match(view,/21,1°C/);
-  assert.match(view,/Odśwież z GitHub/);
+  assert.match(view,/Odśwież głowice/);
   assert.equal(b.data.get(KEY),before);
   assert.equal(b.run('state.events.length'),0);
+});
+
+test('gas readings can be edited and deleted while unrelated weather observations remain',()=>{
+ const b=boot(),click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ b.run("state.conditions.push({at:'2026-11-14T06:00:00Z',gas:500,outdoor:4,sky:'clouds',meter:'new'});state.gasHistory.push({id:'g-test',at:'2026-11-15T06:00:00Z',gas:505,meter:'new',source:'manual'});save()");
+ click('edit-gas',{kind:'history',index:'0'});
+ assert.match(b.element('view').innerHTML,/Popraw odczyt gazomierza/);
+ b.element('editGasAt').value='2026-11-15T06:00';
+ b.element('editGasMeter').value='new';
+ b.element('editGasSource').value='manual';
+ b.element('editGasValue').value='506.123';
+ click('save-gas-edit');
+ assert.equal(b.run('state.gasHistory[0].gas'),506.123);
+ assert.equal(b.run('state.gasHistory.length'),1);
+ assert.match(b.run('state.events[0].label'),/Poprawiono/);
+ click('delete-gas',{kind:'condition',index:'0'});
+ assert.equal(b.run('state.conditions.length'),1);
+ assert.equal(b.run('state.conditions[0].gas'),null);
+ assert.equal(b.run("state.conditions[0].sky"),'clouds');
+ assert.equal(b.run('state.gasHistory.length'),1);
+ click('delete-gas',{kind:'history',index:'0'});
+ assert.equal(b.run('state.gasHistory.length'),0);
+ b.run('DataStore.validate(state)');
+ const again=boot(Object.fromEntries(b.data));
+ assert.equal(again.run('state.conditions[0].sky'),'clouds');
+ assert.equal(again.run('state.conditions[0].gas'),null);
+ assert.equal(again.run('state.events.length'),3);
+});
+
+test('daily gas comparisons are visible despite intermediate measurements',()=>{
+ const b=boot();
+ const list=[
+ {id:'a',at:'2026-11-14T06:47:00Z',gas:100,meter:'new',source:'manual'},
+ {id:'b',at:'2026-11-14T08:57:00Z',gas:101,meter:'new',source:'manual'},
+ {id:'c',at:'2026-11-14T20:00:00Z',gas:105,meter:'new',source:'manual'},
+ {id:'d',at:'2026-11-15T06:55:00Z',gas:108,meter:'new',source:'manual'}
+ ];
+ b.run('state.gasHistory.push(...'+JSON.stringify(list)+');save()');
+ b.run("setPage('insights')");
+ assert.match(b.element('view').innerHTML,/Porównania dobowe/);
+ assert.match(b.element('view').innerHTML,/8,00 m³\/dobę/);
+ assert.match(b.element('view').innerHTML,/Edytuj/);
+ assert.match(b.element('view').innerHTML,/Usuń/);
 });
