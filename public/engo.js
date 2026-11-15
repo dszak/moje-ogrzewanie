@@ -6,11 +6,27 @@ const EngoCycles=(()=>{
   const maxText=90000;
   const timeKey=(at)=>Math.floor(Date.parse(at)/60000);
   const dayFormat=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit'});
-  const dayKey=(at)=>{
+  const wallFormat=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+  const wallParts=(at)=>{
     const bits={};
-    dayFormat.formatToParts(new Date(at)).forEach(p=>{if(p.type==='year'||p.type==='month'||p.type==='day')bits[p.type]=p.value});
-    return bits.year+'-'+bits.month+'-'+bits.day;
+    wallFormat.formatToParts(new Date(at)).forEach(p=>{
+      if(['year','month','day','hour','minute'].includes(p.type))bits[p.type]=p.value;
+    });
+    return bits;
   };
+  const dayKey=(at)=>{const p=wallParts(at);return p.year+'-'+p.month+'-'+p.day};
+  const localDateTime=(at)=>{const p=wallParts(at);return p.year+'-'+p.month+'-'+p.day+'T'+p.hour+':'+p.minute};
+  // ENGO screenshots show Polish civil time. Resolve CET/CEST explicitly so
+  // importing on a computer set to UTC or on a trip never shifts the event.
+  // The repeated DST hour is ambiguous without an offset: reject, don't guess.
+  function polishDate(y,m,d,h,minute){
+    const possible=[60,120].map(offset=>new Date(Date.UTC(y,m-1,d,h,minute)-offset*60000));
+    const matching=possible.filter(at=>{
+      const p=wallParts(at);
+      return Number(p.year)===y&&Number(p.month)===m&&Number(p.day)===d&&Number(p.hour)===h&&Number(p.minute)===minute;
+    });
+    return matching.length===1?matching[0]:null;
+  }
   function parse(text,existing=[]){
     if(typeof text!=='string'||text.length>maxText)throw Error('Tekst ENGO jest zbyt długi (limit 90 000 znaków).');
     const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/);
@@ -31,9 +47,9 @@ const EngoCycles=(()=>{
       const md=/^(\d{4})-(\d{2})-(\d{2})$/.exec(date),mt=/^(\d{2}):(\d{2})$/.exec(time);
       if(!md||!mt)throw Error('Wiersz '+row.n+': data RRRR-MM-DD i godzina GG:MM.');
       const y=Number(md[1]),m=Number(md[2]),d=Number(md[3]),h=Number(mt[1]),minute=Number(mt[2]);
-      const at=new Date(y,m-1,d,h,minute);
-      if(!Number.isFinite(at.valueOf())||at.getFullYear()!==y||at.getMonth()!==m-1||at.getDate()!==d||at.getHours()!==h||at.getMinutes()!==minute||at.valueOf()>Date.now()+86400000)
-        throw Error('Wiersz '+row.n+': nieprawidłowa lub przyszła data.');
+      const at=polishDate(y,m,d,h,minute);
+      if(!at||at.valueOf()>Date.now()+86400000)
+        throw Error('Wiersz '+row.n+': nieprawidłowa, niejednoznaczna (zmiana czasu) lub przyszła data.');
       const upper=state.toLocaleUpperCase('pl-PL');
       const status=['ON','WŁĄCZONE','ZAŁĄCZONE'].includes(upper)?'on':['OFF','WYŁĄCZONE'].includes(upper)?'off':null;
       if(!status)throw Error('Wiersz '+row.n+': stan musi być ON albo OFF.');
@@ -84,5 +100,5 @@ const EngoCycles=(()=>{
     }
     return {pairs,incomplete,days:[...groups.values()].sort((a,b)=>b.day.localeCompare(a.day)),totalMinutes:pairs.reduce((sum,p)=>sum+p.minutes,0)};
   }
-  return {parse,analyze,dayKey};
+  return {parse,analyze,dayKey,localDateTime};
 })();
