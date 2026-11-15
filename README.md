@@ -19,6 +19,15 @@ Zakładka **Gaz i pogoda** pobiera temperaturę godzinową dla Katowic z Open-Me
 
 Na ekranach o szerokości do 640 px historia odczytów gazomierza jest wyświetlana jako karty z datą, wartością w m³, źródłem i — jeśli dostępne — rozwijanymi pomiarami sześciu pomieszczeń. Na większych ekranach pozostaje tabela z możliwością przewijania poziomego. Zmiana dotyczy tylko wyglądu: nie modyfikuje formatu danych, klucza zapisu ani historii.
 
+## Wersja 1.4.0 · osiem głowic TRV001 (tylko odczyt)
+
+Nowa zakładka **Głowice** wyświetla wszystkie osiem głowic z publicznego pliku `https://raw.githubusercontent.com/dszak/moje-ogrzewanie/setti-data/glowice.json`. Dane są grupowane według pięciu pomieszczeń z grzejnikami; pokazują temperaturę przy głowicy, temperaturę zadaną, korektę kalibracji i surowy tryb pracy. Wpis ręczny głowicy w dzienniku jest osobną wartością.
+
+- Pobieranie odbywa się bez tokenów Tuya i logowań do SETTI+; korzysta tylko z GitHub (odświeżanie przy uruchomieniu, co pięć minut i na żądanie).
+- Po 20 minutach od ostatniej synchronizacji dane są wyraźnie oznaczone jako nieaktualne. To nie jest pomiar temperatury pomieszczenia.
+- Nowy ekran nie zmienia ręcznych nastaw, historii gazu, struktury zapisu, identyfikatorów ani klucza lokalnej pamięci.
+- Aplikacja nadal **nie steruje** głowicami, termostatem ENGO ani kotłem BRÖTJE. Integracja ENGO pozostaje do osobnego etapu.
+
 ## Uruchomienie i publikacja
 
 Aplikacja nie wymaga instalowania bibliotek. Podgląd: `python3 -m http.server 8765 --directory public`. Otwórz `http://localhost:8765`.
