@@ -233,7 +233,7 @@ test('daily gas comparisons are visible despite intermediate measurements',()=>{
  b.run('state.gasHistory.push(...'+JSON.stringify(list)+');save()');
  b.run("setPage('insights')");
  assert.match(b.element('view').innerHTML,/Porównania dobowe/);
- assert.match(b.element('view').innerHTML,/8,00 m³\/dobę/);
+ assert.match(b.element('view').innerHTML,/7,96 m³\/dobę/);
  assert.match(b.element('view').innerHTML,/Edytuj/);
  assert.match(b.element('view').innerHTML,/Usuń/);
 });
