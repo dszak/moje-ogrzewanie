@@ -117,37 +117,37 @@ function renderBoiler(){
   const before=all[all.length-2-i];
   const gains=before?['ac001','ac005','ac006'].map(k=>boilerGain(before,r,k)):null;
   const diffs=gains?gains.map(x=>x===null?'reset / spadek':'+ '+count(x)).join(' · '):'Pierwszy odczyt — punkt odniesienia';
-  return \`<article class="card boiler-entry">
-    <div class="group-heading"><h3>\${day(r.at)}</h3><span class="pill">odczyt ręczny</span></div>
-    <div class="panel-readings"><div><span>AC001 · godziny zasilania</span><strong>\${count(r.ac001)}</strong></div>
-      <div><span>AC005 · ogrzewanie</span><strong>\${count(r.ac005)}</strong></div>
-      <div><span>AC006 · ciepła woda</span><strong>\${count(r.ac006)}</strong></div></div>
-    <p class="hint">Przyrosty względem poprzedniego odczytu: \${diffs}</p>
-    \${r.note?\`<p class="hint">Notatka: \${esc(r.note)}</p>\`:''}
-    <div class="actions" style="margin-top:12px"><button class="action ghost" data-action="edit-boiler" data-id="\${esc(r.id)}">Edytuj</button>
-      <button class="action danger" data-action="delete-boiler" data-id="\${esc(r.id)}">Usuń</button></div>
-  </article>\`;
+  return `<article class="card boiler-entry">
+    <div class="group-heading"><h3>${day(r.at)}</h3><span class="pill">odczyt ręczny</span></div>
+    <div class="panel-readings"><div><span>AC001 · godziny zasilania</span><strong>${count(r.ac001)}</strong></div>
+      <div><span>AC005 · ogrzewanie</span><strong>${count(r.ac005)}</strong></div>
+      <div><span>AC006 · ciepła woda</span><strong>${count(r.ac006)}</strong></div></div>
+    <p class="hint">Przyrosty względem poprzedniego odczytu: ${diffs}</p>
+    ${r.note?`<p class="hint">Notatka: ${esc(r.note)}</p>`:''}
+    <div class="actions" style="margin-top:12px"><button class="action ghost" data-action="edit-boiler" data-id="${esc(r.id)}">Edytuj</button>
+      <button class="action danger" data-action="delete-boiler" data-id="${esc(r.id)}">Usuń</button></div>
+  </article>`;
  }).join('');
- return \`\${sec('Liczniki BRÖTJE','Ręczne odczyty z wyświetlacza kotła QWHC 20/24 — tylko dziennik, bez sterowania.')}
+ return `${sec('Liczniki BRÖTJE','Ręczne odczyty z wyświetlacza kotła QWHC 20/24 — tylko dziennik, bez sterowania.')}
  <div class="banner info"><span>ℹ️</span><span><b>Co oznaczają liczniki?</b> AC001 to godziny zasilania elektrycznego kotła, nie czas pracy palnika. AC005 i AC006 to orientacyjne, narastające liczniki odpowiednio ogrzewania i ciepłej wody. Pokazujemy surowe wskazania i różnice, bez przypisywania niepotwierdzonych jednostek lub przeliczania na m³ gazu.</span></div>
- <section class="card" style="margin-bottom:16px"><div class="group-heading"><h3>Ostatni odczyt</h3><span class="pill">\${all.length} zapisów</span></div>
- \${latest?\`<p class="small muted">\${day(latest.at)}</p><div class="panel-readings"><div><span>AC001 · godziny</span><strong>\${count(latest.ac001)} h</strong></div><div><span>AC005 · c.o.</span><strong>\${count(latest.ac005)}</strong></div><div><span>AC006 · c.w.u.</span><strong>\${count(latest.ac006)}</strong></div></div>
- \${prev?\`<p class="hint">Przyrost od \${day(prev.at)}: AC001 \${boilerGain(prev,latest,'ac001')===null?'brak (spadek)':count(boilerGain(prev,latest,'ac001'))+' h'} · AC005 \${boilerGain(prev,latest,'ac005')===null?'brak (spadek)':count(boilerGain(prev,latest,'ac005'))} · AC006 \${boilerGain(prev,latest,'ac006')===null?'brak (spadek)':count(boilerGain(prev,latest,'ac006'))}</p>\`:''}\`:'<p class="hint">Brak odczytów. Dodaj pierwszy komplet wartości jako punkt odniesienia.</p>'}
+ <section class="card" style="margin-bottom:16px"><div class="group-heading"><h3>Ostatni odczyt</h3><span class="pill">${all.length} zapisów</span></div>
+ ${latest?`<p class="small muted">${day(latest.at)}</p><div class="panel-readings"><div><span>AC001 · godziny</span><strong>${count(latest.ac001)} h</strong></div><div><span>AC005 · c.o.</span><strong>${count(latest.ac005)}</strong></div><div><span>AC006 · c.w.u.</span><strong>${count(latest.ac006)}</strong></div></div>
+ ${prev?`<p class="hint">Przyrost od ${day(prev.at)}: AC001 ${boilerGain(prev,latest,'ac001')===null?'brak (spadek)':count(boilerGain(prev,latest,'ac001'))+' h'} · AC005 ${boilerGain(prev,latest,'ac005')===null?'brak (spadek)':count(boilerGain(prev,latest,'ac005'))} · AC006 ${boilerGain(prev,latest,'ac006')===null?'brak (spadek)':count(boilerGain(prev,latest,'ac006'))}</p>`:''}`:'<p class="hint">Brak odczytów. Dodaj pierwszy komplet wartości jako punkt odniesienia.</p>'}
  </section>
- <section class="card" style="margin-bottom:16px"><h3>\${changeTitle}</h3><p class="subtitle">Wpisz trzy wartości z menu liczników. Data i godzina powinny odpowiadać chwili zdjęcia. Nie resetuj liczników na kotle.</p>
+ <section class="card" style="margin-bottom:16px"><h3>${changeTitle}</h3><p class="subtitle">Wpisz trzy wartości z menu liczników. Data i godzina powinny odpowiadać chwili zdjęcia. Nie resetuj liczników na kotle.</p>
  <div class="form-grid" style="margin-top:15px">
-   <div class="wide"><label for="boilerAt">Data i godzina zdjęcia</label><input type="datetime-local" id="boilerAt" value="\${changing?dateLocal(Date.parse(changing.at)):dateLocal(Date.now())}"></div>
-   <div><label for="boilerAc001">AC001 · godziny zasilania</label><input type="number" id="boilerAc001" inputmode="numeric" min="0" max="100000000" step="1" value="\${v('ac001')}" placeholder="np. 10000"></div>
-   <div><label for="boilerAc005">AC005 · centralne ogrzewanie</label><input type="number" id="boilerAc005" inputmode="numeric" min="0" max="100000000" step="1" value="\${v('ac005')}" placeholder="np. 30000"></div>
-   <div><label for="boilerAc006">AC006 · ciepła woda</label><input type="number" id="boilerAc006" inputmode="numeric" min="0" max="100000000" step="1" value="\${v('ac006')}" placeholder="np. 1500"></div>
-   <div class="wide"><label for="boilerNote">Komentarz · opcjonalnie</label><input id="boilerNote" maxlength="200" value="\${changing?esc(changing.note):''}" placeholder="np. odczyt podczas tygodniowej kontroli"></div>
+   <div class="wide"><label for="boilerAt">Data i godzina zdjęcia</label><input type="datetime-local" id="boilerAt" value="${changing?dateLocal(Date.parse(changing.at)):dateLocal(Date.now())}"></div>
+   <div><label for="boilerAc001">AC001 · godziny zasilania</label><input type="number" id="boilerAc001" inputmode="numeric" min="0" max="100000000" step="1" value="${v('ac001')}" placeholder="np. 10000"></div>
+   <div><label for="boilerAc005">AC005 · centralne ogrzewanie</label><input type="number" id="boilerAc005" inputmode="numeric" min="0" max="100000000" step="1" value="${v('ac005')}" placeholder="np. 30000"></div>
+   <div><label for="boilerAc006">AC006 · ciepła woda</label><input type="number" id="boilerAc006" inputmode="numeric" min="0" max="100000000" step="1" value="${v('ac006')}" placeholder="np. 1500"></div>
+   <div class="wide"><label for="boilerNote">Komentarz · opcjonalnie</label><input id="boilerNote" maxlength="200" value="${changing?esc(changing.note):''}" placeholder="np. odczyt podczas tygodniowej kontroli"></div>
  </div>
- <div class="actions" style="margin-top:12px"><button class="action" data-action="save-boiler">\${changing?'Zapisz poprawkę':'Zapisz odczyt'}</button>
- \${changing?'<button class="action ghost" data-action="cancel-boiler">Anuluj edycję</button>':''}</div>
+ <div class="actions" style="margin-top:12px"><button class="action" data-action="save-boiler">${changing?'Zapisz poprawkę':'Zapisz odczyt'}</button>
+ ${changing?'<button class="action ghost" data-action="cancel-boiler">Anuluj edycję</button>':''}</div>
  </section>
  <div class="group-heading"><h3>Historia liczników</h3><span class="small muted">Odczyty narastające · najnowsze na górze</span></div>
- <div class="grid cols2">\${entries||'<div class="empty">Historia pojawi się po zapisaniu pierwszego odczytu.</div>'}</div>
- <p class="hint" style="margin-top:15px">W razie resetu lub wymiany elektroniki wartości mogą spaść. Wtedy brak wiarygodnego przyrostu jest oznaczony, a historia pozostaje zachowana. Dane przechowywane są wyłącznie na tym urządzeniu i w Twoim eksporcie JSON.</p>\`;
+ <div class="grid cols2">${entries||'<div class="empty">Historia pojawi się po zapisaniu pierwszego odczytu.</div>'}</div>
+ <p class="hint" style="margin-top:15px">W razie resetu lub wymiany elektroniki wartości mogą spaść. Wtedy brak wiarygodnego przyrostu jest oznaczony, a historia pozostaje zachowana. Dane przechowywane są wyłącznie na tym urządzeniu i w Twoim eksporcie JSON.</p>`;
 }
 
 function renderInsights(){
