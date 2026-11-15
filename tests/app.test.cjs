@@ -638,3 +638,40 @@ test('v1.8: reject corrupt memory and knowledge instead of accepting unsafe back
   assert.throws(()=>b.run('{const p=seed();'+change+';DataStore.validate(p)}'),change);
  }
 });
+
+
+test('v1.8.1: governing principle is visible on the first screen, with all four virtues on mobile-friendly memory page',()=>{
+ const b=boot();
+ b.run("setPage('home')");
+ assert.match(b.element('view').innerHTML,/Dobrze gospodarować powierzonym mi dobrem/);
+ assert.match(b.element('view').innerHTML,/data-page="memory"/);
+ b.run("setPage('memory')");
+ const output=b.element('view').innerHTML;
+ for(const name of ['Roztropność','Sprawiedliwość','Umiarkowanie','Męstwo'])
+   assert.ok(output.includes(name),name);
+ assert.match(output,/Zasada naczelna/);
+ assert.match(output,/Jakie dobro chcemy osiągnąć/);
+ assert.match(output,/ORLENOWI/);
+ assert.match(output,/Trwała karta projektu/);
+ assert.match(output,/Rejestr zdobytej wiedzy/);
+ assert.match(output,/Moje Ogrzewanie v1.8.1/);
+});
+
+test('v1.8.1: ethics is in exported report without changing existing five knowledge records',()=>{
+ const b=boot();
+ b.run("state.projectMemory.overview='Already stored private text';" +
+    "for(let i=0;i<5;i++)state.knowledgeLog.push(MemoryKit.createRecord({kind:'observation',"+
+    "title:'Dawny wniosek '+i,conclusion:'Zachowany pomiar '+i,evidence:'History',conditions:'',"+
+    "confidence:'low',outcome:'none',experimentId:null}));save()");
+ const before=b.data.get(KEY);
+ b.run("downloadText=(name,body)=>{globalThis.ethicsExport=JSON.parse(body)};exportAnalysisReport()");
+ assert.equal(b.data.get(KEY),before);
+ const report=JSON.parse(b.run('JSON.stringify(ethicsExport)'));
+ assert.equal(report.memory_context.entire_knowledge_history.length,5);
+ assert.match(report.memory_context.supreme_principle.principle,/powierzonym mi dobrem/);
+ assert.equal(report.memory_context.supreme_principle.virtues.length,4);
+ assert.equal(report.memory_context.durable_project_card.overview,'Already stored private text');
+ const c=boot(Object.fromEntries(b.data));
+ assert.equal(c.run('state.knowledgeLog.length'),5);
+ assert.equal(c.run('state.projectMemory.overview'),'Already stored private text');
+});

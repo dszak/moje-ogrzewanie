@@ -21,6 +21,20 @@ const MemoryView=(()=>{
    const current=entries.filter(x=>x.status==='current');
    let out='<div class="section-head"><div><h2>Pamięć i optymalizacja</h2>'+
      '<p>Nie zaczynamy od zera. Każdy eksperyment ma dać poprawę lub wartościową wiedzę.</p></div></div>';
+   const ethics=MemoryKit.ETHICS;
+   out+='<section class="card moral-principles" aria-label="Zasada naczelna i cnoty kardynalne">'+
+     '<div class="group-heading"><h3>Zasada naczelna</h3></div>'+
+     '<p class="moral-motto">'+esc(ethics.principle)+'</p>'+
+     '<p class="moral-purpose">'+esc(ethics.purpose)+'</p>'+
+     '<h4>Cztery cnoty kardynalne</h4>'+
+     '<div class="virtues-grid">'+ethics.virtues.map(v=>
+       '<article class="virtue"><h4>'+esc(v.name)+'</h4>'+
+       '<p>'+esc(v.definition)+'</p>'+
+       '<p class="hint">'+esc(v.practice)+'</p></article>').join('')+'</div>'+
+     '<div class="note"><b>Przed każdą decyzją:</b> '+esc(ethics.decision_test)+'</div>'+
+     '<p class="hint">'+esc(ethics.hierarchy)+'</p>'+
+     '<p class="hint">'+esc(ethics.note)+'</p>'+
+     '</section>';
    out+='<div class="banner info"><span>🧠</span><span><b>'+esc(MemoryKit.METHOD)+'</b><br>'+
      esc(MemoryKit.GOAL)+'</span></div>';
    out+='<section class="card" style="margin:16px 0"><div class="group-heading"><h3>1. Trwała karta projektu</h3><span class="pill">Prywatna</span></div>'+

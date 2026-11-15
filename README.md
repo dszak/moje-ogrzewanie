@@ -39,6 +39,12 @@ Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotnoś
 
 Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy subiektywnego komfortu (obniżony komfort, optymalnie, przegrzanie). Te funkcje wymagają osobnego projektu interfejsu i testów bezpiecznej rozbudowy zapisu — **nie są jeszcze wprowadzone**.
 
+## Wersja 1.8.1 · Zasada naczelna i cztery cnoty w aplikacji
+
+Na ekranie **Mieszkanie** widoczna jest zasada „Dobrze gospodarować powierzonym mi dobrem” oraz link do rozwinięcia. Na początku zakładki **Pamięć projektu** wyświetlane są cztery cnoty kardynalne: roztropność, sprawiedliwość, umiarkowanie i męstwo — z pełnym sensem moralnym, osobistymi przykładami zastosowania i pytaniem o dobro przed każdą decyzją.
+
+Każdy raport dla ChatGPT zawiera teraz **`memory_context.supreme_principle`**, niezależnie od okresu pomiarów. Słowa zasady, jej sens, cztery cnoty oraz hierarchia celów są dostarczane jako stałe treści programu, nie są kopiowane do prywatnej karty użytkownika i nie wymagają ręcznego uzupełniania. Bez zmian schematu zapisu `moje-ogrzewanie-data-v1`, danych historycznych ani sterowania.
+
 ## Wersja 1.8.0 · Pamięć i Optymalizacja
 
 **Biblioteka wiedzy technicznej:** wersja 1.8 zawiera osobną, źródłową bazę wiedzy (BRÖTJE, ENGO, Nesta, Energy Saving Trust, CIBSE, ASHRAE, PKN i Citizens Advice). Każdy materiał ma podaną tezę, praktyczne zastosowanie i ograniczenia. Źródła są widoczne w zakładce „Pamięć projektu” i dołączane do pakietu JSON; są oddzielone od lokalnych pomiarów i zatwierdzonych wyników eksperymentów. Patrz [metodyka badań i literatura](docs/BAZA-WIEDZY-TECHNICZNEJ.md). **Nie przepisuj ogólnych wyników z literatury jako potwierdzonych oszczędności tego mieszkania.**

@@ -129,3 +129,39 @@ test('technical research is sourced, clearly separate from household results, an
  assert.ok(!JSON.stringify(exported).includes('15/4'));
  assert.match(exported.instruction,/hipotezy/);
 });
+
+
+test('v1.8.1: governing moral principles preserve the four cardinal virtues and concrete stewardship duties',()=>{
+ const m=kit();
+ const virtues=m.ETHICS.virtues;
+ assert.equal(virtues.length,4);
+ assert.deepEqual(Array.from(virtues,x=>x.name),['Roztropność','Sprawiedliwość','Umiarkowanie','Męstwo']);
+ assert.match(m.ETHICS.principle,/powierzonym mi dobrem/);
+ assert.match(m.ETHICS.purpose,/wybierać dobro/);
+ assert.match(virtues[0].definition,/właściwy sposób jego osiągnięcia/);
+ assert.match(virtues[1].definition,/każdemu to, co mu się należy/);
+ for(const item of ['Bogu','sobie','gościom','ORLENOWI','budynek','przyrodę']){
+   assert.ok(JSON.stringify(virtues[1]).toLowerCase().includes(item.toLowerCase()),item);
+ }
+ assert.match(virtues[2].definition,/panować nad pragnieniami/i);
+ assert.match(virtues[3].definition,/wytrwałość w dążeniu do dobra/i);
+ assert.match(m.ETHICS.decision_test,/Jakie dobro/);
+ assert.match(m.ETHICS.note,/znaczenie moralne/);
+});
+
+test('v1.8.1: moral foundation is exported for a fresh chat without changing user data or research evidence',()=>{
+ const m=kit();
+ const state={projectMemory:{...m.EMPTY_CARD(),overview:'Personal test card'},
+   knowledgeLog:[],decisionLog:[],experiments:[]};
+ const original=JSON.stringify(state);
+ const report=m.augment({readable_summary:'Last period temperatures'},state);
+ assert.equal(JSON.stringify(state),original);
+ assert.equal(report.format_version,2);
+ assert.equal(report.memory_context.supreme_principle.principle,m.ETHICS.principle);
+ assert.equal(report.memory_context.supreme_principle.virtues.length,4);
+ assert.equal(report.memory_context.durable_project_card.overview,'Personal test card');
+ assert.match(report.readable_summary,/ZASADA NACZELNA/);
+ assert.match(report.readable_summary,/SPRAWIEDLIWOŚĆ/);
+ assert.match(m.CHAT_INSTRUCTIONS,/nadrzędną zasadę/i);
+ assert.equal(report.memory_context.established_technical_research.sources.length,9);
+});
