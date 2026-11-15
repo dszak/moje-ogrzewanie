@@ -160,7 +160,7 @@ function renderEngo(){
  output+='<div class="banner info"><span>ℹ️</span><span>Wpisy są prywatne, tylko na tym urządzeniu. To sygnał termostatu, nie pomiar pracy palnika kotła. Godziny zrzutów traktujemy z dokładnością do minuty.</span></div>';
  output+='<section class="card" style="margin-bottom:16px"><h3>Import wielu zdarzeń ENGO</h3>'+
   '<p class="hint">Wklej CSV przygotowany na podstawie dziennika ENGO Smart. Jeden wiersz na zdarzenie: <b>data;godzina;stan</b>. Godziny dotyczą czasu polskiego. Na przykład:</p>'+
-  '<pre class="engo-example">data;godzina;stan\n2026-11-15;17:12;ON\n2026-11-15;17:18;OFF</pre>'+
+  '<pre class="engo-example">data;godzina;stan\n2024-01-01;08:00;ON\n2024-01-01;08:15;OFF</pre>'+
   '<label for="engoBulk">Zdarzenia do importu</label><textarea id="engoBulk" rows="9" placeholder="data;godzina;stan" style="width:100%">'+esc(engoImportDraft)+'</textarea>'+
   '<div class="actions" style="margin-top:12px"><button class="action" data-action="preview-engo">Sprawdź import</button><button class="action ghost" data-action="file-engo">Wczytaj plik CSV</button><button class="action ghost" data-action="clear-engo-import">Wyczyść</button></div></section>';
  if(pendingEngo){
