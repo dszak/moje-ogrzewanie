@@ -19,8 +19,8 @@ const DOORS={
 };
 const DOORSTATUS={unknown:'Nie ustalono',open:'Otwarte',ajar:'Uchylone',closed:'Zamknięte'};
 const RM=Object.fromEntries(ROOMS.map(x=>[x.id,x]));
-const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:'',electric:null},rooms:Object.fromEntries(ROOMS.map(r=>[r.id,{target:r.id==='bedroom'?22:null,readings:[]}])),radiators:Object.fromEntries(Object.keys(RADS).map(k=>[k,null])),doors:Object.fromEntries(Object.keys(DOORS).map(k=>[k,'unknown'])),events:[],experiments:[],conditions:[],gasHistory:[],heatingEvents:[],boilerReadings:[],weather:{hourly:[],updated:null}});
-let historyLimit=120;let editingGas=null;let editingBoiler=null;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
+const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:'',electric:null},rooms:Object.fromEntries(ROOMS.map(r=>[r.id,{target:r.id==='bedroom'?22:null,readings:[]}])),radiators:Object.fromEntries(Object.keys(RADS).map(k=>[k,null])),doors:Object.fromEntries(Object.keys(DOORS).map(k=>[k,'unknown'])),events:[],experiments:[],conditions:[],gasHistory:[],heatingEvents:[],engoCycles:[],boilerReadings:[],weather:{hourly:[],updated:null}});
+let historyLimit=120;let engoLimit=120;let editingGas=null;let editingBoiler=null;let editingEngo=null;let engoImportDraft='';let pendingEngo=null;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
 function load(){return DataStore.load(seed)}
 function save(){DataStore.save(state);const el=document.getElementById('storageAlert');el.hidden=!DataStore.warning;if(DataStore.warning)el.textContent=DataStore.warning}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -35,7 +35,7 @@ function stat(rid){if(!Setti.room(rid)&&Setti.lastRoom(rid))return ['Dane nieakt
 function changeLog(label,detail){state.events.unshift({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),at:now(),label,detail});}
 function toast(msg){let p=document.getElementById('toast');if(!p){p=document.createElement('div');p.id='toast';p.style='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#103f39;color:white;padding:12px 18px;border-radius:12px;box-shadow:0 12px 25px #0003;z-index:99;font-size:13px;max-width:92%;text-align:center';document.body.appendChild(p)}p.textContent=msg;p.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>p.style.display='none',3600)}
 function setPage(p,r){page=p;if(r)currentRoom=r;render();scrollTo({top:0,behavior:'instant'})}
-function renderNav(){let tabs=[['home','Mieszkanie'],['heads','Panel ogrzewania'],['boiler','Kocioł'],['insights','Gaz i pogoda'],['experiments','Eksperymenty'],['history','Historia'],['map','Mapa'],['settings','Ustawienia']];document.getElementById('nav').innerHTML=tabs.map(([id,title])=>`<button data-action="page" data-page="${id}" class="${page===id||id==='home'&&page==='room'?'active':''}" ${page===id?'aria-current="page"':''}>${title}</button>`).join('')}
+function renderNav(){let tabs=[['home','Mieszkanie'],['heads','Panel ogrzewania'],['boiler','Kocioł'],['engo-cycles','Cykle ENGO'],['insights','Gaz i pogoda'],['experiments','Eksperymenty'],['history','Historia'],['map','Mapa'],['settings','Ustawienia']];document.getElementById('nav').innerHTML=tabs.map(([id,title])=>`<button data-action="page" data-page="${id}" class="${page===id||id==='home'&&page==='room'?'active':''}" ${page===id?'aria-current="page"':''}>${title}</button>`).join('')}
 function sec(title,desc,extra=''){return `<div class="section-head"><div><h2>${title}</h2><p>${desc||''}</p></div>${extra}</div>`}
 function settiBanner(){const st=Setti.status();return `<div class="banner ${st.ok?'info':'warn'}"><span>🌡️</span><span><b>Setti+: ${esc(st.label)}</b>${st.at?' · synchronizacja '+day(st.at):''}. Dane tylko do odczytu; brak aktualizacji nie blokuje ręcznego zapisu. <button class="text-link" data-action="refresh-setti">Odśwież pomiary</button></span></div>`}
 
@@ -150,6 +150,60 @@ function renderBoiler(){
  <p class="hint" style="margin-top:15px">W razie resetu lub wymiany elektroniki wartości mogą spaść. Wtedy brak wiarygodnego przyrostu jest oznaczony, a historia pozostaje zachowana. Dane przechowywane są wyłącznie na tym urządzeniu i w Twoim eksporcie JSON.</p>`;
 }
 
+
+function renderEngo(){
+ const entries=state.engoCycles||[],report=EngoCycles.analyze(entries);
+ const recent=entries.slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
+ const editor=editingEngo?entries.find(r=>r.id===editingEngo):null;
+ const latest=report.days[0]||null;
+ let output=sec('Cykle ENGO','Włączenia i wyłączenia zapotrzebowania na ogrzewanie, przepisane ze zrzutów ENGO Smart.');
+ output+='<div class="banner info"><span>ℹ️</span><span>Wpisy są prywatne, tylko na tym urządzeniu. To sygnał termostatu, nie pomiar pracy palnika kotła. Godziny zrzutów traktujemy z dokładnością do minuty.</span></div>';
+ output+='<section class="card" style="margin-bottom:16px"><h3>Import wielu zdarzeń ENGO</h3>'+
+  '<p class="hint">Wklej CSV przygotowany na podstawie dziennika ENGO Smart. Jeden wiersz na zdarzenie: <b>data;godzina;stan</b>. Godziny dotyczą czasu polskiego. Na przykład:</p>'+
+  '<pre class="engo-example">data;godzina;stan\n2026-11-15;17:12;ON\n2026-11-15;17:18;OFF</pre>'+
+  '<label for="engoBulk">Zdarzenia do importu</label><textarea id="engoBulk" rows="9" placeholder="data;godzina;stan" style="width:100%">'+esc(engoImportDraft)+'</textarea>'+
+  '<div class="actions" style="margin-top:12px"><button class="action" data-action="preview-engo">Sprawdź import</button><button class="action ghost" data-action="file-engo">Wczytaj plik CSV</button><button class="action ghost" data-action="clear-engo-import">Wyczyść</button></div></section>';
+ if(pendingEngo){
+  const previewRows=pendingEngo.preview.slice(0,40).map(r=>'<li>'+day(r.at)+' · <strong>'+(r.status==='on'?'WŁĄCZONE':'WYŁĄCZONE')+'</strong></li>').join('');
+  output+='<section class="card engo-preview" style="margin-bottom:16px"><h3>Podgląd przed zapisem</h3>'+
+   '<p><strong>Nowe: '+pendingEngo.added+'</strong> · Pominięte duplikaty: '+pendingEngo.skipped+'</p>'+
+   '<p class="hint">Wszystkie wiersze zostały sprawdzone. Istniejące dane nie zostaną zastąpione. Kolejność zostanie uporządkowana według daty.</p>'+
+   (previewRows?'<ol class="engo-event-list">'+previewRows+'</ol>':'<p class="hint">Brak nowych zdarzeń do dopisania.</p>')+
+   (pendingEngo.added>40?'<p class="hint">Wyświetlono pierwszych 40 nowych zdarzeń.</p>':'')+
+   '<div class="actions"><button class="action" data-action="confirm-engo-import" '+(!pendingEngo.added?'disabled':'')+'>Zatwierdź import</button><button class="action ghost" data-action="cancel-engo-import">Anuluj</button></div></section>';
+ }
+ output+='<section class="card" style="margin-bottom:16px"><h3>Statystyki zapotrzebowania ENGO</h3>'+
+   '<p class="hint">Liczymy tylko pełne pary WŁĄCZONE → WYŁĄCZONE; nie uzupełniamy brakujących zdarzeń przypuszczeniami.</p>';
+ if(latest){
+  const total=latest.minutes;
+  output+='<div class="group-heading"><h4>Ostatni dzień z danymi: '+esc(latest.day)+'</h4></div>'+
+   '<div class="panel-readings"><div><span>Pełne cykle rozpoczęte tego dnia</span><strong>'+latest.count+'</strong></div>'+
+   '<div><span>Łączny czas</span><strong>'+fmt(total,0)+' min</strong></div>'+
+   '<div><span>Średni cykl</span><strong>'+fmt(latest.avg,1)+' min</strong></div>'+
+   '<div><span>Udział w obserwowanym przedziale</span><strong>'+(latest.ratio===null?'—':fmt(latest.ratio,1)+'%')+'</strong></div></div>'+
+   '<p class="hint">Procent liczony od pierwszego do ostatniego zdarzenia danego dnia, a nie od całych 24 godzin. Przy cyklach przekraczających północ nie obliczamy tego procentu.</p>';
+ }else output+='<p class="hint">Statystyki pojawią się po imporcie pierwszej pary zdarzeń.</p>';
+ if(report.incomplete)output+='<div class="banner warn">Uwaga: '+report.incomplete+' zdarzeń lub par jest niekompletnych. Sprawdź, czy nie brakuje włączenia albo wyłączenia; te odcinki nie są doliczane do czasu.</div>';
+ if(report.days.length)output+='<div class="engo-days">'+report.days.slice(0,14).map(d=>
+  '<div class="engo-day"><b>'+esc(d.day)+'</b><span>'+d.count+' cykli · '+fmt(d.minutes,0)+' min'+(d.ratio===null?'':' · '+fmt(d.ratio,1)+'% obserwacji')+'</span></div>').join('')+'</div>';
+ output+='</section>';
+ if(editor){
+  output+='<section class="card gas-edit" style="margin-bottom:16px"><h3>Popraw zdarzenie ENGO</h3><div class="form-grid">'+
+   '<div><label for="engoEditAt">Data i godzina</label><input id="engoEditAt" type="datetime-local" value="'+dateLocal(Date.parse(editor.at))+'"></div>'+
+   '<div><label for="engoEditStatus">Stan</label><select id="engoEditStatus"><option value="on" '+(editor.status==='on'?'selected':'')+'>Włączone</option><option value="off" '+(editor.status==='off'?'selected':'')+'>Wyłączone</option></select></div></div>'+
+   '<div class="actions"><button class="action" data-action="save-engo-edit">Zapisz poprawkę</button><button class="action ghost" data-action="cancel-engo-edit">Anuluj</button></div></section>';
+ }
+ output+='<section class="card"><h3>Historia zdarzeń ('+entries.length+')</h3>'+
+  (recent.length?recent.slice(0,engoLimit).map(r=>
+   '<div class="engo-history-item"><div><b>'+day(r.at)+'</b><div class="small muted">'+(r.status==='on'?'Ogrzewanie WŁĄCZONE':'Ogrzewanie WYŁĄCZONE')+' · wpis z ENGO Smart</div></div>'+
+   '<div class="gas-actions"><button class="action ghost" data-action="edit-engo" data-id="'+esc(r.id)+'">Edytuj</button>'+
+   '<button class="action danger" data-action="delete-engo" data-id="'+esc(r.id)+'">Usuń</button></div></div>').join('')+
+    (recent.length>engoLimit?'<button class="action ghost" data-action="more-engo">Pokaż starsze</button>':''):
+   '<p class="hint">Nie zaimportowano jeszcze cykli. Wklej CSV, aby rozpocząć historię.</p>')+
+   '</section>';
+ return output;
+}
+
 function renderInsights(){
  const w=state.weather||{hourly:[],updated:null},records=Insights.readings(state),rows=Insights.intervals(state),daily=Insights.dailyComparisons(state),events=(state.heatingEvents||[]).slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
  const fdate=at=>new Date(at).toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -201,11 +255,60 @@ function renderExperiments(){let active=state.experiments.find(x=>x.status==='ac
 function renderHistory(){let ev=state.events.slice(0,historyLimit);return `${sec('Historia zmian','Wszystkie zapisane nastawy i pomiary — żebyś wiedział, co naprawdę zmieniono.') }<div class="actions" style="margin-bottom:17px"><button class="action light" data-action="export-json">Eksportuj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button></div><section class="card"><div class="group-heading"><h3>Dziennik</h3><span class="pill">${state.events.length} wpisów</span></div>${ev.length?`<div class="timeline">${ev.map(x=>`<div class="event"><span class="event-marker"></span><div><strong>${esc(x.label)}</strong><div class="muted small">${esc(x.detail)}</div><small>${day(x.at)}</small></div></div>`).join('')}</div>${state.events.length>historyLimit?'<button class="action ghost" data-action="more-history">Pokaż starsze wpisy</button>':''}`:'<div class="empty">Historia będzie się uzupełniać przy zapisywaniu celów, głowic, drzwi i pomiarów.</div>'}</section>`}
 function renderMap(){return `${sec('Mapa mieszkania','Prywatny plan przechowywany wyłącznie na tym urządzeniu.')}<div class="banner info">Publiczna aplikacja nie zawiera planu, wymiarów ani adresu. Możesz wczytać własną mapę SVG, PNG lub JPEG. Trafi tylko do lokalnego zapisu i Twojej kopii JSON.</div><section class="card">${state.privateMap?`<img class="map" alt="Twoja prywatna mapa" src="${esc(state.privateMap)}">`:'<div class="empty">Nie wczytano prywatnej mapy.</div>'}<div class="actions" style="margin-top:15px"><button class="action ghost" data-action="map-import">Wczytaj prywatną mapę</button>${state.privateMap?'<button class="action ghost" data-action="map-download">Pobierz mapę</button>':''}</div></section>`}
 function renderSettings(){let g=state.global;return `${sec('Ustawienia wspólne','Zadane temperatury kotła i ENGO mają wpływ na całe mieszkanie.')}<div class="grid cols2"><section class="card"><h3>BRÖTJE · kocioł</h3><p class="subtitle" style="margin-bottom:15px">Zadana temperatura wody na zasilaniu. Odczyt bieżący na wyświetlaczu może być inny.</p><label for="boilerSet">Temperatura zadana kotła (°C)</label>${tempInput('boilerSet',g.boiler,25,85,1)}<p class="hint">Wartość początkowa: 55°C. Wpisz faktyczną nastawę.</p><div class="actions" style="margin-top:14px"><button class="action" data-action="set-boiler">Zapisz nastawę kotła</button></div></section><section class="card"><h3>ENGO Smart · sypialnia</h3><p class="subtitle" style="margin-bottom:15px">Termostat wyznacza zapotrzebowanie na ogrzewanie dla całego mieszkania.</p><div class="form-grid"><div><label for="engoSet">Temperatura zadana (°C)</label>${tempInput('engoSet',g.engo,10,30,'.5')}</div><div><label for="engoCurrent">Aktualny odczyt ENGO (°C)</label>${tempInput('engoCurrent',g.engoCurrent,0,45,'.1')}</div><div class="wide"><label for="engoPlace">Położenie termostatu</label><input id="engoPlace" value="${esc(g.engoPlace)}" maxlength="220"></div></div><div class="actions" style="margin-top:14px"><button class="action" data-action="set-engo">Zapisz ustawienia ENGO</button></div><p class="hint">Po przeniesieniu termostatu wpisz nowe miejsce. Aplikacja zachowa zmianę w dzienniku.</p></section></div><section class="card" style="margin-top:16px"><div class="group-heading"><h3>Twoje dane i kopie zapasowe</h3><span class="pill">bez konta</span></div><p class="muted" style="font-size:13px;margin-bottom:17px">Dane są przechowywane lokalnie w tej przeglądarce na tym urządzeniu. Aktualizacja pod tym samym adresem zachowuje dane. Wyczyszczenie Safari, usunięcie aplikacji lub zmiana urządzenia mogą je usunąć. Regularnie zapisuj JSON w Plikach / iCloud. Przenosząc dane ze starej wersji lub między Safari a aplikacją z ekranu początkowego, użyj eksportu i importu JSON.</p><div class="actions filecontrols"><button class="action light" data-action="export-json">Pobierz kopię JSON</button><button class="action ghost" data-action="import-json">Wczytaj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button><button class="action ghost" data-action="recover">Przywróć poprzedni zapis</button><button class="action ghost" data-action="persist">Chroń zapis na urządzeniu</button><button class="action danger" data-action="reset">Wyczyść dane</button></div><div class="hr"></div><p class="footer-note">Aplikacja odczytuje publiczny plik z pomiarami Setti+, ale nie łączy się bezpośrednio z urządzeniami ani nie wysyła poleceń. Gdy pomiary są nieaktualne, możesz je nadal wpisać ręcznie.</p></section>`}
-function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='boiler'?renderBoiler():page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.4.2 · Twoje wpisy tylko na tym urządzeniu</div>`}
+function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='boiler'?renderBoiler():page==='engo-cycles'?renderEngo():page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.5.0 · Twoje wpisy tylko na tym urządzeniu</div>`}
 function numInput(id,min,max,allowEmpty=true){let e=document.getElementById(id);if(!e)return {ok:false};let raw=e.value.trim().replace(',','.');if(raw===''&&allowEmpty)return{ok:true,value:null};let v=Number(raw);if(raw===''||!Number.isFinite(v)||v<min||v>max){toast(`Sprawdź pole: ${id}. Dozwolony zakres ${min}–${max}.`);e.focus();return{ok:false}}return{ok:true,value:v}}
 function changed(a,b){return a!==b}
 function handleClick(e){let btn=e.target.closest('[data-action]');if(!btn)return;let ac=btn.dataset.action;
 if(ac==='page')return setPage(btn.dataset.page);
+
+if(ac==='file-engo')return document.getElementById('engoFile').click();
+if(ac==='clear-engo-import'){engoImportDraft='';pendingEngo=null;return render()}
+if(ac==='cancel-engo-import'){pendingEngo=null;return render()}
+if(ac==='preview-engo'){
+ engoImportDraft=document.getElementById('engoBulk').value;
+ try{pendingEngo=EngoCycles.parse(engoImportDraft,state.engoCycles||[])}
+ catch(error){pendingEngo=null;return toast(error.message)}
+ return render();
+}
+if(ac==='confirm-engo-import'){
+ if(!pendingEngo)return toast('Najpierw sprawdź import.');
+ const parsed=EngoCycles.parse(engoImportDraft,state.engoCycles||[]);
+ if(!parsed.added)return toast('Wszystkie zdarzenia już istnieją.');
+ if(!confirm('Dopisać '+parsed.added+' zdarzeń ENGO? Pominięte duplikaty: '+parsed.skipped+'.'))return;
+ state.engoCycles=parsed.rows;
+ changeLog('Import cykli ENGO','Dodano '+parsed.added+' zdarzeń (pominięto '+parsed.skipped+' duplikatów).');
+ save();pendingEngo=null;engoImportDraft='';toast('Dopisano '+parsed.added+' zdarzeń ENGO.');return render();
+}
+if(ac==='edit-engo'){
+ const id=btn.dataset.id;if(!(state.engoCycles||[]).some(r=>r.id===id))return toast('Nie znaleziono zdarzenia.');
+ editingEngo=id;return render();
+}
+if(ac==='cancel-engo-edit'){editingEngo=null;return render()}
+if(ac==='save-engo-edit'){
+ const id=editingEngo,old=(state.engoCycles||[]).find(r=>r.id===id);
+ if(!old)return toast('Nie znaleziono zdarzenia.');
+ const at=new Date(document.getElementById('engoEditAt').value),status=document.getElementById('engoEditStatus').value;
+ if(!Number.isFinite(at.valueOf())||at.valueOf()>Date.now()+86400000||!['on','off'].includes(status))return toast('Wpisz prawidłowe zdarzenie.');
+ const minute=Math.floor(at.valueOf()/60000);
+ if(state.engoCycles.some(r=>r.id!==id&&Math.floor(Date.parse(r.at)/60000)===minute))return toast('Zdarzenie w tej minucie już istnieje.');
+ if(old.at===at.toISOString()&&old.status===status){editingEngo=null;return render()}
+ if(!confirm('Poprawić zdarzenie ENGO: '+day(old.at)+' → '+day(at.toISOString())+'?'))return;
+ const index=state.engoCycles.findIndex(r=>r.id===id);
+ state.engoCycles[index]={...old,at:at.toISOString(),status};
+ changeLog('Poprawiono cykl ENGO',day(old.at)+' → '+day(at.toISOString())+' · '+status.toUpperCase());
+ save();editingEngo=null;toast('Zapisano poprawkę ENGO.');return render();
+}
+if(ac==='delete-engo'){
+ const id=btn.dataset.id,index=(state.engoCycles||[]).findIndex(r=>r.id===id);
+ if(index<0)return toast('Nie znaleziono zdarzenia.');
+ const row=state.engoCycles[index];
+ if(!confirm('Usunąć zdarzenie '+day(row.at)+' ('+row.status.toUpperCase()+')? Może to zmienić statystyki cykli.'))return;
+ state.engoCycles.splice(index,1);
+ changeLog('Usunięto cykl ENGO',day(row.at)+' · '+row.status.toUpperCase());
+ save();editingEngo=null;toast('Usunięto zdarzenie ENGO.');return render();
+}
+if(ac==='more-engo'){engoLimit+=120;return render()}
+
 if(ac==='edit-boiler'){
  const id=btn.dataset.id;if(!(state.boilerReadings||[]).some(x=>x.id===id))return toast('Nie odnaleziono odczytu.');
  editingBoiler=id;return setPage('boiler');
@@ -326,6 +429,18 @@ function exportCsv(){let out=[['data','pomieszczenie','czujnik','temperatura_C',
 function guarded(fn){return (...args)=>{try{return fn(...args)}catch(error){state=DataStore.current(seed);document.getElementById('storageAlert').hidden=false;document.getElementById('storageAlert').textContent=error.message;toast(error.message)}}}
 document.addEventListener('click',guarded(handleClick));
 document.addEventListener('change',guarded(e=>{let el=e.target;if(el.dataset.change==='door'){let id=el.dataset.id,old=state.doors[id];if(old!==el.value){state.doors[id]=el.value;changeLog('Drzwi: '+DOORS[id].name,`${DOORSTATUS[old]} → ${DOORSTATUS[el.value]}`);save();toast('Zapisano położenie drzwi.') }}if(el.dataset.change==='electric'){let old=state.global.electric;let next=el.value||null;state.global.electric=next;if(old!==next){changeLog('Grzejnik elektryczny GE1',`${old||'nie zapisano'} → ${next||'nie zapisano'}`);save();toast('Zapisano stan konwektora.')}}}));
+
+document.getElementById('engoFile').addEventListener('change',async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{
+  if(file.size>90000)throw Error('Plik ENGO jest za duży (maksymalnie 90 KB).');
+  const raw=await file.text();
+  const parsed=EngoCycles.parse(raw,state.engoCycles||[]);
+  engoImportDraft=raw;pendingEngo=parsed;setPage('engo-cycles');
+ }catch(error){alert('Nie udało się odczytać pliku ENGO: '+error.message)}
+ finally{e.target.value=''}
+});
+
 document.getElementById('importFile').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('Kopia jest za duża (limit 20 MB).');let p=DataStore.validate(JSON.parse(await f.text()));if(confirm('Wczytać kopię i zastąpić bieżące dane? Poprzedni poprawny zapis pozostanie lokalną kopią odzyskiwania.')){DataStore.replace(p);state=p;setPage('home');document.getElementById('storageAlert').hidden=true;toast('Wczytano kopię JSON.')}}catch(ex){alert('Nie udało się wczytać kopii: '+ex.message)}finally{e.target.value=''}});
 document.getElementById('mapFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>2*1024*1024)throw Error('Mapa może mieć najwyżej 2 MB.');const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(f)});const next=DataStore.validate({...state,privateMap:data});DataStore.save(next);state=next;render();toast('Prywatna mapa zapisana lokalnie.')}catch(ex){alert('Nie udało się zapisać mapy: '+ex.message)}finally{e.target.value=''}});
 async function syncSetti(force=false){
