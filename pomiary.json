@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "last_sync": "2026-11-15T01:02:39+00:00",
+  "last_sync": "2026-11-15T01:12:40+00:00",
   "rooms": {
     "bedroom": {
-      "temperature": 21.7,
+      "temperature": 21.8,
       "humidity": 48.0
     },
     "salon": {
-      "temperature": 21.5,
+      "temperature": 21.6,
       "humidity": 52.0
     },
     "kitchen": {
@@ -16,7 +16,7 @@
     },
     "bigbath": {
       "temperature": 21.8,
-      "humidity": 69.0
+      "humidity": 70.0
     },
     "smallbath": {
       "temperature": 20.7,
