@@ -137,9 +137,9 @@ function renderBoiler(){
  <section class="card" style="margin-bottom:16px"><h3>\${changeTitle}</h3><p class="subtitle">Wpisz trzy wartości z menu liczników. Data i godzina powinny odpowiadać chwili zdjęcia. Nie resetuj liczników na kotle.</p>
  <div class="form-grid" style="margin-top:15px">
    <div class="wide"><label for="boilerAt">Data i godzina zdjęcia</label><input type="datetime-local" id="boilerAt" value="\${changing?dateLocal(Date.parse(changing.at)):dateLocal(Date.now())}"></div>
-   <div><label for="boilerAc001">AC001 · godziny zasilania</label><input type="number" id="boilerAc001" inputmode="numeric" min="0" max="100000000" step="1" value="\${v('ac001')}" placeholder="np. 18981"></div>
-   <div><label for="boilerAc005">AC005 · centralne ogrzewanie</label><input type="number" id="boilerAc005" inputmode="numeric" min="0" max="100000000" step="1" value="\${v('ac005')}" placeholder="np. 35312"></div>
-   <div><label for="boilerAc006">AC006 · ciepła woda</label><input type="number" id="boilerAc006" inputmode="numeric" min="0" max="100000000" step="1" value="\${v('ac006')}" placeholder="np. 1680"></div>
+   <div><label for="boilerAc001">AC001 · godziny zasilania</label><input type="number" id="boilerAc001" inputmode="numeric" min="0" max="100000000" step="1" value="\${v('ac001')}" placeholder="np. 10000"></div>
+   <div><label for="boilerAc005">AC005 · centralne ogrzewanie</label><input type="number" id="boilerAc005" inputmode="numeric" min="0" max="100000000" step="1" value="\${v('ac005')}" placeholder="np. 30000"></div>
+   <div><label for="boilerAc006">AC006 · ciepła woda</label><input type="number" id="boilerAc006" inputmode="numeric" min="0" max="100000000" step="1" value="\${v('ac006')}" placeholder="np. 1500"></div>
    <div class="wide"><label for="boilerNote">Komentarz · opcjonalnie</label><input id="boilerNote" maxlength="200" value="\${changing?esc(changing.note):''}" placeholder="np. odczyt podczas tygodniowej kontroli"></div>
  </div>
  <div class="actions" style="margin-top:12px"><button class="action" data-action="save-boiler">\${changing?'Zapisz poprawkę':'Zapisz odczyt'}</button>
@@ -206,6 +206,41 @@ function numInput(id,min,max,allowEmpty=true){let e=document.getElementById(id);
 function changed(a,b){return a!==b}
 function handleClick(e){let btn=e.target.closest('[data-action]');if(!btn)return;let ac=btn.dataset.action;
 if(ac==='page')return setPage(btn.dataset.page);
+if(ac==='edit-boiler'){
+ const id=btn.dataset.id;if(!(state.boilerReadings||[]).some(x=>x.id===id))return toast('Nie odnaleziono odczytu.');
+ editingBoiler=id;return setPage('boiler');
+}
+if(ac==='cancel-boiler'){editingBoiler=null;return render()}
+if(ac==='delete-boiler'){
+ const id=btn.dataset.id,index=(state.boilerReadings||[]).findIndex(x=>x.id===id);
+ if(index<0)return toast('Nie odnaleziono odczytu.');
+ const r=state.boilerReadings[index];
+ if(!confirm('Usunąć odczyt liczników BRÖTJE z '+day(r.at)+'? Zniknie z porównań.'))return;
+ state.boilerReadings.splice(index,1);
+ changeLog('Usunięto odczyt BRÖTJE',day(r.at)+' · AC001 '+r.ac001+' · AC005 '+r.ac005+' · AC006 '+r.ac006);
+ editingBoiler=null;save();toast('Usunięto odczyt liczników.');return render();
+}
+if(ac==='save-boiler'){
+ const inputs=['boilerAc001','boilerAc005','boilerAc006'].map(id=>numInput(id,0,100000000,false));
+ if(inputs.some(x=>!x.ok))return;
+ const vals=inputs.map(x=>x.value);
+ if(vals.some(x=>!Number.isSafeInteger(x)))return toast('W licznikach wpisz pełne liczby całkowite.');
+ const d=document.getElementById('boilerAt').value,at=new Date(d);
+ if(!Number.isFinite(at.valueOf())||at.valueOf()>Date.now()+3600000)return toast('Wpisz poprawną datę i godzinę zdjęcia.');
+ const note=document.getElementById('boilerNote').value.trim().slice(0,200);
+ const existing=editingBoiler?(state.boilerReadings||[]).find(x=>x.id===editingBoiler):null;
+ if(editingBoiler&&!existing)return toast('Nie odnaleziono edytowanego odczytu.');
+ if((state.boilerReadings||[]).some(x=>x.id!==editingBoiler&&Math.abs(Date.parse(x.at)-at.valueOf())<60000))
+   return toast('Odczyt z tej samej minuty już istnieje. Popraw go zamiast dodawać duplikat.');
+ const [ac001,ac005,ac006]=vals;
+ if(existing&&existing.at===at.toISOString()&&existing.ac001===ac001&&existing.ac005===ac005&&existing.ac006===ac006&&existing.note===note){editingBoiler=null;return render()}
+ if(!confirm((existing?'Poprawić':'Zapisać')+' liczniki BRÖTJE z '+day(at.toISOString())+'? AC001: '+ac001+', AC005: '+ac005+', AC006: '+ac006+'.'))return;
+ const row={id:existing?.id||'b-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),at:at.toISOString(),ac001,ac005,ac006,note};
+ if(existing){const idx=state.boilerReadings.findIndex(x=>x.id===existing.id);state.boilerReadings[idx]=row;}
+ else state.boilerReadings.push(row);
+ changeLog(existing?'Poprawiono liczniki BRÖTJE':'Odczyt liczników BRÖTJE',day(row.at)+' · AC001 '+ac001+' · AC005 '+ac005+' · AC006 '+ac006);
+ editingBoiler=null;save();toast('Zapisano liczniki BRÖTJE.');return render();
+}
 if(ac==='edit-gas'){
  const kind=btn.dataset.kind,index=Number(btn.dataset.index),list=kind==='condition'?state.conditions:kind==='history'?state.gasHistory:null;
  if(!list||!Number.isSafeInteger(index)||index<0||!list[index])return;
