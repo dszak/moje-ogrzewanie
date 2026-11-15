@@ -1,0 +1,88 @@
+'use strict';
+// Carefully selected, public technical references, NOT household measurements.
+// Re-verify linked material if advice, models or standards change.
+const HeatingResearch=(()=>{
+  const VERIFIED='2026-11-15';
+  const SOURCES=[
+    {id:'qwhc',topic:'Kocioł BRÖTJE',level:'Producent / dane techniczne',
+      title:'BRÖTJE QWHC 20/24 — karta produktu',url:'https://www.broetje.pl/produkty/kotly-kondensacyjne/qwhc-20-30/',
+      finding:'QWHC 20/24 jest kondensacyjnym kotłem dwufunkcyjnym; podawana moc ogrzewania 20 kW. Woda użytkowa jest podgrzewana przepływowo.',
+      meaning:'Rozróżniaj nastawę c.o. i c.w.u. oraz sprawdzaj możliwości i ograniczenia urządzenia w oryginalnej dokumentacji.',
+      limit:'Dane katalogowe nie pozwalają wyznaczyć rzeczywistej sprawności ani strat budynku.'},
+    {id:'engo',topic:'Sterownik ENGO E901WiFi',level:'Producent / karta produktu',
+      title:'ENGO E901-WIFI — dokumentacja regulatora',url:'https://engocontrols.com/produkt/e901-wifi/',
+      finding:'Regulator obsługuje sterowanie TPI lub histerezą, a odbiornik ma wyjście przekaźnikowe NO/COM.',
+      meaning:'Zdarzenia żądania grzania nie oznaczają automatycznie ciągłej pracy palnika; znaczenie cykli zależy także od ustawionego algorytmu.',
+      limit:'Nie znamy nastaw konkretnego egzemplarza ani dokładnej konfiguracji kotła, dopóki ich nie sprawdzimy.'},
+    {id:'nesta',topic:'Obniżanie temperatury zasilania',level:'Badanie randomizowane / terenowe',
+      title:'Nesta (2023) — wpływ optymalizacji temperatury zasilania na gaz i komfort',
+      url:'https://www.nesta.org.uk/report/the-impact-of-boiler-optimisation-on-gas-consumption-and-household-comfort/',
+      finding:'W próbie obejmującej 61 tys. użytkowników zalecenia zmieniane sezonowo przyniosły niewielki, statystycznie istotny spadek zużycia gazu bez wykazanego wzrostu zgłaszanego dyskomfortu.',
+      meaning:'Warto rozważać temperaturę zasilania zależnie od pogody, zamiast szukać jednej magicznej temperatury na cały sezon.',
+      limit:'Nie wolno przenosić procentów oszczędności ani porównania 80→60°C na instalację już pracującą przy 55°C.'},
+    {id:'est',topic:'Kocioł kondensacyjny — temperatura zasilania',level:'Poradnik organizacji energetycznej',
+      title:'Energy Saving Trust — Should I turn my boiler flow temperature down?',
+      url:'https://energysavingtrust.org.uk/should-i-turn-boilers-flow-temperature-down/',
+      finding:'Niższa temperatura powrotu może sprzyjać kondensacji, ale zbyt chłodne grzejniki mogą nie zapewnić komfortu, zwłaszcza w chłodniejszej pogodzie.',
+      meaning:'Eksperyment z obniżeniem zasilania musi mierzyć komfort wszystkich pokoi, prędkość nagrzewania i gaz.',
+      limit:'Porady dotyczą przede wszystkim kotłów dwufunkcyjnych; c.w.u. i ograniczenia urządzenia pozostają oddzielną kwestią.'},
+    {id:'radiators',topic:'Grzejniki — moc i temperatura',level:'Wiedza inżynierska / CIBSE',
+      title:'CIBSE Journal (2022) — radiator output and heating water temperatures',
+      url:'https://portfolio.cpl.co.uk/CIBSE/202204/48/',
+      finding:'Moc grzejnika zależy od temperatury zasilania, powrotu i powietrza w pomieszczeniu oraz współczynnika konkretnego grzejnika.',
+      meaning:'Sprawdź, czy w każdym pomieszczeniu rzeczywista moc emitera jest dostateczna przy niższej temperaturze zasilania.',
+      limit:'Same wymiary grzejnika bez typu/modelu i temperatur powrotu nie wystarczą do rzetelnego obliczenia mocy.'},
+    {id:'trvs',topic:'Termostat a głowice',level:'Poradnik konsumencki / ogrzewnictwo',
+      title:'Citizens Advice — Save money heating your home',
+      url:'https://www.citizensadvice.org.uk/consumer/energy/energy-supply/save-energy-at-home/heat-your-home-efficiently/',
+      finding:'Jeżeli głowica w pomieszczeniu termostatu odetnie grzejnik przed osiągnięciem nastawy pokojowej, ogrzewanie może pozostawać w zapotrzebowaniu zbyt długo.',
+      meaning:'Zanim zmienimy nastawy kotła, sprawdź koordynację ENGO i głowic oraz temperatur w pozostałych pokojach.',
+      limit:'Nie reguluj hydrauliki, zaworów i zabezpieczeń bez sprawdzenia instalacji lub pomocy instalatora.'},
+    {id:'ashrae',topic:'Zużycie gazu a pogoda',level:'Metodyka inżynierska / ASHRAE',
+      title:'ASHRAE Handbook — Energy Use and Management',
+      url:'https://handbook.ashrae.org/Handbooks/A15/SI/A15_CH36/a15_ch36_si.aspx',
+      finding:'Stopniodni grzania i modele regresyjne są stosowane do porównywania zużycia energii po uwzględnieniu zmian pogody i okresu rozliczenia.',
+      meaning:'Porównuj m³/dobę przy podobnym stopniodniu lub użyj regresji po zebraniu dostatecznej liczby dni.',
+      limit:'Temperatura bazowa stopniodni jest parametrem modelu, nie musi być równa docelowej temperaturze w sypialni. Gaz obejmuje również CWU.'},
+    {id:'en12831',topic:'Obciążenie cieplne pomieszczeń',level:'Norma — opis zakresu',
+      title:'PN-EN 12831-1:2017-08 — projektowe obciążenie cieplne',
+      url:'https://sklep.pkn.pl/pn-en-12831-1-2017-08e.html',
+      finding:'Norma opisuje wyznaczanie projektowej mocy cieplnej potrzebnej do utrzymania temperatury w budynkach i poszczególnych pomieszczeniach.',
+      meaning:'Przy powtarzalnym niedogrzaniu rozważ rzetelny bilans strat przez przegrody i wentylację oraz dobór grzejników.',
+      limit:'Sam opis normy nie jest pełną metodyką obliczeń; dokładny audyt wymaga wiedzy o przegrodach i wentylacji.'},
+    {id:'attic',topic:'Izolacja stropu',level:'Poradnik organizacji energetycznej',
+      title:'Energy Saving Trust — How to insulate a loft',
+      url:'https://energysavingtrust.org.uk/how-to-insulate-a-loft',
+      finding:'Ocieplenie stropu pod nieogrzewanym strychem może wyraźnie zmniejszyć straty ciepła.',
+      meaning:'Jeśli pomieszczenia pod strychem zachowują się inaczej, analizuj warunki ocieplenia zamiast wyłącznie zwiększać grzanie.',
+      limit:'Statystyk dla nieocieplonego domu nie wolno automatycznie przenosić na ten lokal; potrzebna znajomość stanu przegród.'}
+  ];
+  const TOPICS=[
+    {id:'baseline',title:'Najpierw wiarygodny punkt odniesienia',
+      why:'Rozdzielić wpływ pogody, ciepłej wody, cykli ENGO i rzeczywistego komfortu przed oceną kosztów.',
+      method:'Przez kilkanaście dni gromadzić odczyty gazomierza o podobnej godzinie, dane pogodowe, kompletność temperatur, nastawy i dodatkowe ogrzewanie.',
+      success:'Wystarczająca seria pełnych, porównywalnych okresów; liczba dni i niepewność podane w raporcie.',
+      evidence:['ashrae','nesta']},
+    {id:'coordination',title:'Termostat ENGO a osiem głowic',
+      why:'Ograniczenia przepływu w pokoju termostatu lub niedogrzanie innych pomieszczeń mogą zdominować pracę instalacji.',
+      method:'Obserwować temperatury w każdym pokoju, nastawy głowic, ich odczyty oraz zapotrzebowanie ENGO; weryfikować tryb TPI/histereza bez nieautoryzowanych zmian instalacji.',
+      success:'Wiadomo, czy pokój termostatu zgłasza koniec grzania przed pokojami chłodniejszymi, albo czy głowice ograniczają osiągnięcie celu.',
+      evidence:['engo','trvs']},
+    {id:'flow',title:'Zasilanie kotła — najniższe wystarczające',
+      why:'Kondensacja bywa korzystniejsza przy niższym powrocie, ale oddawanie mocy przez grzejniki również maleje.',
+      method:'Dopiero po ustaleniu bazy, sprawdzić jeden niższy wariant temperatury c.o. przy podobnej pogodzie, z kontrolą komfortu i warunkiem przerwania przy niedogrzaniu.',
+      success:'Rzetelne porównanie kosztu i komfortu, bez przenoszenia cudzych procentów oszczędności.',
+      evidence:['qwhc','nesta','est','radiators']},
+    {id:'thermal',title:'Tempo wychładzania i izolacja stropu',
+      why:'Różnice w zachowaniu pomieszczeń mogą wynikać z przegród, wentylacji, rozmieszczenia czujników i lokalnych źródeł ciepła.',
+      method:'Porównywać tylko jednoznaczne okresy bez zapotrzebowania, bez dodatkowego dogrzewania i ze znanymi warunkami zewnętrznymi.',
+      success:'Wskazane pomieszczenia wymagające dalszej diagnozy; bez mylenia wskazań zmiennych czujników z ciągłym pomiarem.',
+      evidence:['attic','en12831']}
+  ];
+  function exportContext(){
+    return {curated_on:VERIFIED,classification:'WIEDZA ZEWNĘTRZNA — NIE WYNIK POMIARÓW LOKALU',
+      sources:SOURCES.map(x=>({...x})),potential_diagnostic_tracks:TOPICS.map(x=>({...x})),
+      instruction:'Literatura daje wstępne hipotezy i ograniczenia, nie stanowi dowodu oszczędności w konkretnym mieszkaniu. Wybierz eksperyment na podstawie problemu, jakości danych i zapisanej historii; unikaj ponawiania nieskutecznych prób. Sprawdzaj źródła i aktualizacje przed decyzją.'};
+  }
+  return {SOURCES,TOPICS,VERIFIED,exportContext};
+})();
