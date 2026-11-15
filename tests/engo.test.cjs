@@ -26,6 +26,7 @@ test('ENGO screenshot CSV creates five cycles totalling 73 minutes',()=>{
  assert.equal(res.added,10);
  assert.equal(res.skipped,0);
  assert.equal(res.rows.length,10);
+ assert.equal(res.rows[0].at,'2024-11-15T16:12:00.000Z'); // 17:12 CET
  const a=engine.analyze(res.rows);
  assert.equal(a.pairs.length,5);
  assert.equal(a.totalMinutes,73);
@@ -54,6 +55,8 @@ test('import rejects corrupt rows and conflicting same-minute events',()=>{
   '2024-01-01;08:00',
   '2024-01-01;08:00;ON\nbad',
   '3000-01-01;08:00;ON',
+  '2024-03-31;02:30;ON', // nonexistent hour in Warsaw
+  '2024-10-27;02:30;ON', // repeated hour: cannot infer offset
  ])assert.throws(()=>engine.parse(input),/Wiersz/);
  assert.throws(()=>engine.parse('2024-01-01;08:00;OFF',single.rows),/sprzeczne/);
  assert.equal(single.rows.length,1);
