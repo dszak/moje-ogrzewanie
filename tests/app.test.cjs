@@ -433,3 +433,39 @@ test('ENGO entries remain optional for older v1 data and reject invalid history'
  assert.throws(()=>b.run("{const p=seed();p.engoCycles.push({id:'bad',at:'2024-11-15T16:12:00.000Z',status:'other',source:'import'});DataStore.validate(p)}"));
  assert.throws(()=>b.run("{const p=seed();p.engoCycles.push({id:'a',at:'2024-11-15T16:12:00.000Z',status:'on',source:'import'},{id:'b',at:'2024-11-15T16:12:05.000Z',status:'off',source:'import'});DataStore.validate(p)}"));
 });
+
+
+test('HA temperature CSV previews, saves without replacing ENGO or gas, supports repeated imports',()=>{
+ const b=boot();const click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ const csv='entity_id,state,last_changed\n'+
+ 'sensor.setti_ss302_sypialnia_setti_sypialnia_temperatura_mqtt,21.5,2024-11-15T16:10:00.000Z\n'+
+ 'sensor.setti_ss302_salon_setti_salon_temperatura_mqtt,21.7,2024-11-15T16:15:00.000Z\n'+
+ 'sensor.setti_ss302_sypialnia_setti_sypialnia_temperatura_mqtt,21.6,2024-11-15T16:20:00.000Z';
+ b.run("state.engoCycles=EngoCycles.parse('2024-11-15;17:12;ON\\n2024-11-15;17:18;OFF').rows;state.gasHistory.push({id:'test',at:'2024-11-15T16:00:00.000Z',gas:700,meter:'new',source:'manual'});save();setPage('temperatures')");
+ b.element('tempBulk').value=csv;click('temp-preview');
+ assert.match(b.element('view').innerHTML,/Nowe wpisy/);
+ assert.equal(b.run('state.temperatureHistory.length'),0,'preview is read-only');
+ click('temp-confirm');
+ assert.equal(b.run('state.temperatureHistory.length'),3);
+ assert.equal(b.run('state.engoCycles.length'),2);
+ assert.equal(b.run('state.gasHistory.length'),1);
+ const again=boot(Object.fromEntries(b.data));
+ assert.equal(again.run('state.temperatureHistory.length'),3);
+ assert.equal(again.run('state.engoCycles.length'),2);
+ again.run("setPage('temperatures')");
+ assert.match(again.element('view').innerHTML,/temp-chart/);
+ again.element('tempBulk').value=csv;
+ again.listeners.click({target:{closest:()=>({dataset:{action:'temp-preview'}})}});
+ assert.match(again.element('view').innerHTML,/Duplikaty/);
+ assert.equal(again.run('tempPreview.added'),0);
+});
+
+test('temperature history is optional for old backups, validated on new writes, and removable by day',()=>{
+ const b=boot();const click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ assert.equal(b.run('{const p=seed();delete p.temperatureHistory;DataStore.validate(p).temperatureHistory.length}'),0);
+ assert.throws(()=>b.run("{const p=seed();p.temperatureHistory.push({room:'other',at:'2024-11-15T10:00:00.000Z',temp:23});DataStore.validate(p)}"));
+ assert.throws(()=>b.run("{const p=seed();p.temperatureHistory.push({room:'salon',at:'2024-11-15T10:00:00.000Z',temp:23},{room:'salon',at:'2024-11-15T10:00:00.000Z',temp:23});DataStore.validate(p)}"));
+ b.run("state.temperatureHistory.push({room:'salon',at:'2024-11-15T10:00:00.000Z',temp:23});save();setPage('temperatures')");
+ click('temp-delete-day',{day:'2024-11-15'});
+ assert.equal(b.run('state.temperatureHistory.length'),0);
+});
