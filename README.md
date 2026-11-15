@@ -1,5 +1,7 @@
 # Moje Ogrzewanie
 
+> **Zasada naczelna: „Dobrze gospodarować powierzonym mi dobrem”.** Projekt opiera się na czterech cnotach kardynalnych: **roztropności, sprawiedliwości, umiarkowaniu i męstwie**. Wiedza, pomiary, automatyzacja i oszczędności są narzędziami odpowiedzialnego gospodarowania mieszkaniem, energią, środkami finansowymi i komfortem człowieka — nigdy celem samym w sobie. Zobacz [fundamentalne zasady projektu](docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md).
+
 Prosty dziennik komfortu i zużycia gazu. Zachowuje sześć pomieszczeń, osiem głowic, drzwi, ENGO Smart, nastawę kotła, cele temperatury, pomiary Setti+, warunki i licznik gazu, eksperymenty oraz historię. Temperatura zewnętrzna dla Katowic jest pobierana automatycznie z Open-Meteo; odczyty gazomierza i nastawy wpisuje się ręcznie, a aktualne pomiary Setti+ aplikacja pobiera z publicznego pliku JSON w gałęzi `setti-data`. Aplikacja nie steruje urządzeniami.
 
 ## Wersja 1.2 · Gaz i pogoda
