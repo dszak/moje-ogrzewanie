@@ -102,3 +102,30 @@ test('new chat and evidence proposal prompts explicitly forbid invented facts an
  assert.match(m.PROPOSAL_INSTRUCTIONS,/tylko WNIOSKI POPARTE DANYMI/);
  assert.match(m.PROPOSAL_INSTRUCTIONS,/propozycje-wiedzy/);
 });
+
+
+test('technical research is sourced, clearly separate from household results, and exported with limitations',()=>{
+ const ctx=vm.createContext({Date,Intl,Math});
+ vm.runInContext(fs.readFileSync('public/research.js','utf8'),ctx);
+ const library=vm.runInContext('HeatingResearch',ctx);
+ const exported=library.exportContext();
+ assert.equal(exported.sources.length,9);
+ assert.ok(exported.classification.includes('NIE WYNIK POMIARÓW'));
+ assert.equal(exported.potential_diagnostic_tracks.length,4);
+ for(const source of exported.sources){
+   assert.match(source.url,/^https:\/\//);
+   assert.ok(source.finding.length>25);
+   assert.ok(source.meaning.length>25);
+   assert.ok(source.limit.length>25);
+   assert.ok(source.level.length>10);
+ }
+ const sources=new Set(exported.sources.map(s=>s.id));
+ for(const topic of exported.potential_diagnostic_tracks){
+   assert.ok(topic.evidence.length>0);
+   for(const id of topic.evidence)assert.ok(sources.has(id));
+ }
+ assert.equal(exported.sources.find(s=>s.id==='engo').topic,'Sterownik ENGO E901WiFi');
+ assert.ok(!JSON.stringify(exported).includes('Kilińskiego'));
+ assert.ok(!JSON.stringify(exported).includes('15/4'));
+ assert.match(exported.instruction,/hipotezy/);
+});
