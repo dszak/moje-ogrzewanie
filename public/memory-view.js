@@ -77,6 +77,22 @@ const MemoryView=(()=>{
        '<button class="action ghost" data-action="memory-cancel">Anuluj</button></div></div>';
    }
    out+='</section>';
+   out+='<section class="card" style="margin-bottom:16px"><div class="group-heading"><h3>Baza wiedzy technicznej</h3><span class="pill">'+HeatingResearch.SOURCES.length+' źródeł</span></div>'+
+     '<p>Nie musimy odkrywać praw fizyki od początku. Korzystamy z dokumentacji producentów, badań i poradników inżynierskich. '+ 
+     '<b>To wiedza ogólna, nie wynik eksperymentu w tym mieszkaniu.</b> Każde źródło ma ograniczenia.</p>'+
+     HeatingResearch.SOURCES.map(src=>
+        '<details style="margin-top:11px;border-bottom:1px solid var(--line);padding-bottom:9px"><summary><b>'+esc(src.topic)+'</b> — '+esc(src.level)+'</summary>'+
+        '<p class="hint">'+esc(src.finding)+'</p>'+
+        '<p><b>Jak wykorzystać:</b> '+esc(src.meaning)+'</p>'+
+        '<p class="hint"><b>Granice:</b> '+esc(src.limit)+'</p>'+
+        '<p><a href="'+esc(src.url)+'" target="_blank" rel="noopener noreferrer">'+esc(src.title)+'</a></p></details>'
+     ).join('')+
+     '<div class="hr"></div><h4>Kierunki badań wynikające z wiedzy technicznej</h4>'+
+     HeatingResearch.TOPICS.map((topic,i)=>'<div class="review-entry"><b>'+String(i+1)+'. '+esc(topic.title)+'</b>'+
+       '<p>'+esc(topic.why)+'</p><p class="hint"><b>Co robić:</b> '+esc(topic.method)+'</p>'+
+       '<p class="hint"><b>Jaki wynik uznać za przydatny:</b> '+esc(topic.success)+'</p></div>').join('')+
+     '<p class="hint">Nie wykonuj wszystkich badań naraz. Kolejną próbę wybieramy po analizie pomiarów i wcześniejszych wyników. Źródła sprawdzono '+esc(HeatingResearch.VERIFIED)+'.</p></section>';
+
    out+='<section class="card"><h3>4. Kontynuacja w nowej rozmowie</h3>'+
      '<p>Przejdź do zakładki <b>Analiza i decyzje</b>, pobierz aktualny raport JSON i załącz go do nowego czatu. '+ 
      'Raport zawiera całą kartę projektu, historię wniosków, decyzji i eksperymentów — także sprzed wybranego okresu pomiarów.</p>'+
