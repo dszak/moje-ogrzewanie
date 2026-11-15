@@ -77,9 +77,11 @@ const MemoryKit=(()=>{
       'Nie zmieniaj urządzeń ani nie odtwarzaj odrzuconych eksperymentów bez nowego uzasadnienia.',
       'Wnioski z eksperymentów mogą być negatywne lub nierozstrzygnięte.',
       'Propozycje ChatGPT wymagają przeglądu i jawnej akceptacji użytkownika.',
-      'Nie dopowiadaj brakującej charakterystyki mieszkania ani historycznych wyników.'
+      'Nie dopowiadaj brakującej charakterystyki mieszkania ani historycznych wyników.',
+      'Rozróżniaj wiedzę z publikacji i instrukcji producenta od pomiarów lokalnych; sprawdzaj warunki jej zastosowania.'
     ];
     const knowledge={method:METHOD,primary_goal:GOAL,
+      established_technical_research:HeatingResearch.exportContext(),
       durable_project_card:card,entire_knowledge_history:history,
       currently_applicable_knowledge:current,
       candidate_configurations_with_conditions:configurations,
@@ -100,6 +102,7 @@ const MemoryKit=(()=>{
     const rows=[
       'PAMIĘĆ PROJEKTU — WAŻNA TAKŻE PO ZMIANIE ROZMOWY',
       'Cel: '+context.primary_goal,'Metoda: '+context.method,
+      'Zewnętrzna baza źródeł: '+context.established_technical_research.sources.length+' zweryfikowanych pozycji. Ich wnioski są hipotezami odniesienia, NIE dowodami działania instalacji.',
       'Charakterystyka mieszkania: '+(c.overview||'NIE WPISANO'),
       'Instalacja: '+(c.installation||'NIE WPISANO'),
       'Źródła danych: '+(c.sensors||'NIE WPISANO'),
@@ -119,6 +122,7 @@ const MemoryKit=(()=>{
     return rows.join('\n');
   }
   const CHAT_INSTRUCTIONS=
+    'Wykorzystaj publiczną bazę wiedzy technicznej z raportu jako punkt wyjścia, lecz zawsze oddziel ją od lokalnych dowodów. ' +
     'Analizuj załączony raport „Moje Ogrzewanie” v2 jako samowystarczalny zapis projektu. '+ 
     'Najpierw odtwórz kartę instalacji, wyniki poprzednich eksperymentów, hipotezy odrzucone i ostatnią decyzję. '+
     'Nie powtarzaj zbadanych już prób bez nowych przesłanek. Rozdziel: WIDZIEĆ — fakty i braki danych; '+
@@ -133,6 +137,7 @@ const MemoryKit=(()=>{
     '"outcome":"none|positive|negative|inconclusive","experimentId":null}]}. '+
     'Dla result wybierz positive/negative/inconclusive; dla innych typów outcome=none. '+ 
     'Nigdy nie deklaruj „optymalnych” ustawień bez wiarygodnego porównania. '+
+    'Nie kopiuj ogólnej wiedzy z publikacji do rejestru WYNIKÓW mieszkania bez lokalnego potwierdzenia. '+
     'Nie dopisuj wniosków już obecnych w rejestrze. Maksymalnie pięć propozycji. Użytkownik je oceni przed importem.';
   return {GOAL,METHOD,CARD_FIELDS,KINDS,CONFIDENCE,OUTCOMES,EMPTY_CARD,parseProposal,createRecord,augment,summary,
     CHAT_INSTRUCTIONS,PROPOSAL_INSTRUCTIONS};
