@@ -189,7 +189,7 @@ function renderEngo(){
  output+='</section>';
  if(editor){
   output+='<section class="card gas-edit" style="margin-bottom:16px"><h3>Popraw zdarzenie ENGO</h3><div class="form-grid">'+
-   '<div><label for="engoEditAt">Data i godzina</label><input id="engoEditAt" type="datetime-local" value="'+dateLocal(Date.parse(editor.at))+'"></div>'+
+   '<div><label for="engoEditAt">Data i godzina</label><input id="engoEditAt" type="datetime-local" value="'+EngoCycles.localDateTime(editor.at)+'"></div>'+
    '<div><label for="engoEditStatus">Stan</label><select id="engoEditStatus"><option value="on" '+(editor.status==='on'?'selected':'')+'>Włączone</option><option value="off" '+(editor.status==='off'?'selected':'')+'>Wyłączone</option></select></div></div>'+
    '<div class="actions"><button class="action" data-action="save-engo-edit">Zapisz poprawkę</button><button class="action ghost" data-action="cancel-engo-edit">Anuluj</button></div></section>';
  }
@@ -287,10 +287,13 @@ if(ac==='cancel-engo-edit'){editingEngo=null;return render()}
 if(ac==='save-engo-edit'){
  const id=editingEngo,old=(state.engoCycles||[]).find(r=>r.id===id);
  if(!old)return toast('Nie znaleziono zdarzenia.');
- const at=new Date(document.getElementById('engoEditAt').value),status=document.getElementById('engoEditStatus').value;
- if(!Number.isFinite(at.valueOf())||at.valueOf()>Date.now()+86400000||!['on','off'].includes(status))return toast('Wpisz prawidłowe zdarzenie.');
- const minute=Math.floor(at.valueOf()/60000);
- if(state.engoCycles.some(r=>r.id!==id&&Math.floor(Date.parse(r.at)/60000)===minute))return toast('Zdarzenie w tej minucie już istnieje.');
+ const raw=document.getElementById('engoEditAt').value,status=document.getElementById('engoEditStatus').value;
+ if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)||!['on','off'].includes(status))return toast('Wpisz prawidłowe zdarzenie.');
+ let parsed;
+ try{parsed=EngoCycles.parse(raw.slice(0,10)+';'+raw.slice(11)+';'+status.toUpperCase(),state.engoCycles.filter(r=>r.id!==id))}
+ catch(error){return toast(error.message)}
+ if(parsed.added!==1)return toast('Zdarzenie w tej minucie już istnieje.');
+ const at=new Date(parsed.preview[0].at);
  if(old.at===at.toISOString()&&old.status===status){editingEngo=null;return render()}
  if(!confirm('Poprawić zdarzenie ENGO: '+day(old.at)+' → '+day(at.toISOString())+'?'))return;
  const index=state.engoCycles.findIndex(r=>r.id===id);
