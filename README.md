@@ -33,9 +33,19 @@ Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotnoś
 - Tekst i opisy na telefonie zostały powiększone, a panel korzysta z czytelnych kart bez wykresów.
 - Nie zmieniono klucza zapisu `moje-ogrzewanie-data-v1`, struktury lokalnych danych, istniejących pomieszczeń, identyfikatorów ani dotychczasowej historii. GitHub nie otrzymuje prywatnych odczytów gazu.
 
-### Zaplanowane oddzielnie na wersję 1.5.0
+### Zaplanowane oddzielnie na kolejną wersję
 
 Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy subiektywnego komfortu (obniżony komfort, optymalnie, przegrzanie). Te funkcje wymagają osobnego projektu interfejsu i testów bezpiecznej rozbudowy zapisu — **nie są jeszcze wprowadzone**.
+
+## Wersja 1.5.0 · Cykle ENGO: import ze zrzutów i analiza
+
+Zakładka **Cykle ENGO** umożliwia wklejenie lub wczytanie pliku CSV przygotowanego ze zrzutów dziennika ENGO Smart. Wiersz ma format `RRRR-MM-DD;GG:MM;ON` albo `RRRR-MM-DD;GG:MM;OFF`; nagłówek `data;godzina;stan` jest opcjonalny. Daty wpisuje się zgodnie z lokalnym czasem urządzenia (w Polsce).
+
+Przed zapisem aplikacja sprawdza każdą linię, wyświetla podgląd i pomija duplikaty. Sprzeczne stany z tej samej minuty oraz nieprawidłowe wiersze blokują cały import. Dane są wyłącznie dopisywane, nigdy zastępowane. Każde zdarzenie można edytować albo usunąć po potwierdzeniu.
+
+Statystyki obejmują ukończone pary WŁĄCZONE → WYŁĄCZONE, średni i łączny czas oraz ostatnie dni z odczytami. Niekompletne sekwencje są oznaczone i nie dolicza się im fikcyjnego czasu. Procent odnosi się do odcinka od pierwszego do ostatniego zdarzenia w danym dniu, nie do pełnych 24 godzin. Cykle przekraczające północ są przypisywane do dnia rozpoczęcia, bez procentu.
+
+Zapis `engoCycles` jest opcjonalnym polem w dotychczasowym schemacie `version:1`; starsze pliki JSON działają nadal, a klucz `moje-ogrzewanie-data-v1` pozostaje niezmieniony. Wszystkie prywatne wpisy są zapisywane lokalnie na urządzeniu. Aplikacja nie łączy się z ENGO i nie steruje kotłem. Zdarzenia dotyczą **zapotrzebowania termostatu**, a nie potwierdzonego czasu działania palnika.
 
 ## Wersja 1.4.2 · ręczne liczniki kotła BRÖTJE
 

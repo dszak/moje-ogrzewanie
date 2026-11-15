@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false,allowConfirm=true;
@@ -15,7 +15,7 @@ function boot(initial={}){
 const KEY='moje-ogrzewanie-data-v1';
 test('six rooms, eight heads, doors, all screens render',()=>{
  const b=boot();assert.equal(b.run('ROOMS.length'),6);assert.equal(b.run('Object.keys(RADS).length'),8);
- for(const page of ['home','heads','boiler','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
+ for(const page of ['home','heads','boiler','engo-cycles','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
  for(const r of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])b.run(`setPage('room','${r}')`);
  assert.equal(b.run('Object.keys(DOORS).length'),6);
 });
@@ -398,4 +398,38 @@ test('boiler counter reading cards remain responsive on phone-sized screens',()=
  assert.match(view,/id="boilerAc005"/);
  assert.match(view,/id="boilerAc006"/);
  assert.match(view,/inputmode="numeric"/);
+});
+
+
+test('ENGO screenshot CSV previews, imports privately, deduplicates and survives reload',()=>{
+ const b=boot();const click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ const text='data;godzina;stan\n2024-11-15;17:12;ON\n2024-11-15;17:18;OFF\n2024-11-15;17:31;ON\n2024-11-15;17:46;OFF';
+ b.run("setPage('engo-cycles')");
+ b.element('engoBulk').value=text;
+ click('preview-engo');
+ assert.equal(b.run('state.engoCycles.length'),0,'preview never writes');
+ assert.match(b.element('view').innerHTML,/Nowe: 4/);
+ click('confirm-engo-import');
+ assert.equal(b.run('state.engoCycles.length'),4);
+ assert.equal(b.run('EngoCycles.analyze(state.engoCycles).totalMinutes'),21);
+ const c=boot(Object.fromEntries(b.data));
+ assert.equal(c.run('state.engoCycles.length'),4);
+ const again=(action,extra={})=>c.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ c.run("setPage('engo-cycles')");c.element('engoBulk').value=text;again('preview-engo');
+ assert.match(c.element('view').innerHTML,/Pominięte duplikaty: 4/);
+ assert.equal(c.run('state.engoCycles.length'),4);
+ const id=c.run('state.engoCycles[0].id');
+ again('edit-engo',{id});
+ c.element('engoEditAt').value='2024-11-15T17:13';c.element('engoEditStatus').value='on';
+ again('save-engo-edit');
+ assert.equal(c.run('state.engoCycles[0].at'),'2024-11-15T16:13:00.000Z');
+ again('delete-engo',{id});
+ assert.equal(c.run('state.engoCycles.length'),3);
+});
+
+test('ENGO entries remain optional for older v1 data and reject invalid history',()=>{
+ const b=boot();
+ assert.equal(b.run('{const p=seed();delete p.engoCycles;DataStore.validate(p).engoCycles.length}'),0);
+ assert.throws(()=>b.run("{const p=seed();p.engoCycles.push({id:'bad',at:'2024-11-15T16:12:00.000Z',status:'other',source:'import'});DataStore.validate(p)}"));
+ assert.throws(()=>b.run("{const p=seed();p.engoCycles.push({id:'a',at:'2024-11-15T16:12:00.000Z',status:'on',source:'import'},{id:'b',at:'2024-11-15T16:12:05.000Z',status:'off',source:'import'});DataStore.validate(p)}"));
 });
