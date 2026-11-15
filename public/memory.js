@@ -3,6 +3,29 @@
 const MemoryKit=(()=>{
   const GOAL='Stopniowo poznać instalację i minimalizować koszt utrzymania komfortu, bez pogorszenia bezpieczeństwa.';
   const METHOD='WIDZIEĆ → OCENIĆ → DZIAŁAĆ → UCZYĆ SIĘ';
+  // Moral foundation from the project's governing charter; not a household observation.
+  const ETHICS={
+    principle:'Dobrze gospodarować powierzonym mi dobrem.',
+    purpose:'Rozpoznawać i wybierać dobro oraz podejmować umiejętne decyzje prowadzące do jego realizacji.',
+    virtues:[
+      {name:'Roztropność',latin:'prudentia',
+       definition:'Rozpoznawać prawdziwe dobro i wybierać właściwy sposób jego osiągnięcia.',
+       practice:'Korzystać z prawdziwych danych, rozważać skutki i wybierać środki odpowiednie do dobra, któremu służą.'},
+      {name:'Sprawiedliwość',latin:'iustitia',
+       definition:'Oddawać każdemu to, co mu się należy.',
+       practice:'Bogu — cześć i wdzięczność; sobie — zdrowie i godne warunki; gościom — gościnność i komfort; ORLENOWI — uczciwe rozliczenie. Dbać o budynek i przyrodę jako powierzone dobra.'},
+      {name:'Umiarkowanie',latin:'temperantia',
+       definition:'Panować nad pragnieniami, zachować równowagę w używaniu dóbr doczesnych i powstrzymywać się od nadużyć.',
+       practice:'Unikać zarówno przegrzewania i marnowania energii, jak i oszczędzania kosztem zdrowia i koniecznego komfortu.'},
+      {name:'Męstwo',latin:'fortitudo',
+       definition:'Zachowywać stałość i wytrwałość w dążeniu do dobra oraz pokonywać przeszkody i pokusy.',
+       practice:'Cierpliwie zbierać dane, korygować błędne decyzje, wytrwale realizować te dobre i reagować na zagrożenia.'}
+    ],
+    decision_test:'Jakie dobro chcemy osiągnąć? Co jest komu należne? Czy zachowujemy właściwą miarę? Czy wybrane środki prowadzą do dobra i czy potrafimy wytrwać w dobrym wyborze?',
+    hierarchy:'Dobro i odpowiedzialność → bezpieczeństwo i potrzeby osób → komfort i rozważne gospodarowanie zasobami → pomiary, automatyzacja i optymalizacja techniczna.',
+    note:'Cnoty kardynalne zachowują znaczenie moralne. Ich zastosowanie do ogrzewania nie sprowadza ich do sposobu oszczędzania gazu.'
+  };
+
   const CARD_FIELDS=['overview','installation','sensors','comfort','constraints','currentQuestion'];
   const KINDS={observation:'Obserwacja',hypothesis:'Hipoteza',result:'Wynik eksperymentu',configuration:'Sprawdzona konfiguracja'};
   const CONFIDENCE={low:'Niska',medium:'Średnia',high:'Wysoka'};
@@ -81,6 +104,7 @@ const MemoryKit=(()=>{
       'Rozróżniaj wiedzę z publikacji i instrukcji producenta od pomiarów lokalnych; sprawdzaj warunki jej zastosowania.'
     ];
     const knowledge={method:METHOD,primary_goal:GOAL,
+      supreme_principle:ETHICS,
       established_technical_research:HeatingResearch.exportContext(),
       durable_project_card:card,entire_knowledge_history:history,
       currently_applicable_knowledge:current,
@@ -101,7 +125,12 @@ const MemoryKit=(()=>{
     const c=context.durable_project_card;
     const rows=[
       'PAMIĘĆ PROJEKTU — WAŻNA TAKŻE PO ZMIANIE ROZMOWY',
-      'Cel: '+context.primary_goal,'Metoda: '+context.method,
+      'ZASADA NACZELNA: '+context.supreme_principle.principle,
+      'SENS PROJEKTU: '+context.supreme_principle.purpose,
+      ...context.supreme_principle.virtues.map(v=>v.name.toUpperCase()+': '+v.definition+' Zastosowanie: '+v.practice),
+      'KRYTERIUM DECYZJI: '+context.supreme_principle.decision_test,
+      'HIERARCHIA: '+context.supreme_principle.hierarchy,
+      'Cel techniczny: '+context.primary_goal,'Metoda: '+context.method,
       'Zewnętrzna baza źródeł: '+context.established_technical_research.sources.length+' zweryfikowanych pozycji. Ich wnioski są hipotezami odniesienia, NIE dowodami działania instalacji.',
       'Charakterystyka mieszkania: '+(c.overview||'NIE WPISANO'),
       'Instalacja: '+(c.installation||'NIE WPISANO'),
@@ -122,6 +151,7 @@ const MemoryKit=(()=>{
     return rows.join('\n');
   }
   const CHAT_INSTRUCTIONS=
+    'Zanim przeanalizujesz ogrzewanie, odczytaj nadrzędną zasadę i cnoty kardynalne z memory_context.supreme_principle. Chodzi o wybór dobra i rozważną realizację, nie o samą redukcję kosztów. '+
     'Wykorzystaj publiczną bazę wiedzy technicznej z raportu jako punkt wyjścia, lecz zawsze oddziel ją od lokalnych dowodów. ' +
     'Analizuj załączony raport „Moje Ogrzewanie” v2 jako samowystarczalny zapis projektu. '+ 
     'Najpierw odtwórz kartę instalacji, wyniki poprzednich eksperymentów, hipotezy odrzucone i ostatnią decyzję. '+
@@ -139,6 +169,6 @@ const MemoryKit=(()=>{
     'Nigdy nie deklaruj „optymalnych” ustawień bez wiarygodnego porównania. '+
     'Nie kopiuj ogólnej wiedzy z publikacji do rejestru WYNIKÓW mieszkania bez lokalnego potwierdzenia. '+
     'Nie dopisuj wniosków już obecnych w rejestrze. Maksymalnie pięć propozycji. Użytkownik je oceni przed importem.';
-  return {GOAL,METHOD,CARD_FIELDS,KINDS,CONFIDENCE,OUTCOMES,EMPTY_CARD,parseProposal,createRecord,augment,summary,
+  return {GOAL,METHOD,ETHICS,CARD_FIELDS,KINDS,CONFIDENCE,OUTCOMES,EMPTY_CARD,parseProposal,createRecord,augment,summary,
     CHAT_INSTRUCTIONS,PROPOSAL_INSTRUCTIONS};
 })();
