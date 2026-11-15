@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib, shutil
 root=Path(__file__).resolve().parents[1]
-files=['index.html','app.js','storage.js','insights.js','setti.js','sw.js','manifest.webmanifest','.nojekyll','icons/icon192.png','icons/icon512.png']
+files=['index.html','app.js','storage.js','insights.js','setti.js','heads.js','sw.js','manifest.webmanifest','.nojekyll','icons/icon192.png','icons/icon512.png']
 out=root/'dist'
 if out.exists(): shutil.rmtree(out)
 out.mkdir()
@@ -12,5 +12,5 @@ for name in files:
     target.parent.mkdir(parents=True,exist_ok=True)
     shutil.copy2(root/'public'/name,target)
 p=out/'sw.js'
-p.write_text(p.read_text().replace("'development-1.3.1'",repr(digest)))
+p.write_text(p.read_text().replace("'development-1.4.0'",repr(digest)))
 print('Prepared public release '+digest)
