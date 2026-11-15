@@ -111,10 +111,19 @@
 .temp-summary{min-width:510px}
 .temp-summary th,.temp-summary td{white-space:nowrap}
 @media(max-width:560px){.temp-import-breakdown{grid-template-columns:1fr}.temp-chart-wrap{margin:0 -4px}}
+/* v1.7: readable evidence report and a local decision log */
+.review-summary{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.65 ui-monospace,SFMono-Regular,monospace;background:#f7fbf8;border:1px solid var(--line);padding:12px;border-radius:12px;max-height:310px;overflow:auto}
+.review-rooms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.review-room{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#f9fcf9;display:flex;flex-direction:column;gap:3px}
+.review-room span{color:var(--ink2);font-size:13px}
+.review-entry{padding:16px 0;border-top:1px solid var(--line)}
+.review-entry:first-of-type{border-top:0}
+.review-entry p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+@media(max-width:560px){.review-rooms{grid-template-columns:1fr}.review-summary{max-height:240px}.review-entry .group-heading{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.6.0</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
+<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.7.0</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
 <div id="storageAlert" role="alert" class="banner warn" hidden></div><main id="view" class="wrap" aria-live="polite"></main>
 <input type="file" id="importFile" accept="application/json,.json" style="display:none">
 <input type="file" id="mapFile" accept="image/svg+xml,image/png,image/jpeg" hidden>
@@ -125,6 +134,8 @@
 <script src="./engo.js"></script>
 <script src="./temperatures.js"></script>
 <script src="./temperature-view.js"></script>
+<script src="./review.js"></script>
+<script src="./review-view.js"></script>
 <script src="./setti.js"></script>
 <script src="./heads.js"></script>
 <script src="./app.js"></script>
