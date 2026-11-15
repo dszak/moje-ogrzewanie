@@ -5,8 +5,8 @@ const HeatingResearch=(()=>{
   const VERIFIED='2026-11-15';
   const SOURCES=[
     {id:'qwhc',topic:'Kocioł BRÖTJE',level:'Producent / dane techniczne',
-      title:'BRÖTJE QWHC 20/24 — karta produktu',url:'https://www.broetje.pl/produkty/kotly-kondensacyjne/qwhc-20-30/',
-      finding:'QWHC 20/24 jest kondensacyjnym kotłem dwufunkcyjnym; podawana moc ogrzewania 20 kW. Woda użytkowa jest podgrzewana przepływowo.',
+      title:'BRÖTJE QWHC w wariancie 20 kW — karta produktu',url:'https://www.broetje.pl/produkty/kotly-kondensacyjne/qwhc-20-30/',
+      finding:'QWHC w wariancie 20 kW jest kondensacyjnym kotłem dwufunkcyjnym; podawana moc ogrzewania 20 kW. Woda użytkowa jest podgrzewana przepływowo.',
       meaning:'Rozróżniaj nastawę c.o. i c.w.u. oraz sprawdzaj możliwości i ograniczenia urządzenia w oryginalnej dokumentacji.',
       limit:'Dane katalogowe nie pozwalają wyznaczyć rzeczywistej sprawności ani strat budynku.'},
     {id:'engo',topic:'Sterownik ENGO E901WiFi',level:'Producent / karta produktu',
