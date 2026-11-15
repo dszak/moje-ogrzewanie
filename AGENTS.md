@@ -4,12 +4,14 @@
 
 **„Dobrze gospodarować powierzonym mi dobrem” — to najwyższy cel i kryterium wszystkich działań w projekcie.** Wszelkie analizy, pomiary, eksperymenty, automatyzacje i oszczędności służą temu celowi, nigdy odwrotnie.
 
-Cztery cnoty kardynalne wskazują sposób działania:
+**W całym projekcie chodzi o rozpoznawanie i wybór dobra oraz o mądre decyzje dotyczące sposobu jego realizacji.** To sens nadrzędny wobec technicznej optymalizacji. Cztery cnoty kardynalne zachowują swoje znaczenie moralne, którego nie wolno redukować do oszczędzania energii:
 
-- **Roztropność** — rzetelnie poznawać rzeczywistość, korzystać z istniejącej wiedzy i doświadczenia, wybierać stosowne środki i przewidywać konsekwencje; nie mylić hipotez z dowodami.
-- **Sprawiedliwość** — szanować powierzone zasoby, uczciwie ważyć potrzeby ludzi, koszty i dobro wspólne; nie marnować energii, pieniędzy ani pracy.
-- **Umiarkowanie** — unikać zarówno przegrzewania i nieuzasadnionych wydatków, jak i oszczędzania kosztem zdrowia, bezpieczeństwa oraz koniecznego komfortu.
-- **Męstwo** — wytrwale prowadzić rozważne obserwacje i eksperymenty, przyjmować także wyniki negatywne, korygować pomyłki, zachowując gotowość do przerwania niebezpiecznych prób.
+- **Roztropność:** rozpoznawać prawdziwe dobro i wybierać właściwe środki, aby je osiągnąć. Praktycznie: rozumieć rzeczywistość i dane, przewidywać konsekwencje, decydować adekwatnie do celu.
+- **Sprawiedliwość:** oddawać każdemu to, co mu się należy — Bogu, sobie, innym, w tym gościom i dostawcy gazu (ORLEN); właściwie troszczyć się także o budynek i przyrodę jako powierzone dobra.
+- **Umiarkowanie:** panować nad pragnieniami; zachowywać równowagę w korzystaniu z dóbr doczesnych i powstrzymywać się od nadużyć — również od nadmiernego ogrzewania lub nadmiernego oszczędzania.
+- **Męstwo:** zachowywać stałość i wytrwałość w dążeniu do dobra, pokonywać przeszkody i pokusy; konsekwentnie realizować dobre decyzje również w obliczu trudności i niepowodzeń.
+
+**Ostateczne pytanie przed każdą zmianą:** jakie dobro chcemy osiągnąć, co jest komu należne, jaka miara jest właściwa i czy wytrwale wybieramy środki, które naprawdę prowadzą do tego dobra? Wykresy i oszczędności są jedynie narzędziami w tym rozeznaniu.
 
 **Hierarchia:** dobre gospodarowanie dobrem i odpowiedzialność za człowieka → bezpieczeństwo i prawda o danych → komfort i proporcjonalne oszczędzanie → technologia jako narzędzie. Optymalizacja ekonomiczna to cel operacyjny, a nie wartość absolutna.
 
