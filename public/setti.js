@@ -42,6 +42,13 @@ const Setti = (() => {
     return r ? {temp: r.temperature, humidity: r.humidity, at: data.last_sync} : null;
   }
 
+  // Last validated automatic reading, even if stale. Display-only: never use for
+  // "current" status, gas snapshots, temperature differences or control.
+  function lastRoom(id) {
+    const r = latest?.rooms?.[id];
+    return r ? {temp: r.temperature, humidity: r.humidity, at: latest.last_sync} : null;
+  }
+
   function status(nowMs = Date.now()) {
     if (isFresh(latest, nowMs)) return {ok: true, label: 'Pomiary aktualne', at: latest.last_sync};
     if (latest) return {ok: false, label: 'Pomiary nieaktualne (ponad 20 minut)', at: latest.last_sync};
@@ -61,5 +68,5 @@ const Setti = (() => {
     }
   }
 
-  return {parse, isFresh, snapshot, room, status, refresh};
+  return {parse, isFresh, snapshot, room, lastRoom, status, refresh};
 })();
