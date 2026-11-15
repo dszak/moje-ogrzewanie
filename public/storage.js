@@ -38,6 +38,16 @@ const DataStore = (() => {
       }
       str(r.note,200);
     });
+    // Optional ENGO on/off events. Keep temperature-setpoint changes separate.
+    if(p.engoCycles===undefined)p.engoCycles=[];
+    const engoSeen=new Map();
+    arr(p.engoCycles).forEach(e=>{
+      obj(e);str(e.id,100);date(e.at);
+      if(!['on','off'].includes(e.status)||e.source!=='import')fail();
+      const minute=Math.floor(Date.parse(e.at)/60000);
+      if(engoSeen.has(minute))fail();
+      engoSeen.set(minute,e.status);
+    });
     if(p.heatingEvents===undefined)p.heatingEvents=[];
     arr(p.heatingEvents).forEach(e=>{obj(e);str(e.id,100);date(e.at);number(e.engo,10,30,false);str(e.note,300)});
     if(p.weather===undefined)p.weather={hourly:[],updated:null};
