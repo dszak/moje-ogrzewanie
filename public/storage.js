@@ -28,6 +28,16 @@ const DataStore = (() => {
     arr(p.conditions).forEach(c=>{obj(c);date(c.at);number(c.outdoor,-45,50);number(c.gas,0,100000000);if(!['unknown','sun','clouds','mixed'].includes(c.sky))fail();if(c.setti!==undefined)setti(c.setti)});
     if(p.gasHistory===undefined)p.gasHistory=[];
     arr(p.gasHistory).forEach(r=>{obj(r);str(r.id,100);date(r.at);number(r.gas,0,100000000,false);if(!['old','new'].includes(r.meter))fail();if(!['orlen','manual'].includes(r.source))fail();if(r.setti!==undefined)setti(r.setti)});
+    // Optional additive history: older v1 copies contain no boiler counter readings.
+    if(p.boilerReadings===undefined)p.boilerReadings=[];
+    arr(p.boilerReadings).forEach(r=>{
+      obj(r);str(r.id,100);date(r.at);
+      for(const key of ['ac001','ac005','ac006']){
+        number(r[key],0,100000000,false);
+        if(!Number.isSafeInteger(r[key]))fail();
+      }
+      str(r.note,200);
+    });
     if(p.heatingEvents===undefined)p.heatingEvents=[];
     arr(p.heatingEvents).forEach(e=>{obj(e);str(e.id,100);date(e.at);number(e.engo,10,30,false);str(e.note,300)});
     if(p.weather===undefined)p.weather={hourly:[],updated:null};
