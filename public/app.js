@@ -19,8 +19,8 @@ const DOORS={
 };
 const DOORSTATUS={unknown:'Nie ustalono',open:'Otwarte',ajar:'Uchylone',closed:'Zamknięte'};
 const RM=Object.fromEntries(ROOMS.map(x=>[x.id,x]));
-const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:'',electric:null},rooms:Object.fromEntries(ROOMS.map(r=>[r.id,{target:r.id==='bedroom'?22:null,readings:[]}])),radiators:Object.fromEntries(Object.keys(RADS).map(k=>[k,null])),doors:Object.fromEntries(Object.keys(DOORS).map(k=>[k,'unknown'])),events:[],experiments:[],conditions:[],gasHistory:[],heatingEvents:[],weather:{hourly:[],updated:null}});
-let historyLimit=120;let editingGas=null;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
+const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:'',electric:null},rooms:Object.fromEntries(ROOMS.map(r=>[r.id,{target:r.id==='bedroom'?22:null,readings:[]}])),radiators:Object.fromEntries(Object.keys(RADS).map(k=>[k,null])),doors:Object.fromEntries(Object.keys(DOORS).map(k=>[k,'unknown'])),events:[],experiments:[],conditions:[],gasHistory:[],heatingEvents:[],boilerReadings:[],weather:{hourly:[],updated:null}});
+let historyLimit=120;let editingGas=null;let editingBoiler=null;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
 function load(){return DataStore.load(seed)}
 function save(){DataStore.save(state);const el=document.getElementById('storageAlert');el.hidden=!DataStore.warning;if(DataStore.warning)el.textContent=DataStore.warning}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -35,7 +35,7 @@ function stat(rid){if(!Setti.room(rid)&&Setti.lastRoom(rid))return ['Dane nieakt
 function changeLog(label,detail){state.events.unshift({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),at:now(),label,detail});}
 function toast(msg){let p=document.getElementById('toast');if(!p){p=document.createElement('div');p.id='toast';p.style='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#103f39;color:white;padding:12px 18px;border-radius:12px;box-shadow:0 12px 25px #0003;z-index:99;font-size:13px;max-width:92%;text-align:center';document.body.appendChild(p)}p.textContent=msg;p.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>p.style.display='none',3600)}
 function setPage(p,r){page=p;if(r)currentRoom=r;render();scrollTo({top:0,behavior:'instant'})}
-function renderNav(){let tabs=[['home','Mieszkanie'],['heads','Panel ogrzewania'],['insights','Gaz i pogoda'],['experiments','Eksperymenty'],['history','Historia'],['map','Mapa'],['settings','Ustawienia']];document.getElementById('nav').innerHTML=tabs.map(([id,title])=>`<button data-action="page" data-page="${id}" class="${page===id||id==='home'&&page==='room'?'active':''}" ${page===id?'aria-current="page"':''}>${title}</button>`).join('')}
+function renderNav(){let tabs=[['home','Mieszkanie'],['heads','Panel ogrzewania'],['boiler','Kocioł'],['insights','Gaz i pogoda'],['experiments','Eksperymenty'],['history','Historia'],['map','Mapa'],['settings','Ustawienia']];document.getElementById('nav').innerHTML=tabs.map(([id,title])=>`<button data-action="page" data-page="${id}" class="${page===id||id==='home'&&page==='room'?'active':''}" ${page===id?'aria-current="page"':''}>${title}</button>`).join('')}
 function sec(title,desc,extra=''){return `<div class="section-head"><div><h2>${title}</h2><p>${desc||''}</p></div>${extra}</div>`}
 function settiBanner(){const st=Setti.status();return `<div class="banner ${st.ok?'info':'warn'}"><span>🌡️</span><span><b>Setti+: ${esc(st.label)}</b>${st.at?' · synchronizacja '+day(st.at):''}. Dane tylko do odczytu; brak aktualizacji nie blokuje ręcznego zapisu. <button class="text-link" data-action="refresh-setti">Odśwież pomiary</button></span></div>`}
 
@@ -93,13 +93,63 @@ function gasEditor(){
 function roomCard(r){let live=Setti.room(r.id),stale=!live?Setti.lastRoom(r.id):null,rec=live||stale||last(r.id),status=stat(r.id);return `<button class="room-card" data-action="open-room" data-room="${r.id}" aria-label="Otwórz: ${r.name}"><div class="room-top"><span class="room-icon">${r.icon}</span><span class="pill ${status[1]}">${status[0]}</span></div><div class="room-name">${r.name}</div><div class="room-sub">${r.sensor} Setti+ · ${r.rads.length?`${r.rads.length} grzejnik${r.rads.length===1?'':'i'}`:'bez grzejnika'}</div><div class="room-temps"><div><div class="reading">${rec?T(rec.temp):'—'}</div><div class="reading-label">${live?'Setti+ automatycznie':stale?'Setti+ · nieaktualne':'zapis ręczny'}</div></div><div><div class="reading" style="color:#426b5e;font-size:24px">${T(state.rooms[r.id].target)}</div><div class="reading-label">Twój cel</div></div></div><div class="room-foot"><span>${rec?(live?'Synchronizacja: ':stale?'Nieaktualny pomiar z ':'Ręcznie: ')+day(rec.at):'Jeszcze nie wpisano odczytu'}</span><span style="color:var(--teal);font-weight:800">Otwórz →</span></div></button>`}
 function renderHome(){let n=ROOMS.filter(r=>latestReading(r.id)).length, active=state.experiments.find(e=>e.status==='active');
 return `${sec('Twoje mieszkanie','Wybierz pomieszczenie, sprawdź pomiary i ustaw cele.')}${settiBanner()}<div class="banner"><span>ℹ️</span><span><b>Integracja pogodowa.</b> Pogoda pobierana automatycznie dla Katowic. Odczyty Setti+ są pobierane z publicznego pliku, a rzeczywiste odczyty ośmiu głowic znajdziesz w Panelu ogrzewania (bez sterowania urządzeniami). Aplikacja nie steruje ogrzewaniem. Twoje wpisy i historia gazu pozostają lokalnie w przeglądarce.</span></div>
-<div class="grid cols3" style="margin-bottom:23px"><div class="stat"><div class="label">Kocioł · temperatura zadana</div><strong>${fmt(state.global.boiler,0)}°C</strong><small>BRÖTJE · wspólna nastawa</small></div><div class="stat"><div class="label">ENGO · temperatura zadana</div><strong>${T(state.global.engo)}</strong><small>Sypialnia · steruje kotłem</small></div><div class="stat"><div class="label">Pomieszczenia z pomiarem</div><strong>${n} / 6</strong><small>Własne odczyty Setti+ · ${active?'trwa eksperyment':'brak aktywnego eksperymentu'}</small></div></div>
+<div class="grid cols3" style="margin-bottom:23px"><div class="stat"><div class="label">Kocioł · temperatura zadana</div><strong>${fmt(state.global.boiler,0)}°C</strong><small>BRÖTJE · wspólna nastawa · <button class="text-link" data-action="page" data-page="boiler">Liczniki kotła →</button></small></div><div class="stat"><div class="label">ENGO · temperatura zadana</div><strong>${T(state.global.engo)}</strong><small>Sypialnia · steruje kotłem</small></div><div class="stat"><div class="label">Pomieszczenia z pomiarem</div><strong>${n} / 6</strong><small>Własne odczyty Setti+ · ${active?'trwa eksperyment':'brak aktywnego eksperymentu'}</small></div></div>
 <div class="group-heading"><h3>Pomieszczenia</h3><span class="small muted">Kliknij, żeby wejść do pokoju</span></div><div class="grid cols3">${ROOMS.map(roomCard).join('')}</div>
 <div class="grid cols2" style="margin-top:18px"><section class="card"><div class="group-heading"><h3>Licznik gazu i pogoda</h3><span class="pill">pogoda automatyczna</span></div><p class="subtitle" style="margin-bottom:16px"><b>${esc(weatherStatus())}</b><br>Temperatura zewnętrzna jest pobierana automatycznie z Open-Meteo. Wpisujesz jedynie stan gazomierza; bez internetu odczyt nadal można zapisać. <button class="text-link" data-action="page" data-page="insights">Analiza zużycia →</button></p><div class="form-grid"><div><label for="gas">Licznik gazu (m³)</label><input id="gas" type="number" step="0.001" min="0" placeholder="stan licznika"></div><div class="wide"><label for="sky">Warunki</label><select id="sky"><option value="unknown">Nie odnotowano</option><option value="sun">Słonecznie</option><option value="clouds">Pochmurno</option><option value="mixed">Zmiennie</option></select></div></div><div class="actions" style="margin-top:14px"><button class="action" data-action="record-conditions">Zapisz obserwację</button></div>${renderLastConditions()}</section>
 <section class="card"><div class="group-heading"><h3>Co robimy teraz?</h3><span class="pill">Plan</span></div><p class="muted" style="font-size:13px;line-height:1.65">Zaplanuj jedną zmianę, np. położenia ENGO. Pozostałe nastawy pozostaw bez zmian. Porównuj temperaturę ENGO z T1 Setti+ oraz odczytem T6.</p><div class="note" style="margin-top:15px"><b>Uwaga przed testem:</b> sprawdź baterię termostatu i czujników przed dłuższym pomiarem.</div><div class="actions" style="margin-top:15px"><button class="action light" data-action="page" data-page="experiments">Przejdź do eksperymentów →</button></div></section></div>`}
 
 function dateLocal(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 function weatherStatus(){const w=state.weather||{hourly:[],updated:null},p=Insights.near(w.hourly,Date.now());return p?'Katowice: '+T(p.temp)+' · odczyt modelowy '+day(new Date(p.at*1000).toISOString()):w.hourly.length?'Katowice: brak aktualnej temperatury · ostatnia aktualizacja pogody: '+day(w.updated):'Katowice: oczekiwanie na dane pogodowe — wymagany internet.'}
+
+function count(v){return Number(v).toLocaleString('pl-PL',{maximumFractionDigits:0})}
+function boilerEntries(){return (state.boilerReadings||[]).slice().sort((a,b)=>Date.parse(a.at)-Date.parse(b.at))}
+function boilerGain(previous,current,key){
+ if(!previous||!current)return null;
+ const diff=current[key]-previous[key];
+ return diff>=0?diff:null; // Counter decrease/reset: never report negative energy consumption.
+}
+function renderBoiler(){
+ const all=boilerEntries(),latest=all.at(-1),prev=all.at(-2);
+ const changing=editingBoiler?all.find(x=>x.id===editingBoiler):null;
+ const changeTitle=changing?'Popraw odczyt liczników':'Dodaj odczyt liczników';
+ const v=(k)=>changing?changing[k]:'';
+ const entries=all.slice().reverse().map((r,i)=>{
+  const before=all[all.length-2-i];
+  const gains=before?['ac001','ac005','ac006'].map(k=>boilerGain(before,r,k)):null;
+  const diffs=gains?gains.map(x=>x===null?'reset / spadek':'+ '+count(x)).join(' · '):'Pierwszy odczyt — punkt odniesienia';
+  return `<article class="card boiler-entry">
+    <div class="group-heading"><h3>${day(r.at)}</h3><span class="pill">odczyt ręczny</span></div>
+    <div class="panel-readings"><div><span>AC001 · godziny zasilania</span><strong>${count(r.ac001)}</strong></div>
+      <div><span>AC005 · ogrzewanie</span><strong>${count(r.ac005)}</strong></div>
+      <div><span>AC006 · ciepła woda</span><strong>${count(r.ac006)}</strong></div></div>
+    <p class="hint">Przyrosty względem poprzedniego odczytu: ${diffs}</p>
+    ${r.note?`<p class="hint">Notatka: ${esc(r.note)}</p>`:''}
+    <div class="actions" style="margin-top:12px"><button class="action ghost" data-action="edit-boiler" data-id="${esc(r.id)}">Edytuj</button>
+      <button class="action danger" data-action="delete-boiler" data-id="${esc(r.id)}">Usuń</button></div>
+  </article>`;
+ }).join('');
+ return `${sec('Liczniki BRÖTJE','Ręczne odczyty z wyświetlacza kotła QWHC — tylko dziennik, bez sterowania.')}
+ <div class="banner info"><span>ℹ️</span><span><b>Co oznaczają liczniki?</b> AC001 to godziny zasilania elektrycznego kotła, nie czas pracy palnika. AC005 i AC006 to orientacyjne, narastające liczniki odpowiednio ogrzewania i ciepłej wody. Pokazujemy surowe wskazania i różnice, bez przypisywania niepotwierdzonych jednostek lub przeliczania na m³ gazu.</span></div>
+ <section class="card" style="margin-bottom:16px"><div class="group-heading"><h3>Ostatni odczyt</h3><span class="pill">${all.length} zapisów</span></div>
+ ${latest?`<p class="small muted">${day(latest.at)}</p><div class="panel-readings"><div><span>AC001 · godziny</span><strong>${count(latest.ac001)} h</strong></div><div><span>AC005 · c.o.</span><strong>${count(latest.ac005)}</strong></div><div><span>AC006 · c.w.u.</span><strong>${count(latest.ac006)}</strong></div></div>
+ ${prev?`<p class="hint">Przyrost od ${day(prev.at)}: AC001 ${boilerGain(prev,latest,'ac001')===null?'brak (spadek)':count(boilerGain(prev,latest,'ac001'))+' h'} · AC005 ${boilerGain(prev,latest,'ac005')===null?'brak (spadek)':count(boilerGain(prev,latest,'ac005'))} · AC006 ${boilerGain(prev,latest,'ac006')===null?'brak (spadek)':count(boilerGain(prev,latest,'ac006'))}</p>`:''}`:'<p class="hint">Brak odczytów. Dodaj pierwszy komplet wartości jako punkt odniesienia.</p>'}
+ </section>
+ <section class="card" style="margin-bottom:16px"><h3>${changeTitle}</h3><p class="subtitle">Wpisz trzy wartości z menu liczników. Data i godzina powinny odpowiadać chwili zdjęcia. Nie resetuj liczników na kotle.</p>
+ <div class="form-grid" style="margin-top:15px">
+   <div class="wide"><label for="boilerAt">Data i godzina zdjęcia</label><input type="datetime-local" id="boilerAt" value="${changing?dateLocal(Date.parse(changing.at)):dateLocal(Date.now())}"></div>
+   <div><label for="boilerAc001">AC001 · godziny zasilania</label><input type="number" id="boilerAc001" inputmode="numeric" min="0" max="100000000" step="1" value="${v('ac001')}" placeholder="np. 10000"></div>
+   <div><label for="boilerAc005">AC005 · centralne ogrzewanie</label><input type="number" id="boilerAc005" inputmode="numeric" min="0" max="100000000" step="1" value="${v('ac005')}" placeholder="np. 30000"></div>
+   <div><label for="boilerAc006">AC006 · ciepła woda</label><input type="number" id="boilerAc006" inputmode="numeric" min="0" max="100000000" step="1" value="${v('ac006')}" placeholder="np. 1500"></div>
+   <div class="wide"><label for="boilerNote">Komentarz · opcjonalnie</label><input id="boilerNote" maxlength="200" value="${changing?esc(changing.note):''}" placeholder="np. odczyt podczas tygodniowej kontroli"></div>
+ </div>
+ <div class="actions" style="margin-top:12px"><button class="action" data-action="save-boiler">${changing?'Zapisz poprawkę':'Zapisz odczyt'}</button>
+ ${changing?'<button class="action ghost" data-action="cancel-boiler">Anuluj edycję</button>':''}</div>
+ </section>
+ <div class="group-heading"><h3>Historia liczników</h3><span class="small muted">Odczyty narastające · najnowsze na górze</span></div>
+ <div class="grid cols2">${entries||'<div class="empty">Historia pojawi się po zapisaniu pierwszego odczytu.</div>'}</div>
+ <p class="hint" style="margin-top:15px">W razie resetu lub wymiany elektroniki wartości mogą spaść. Wtedy brak wiarygodnego przyrostu jest oznaczony, a historia pozostaje zachowana. Dane przechowywane są wyłącznie na tym urządzeniu i w Twoim eksporcie JSON.</p>`;
+}
+
 function renderInsights(){
  const w=state.weather||{hourly:[],updated:null},records=Insights.readings(state),rows=Insights.intervals(state),daily=Insights.dailyComparisons(state),events=(state.heatingEvents||[]).slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
  const fdate=at=>new Date(at).toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -151,11 +201,46 @@ function renderExperiments(){let active=state.experiments.find(x=>x.status==='ac
 function renderHistory(){let ev=state.events.slice(0,historyLimit);return `${sec('Historia zmian','Wszystkie zapisane nastawy i pomiary — żebyś wiedział, co naprawdę zmieniono.') }<div class="actions" style="margin-bottom:17px"><button class="action light" data-action="export-json">Eksportuj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button></div><section class="card"><div class="group-heading"><h3>Dziennik</h3><span class="pill">${state.events.length} wpisów</span></div>${ev.length?`<div class="timeline">${ev.map(x=>`<div class="event"><span class="event-marker"></span><div><strong>${esc(x.label)}</strong><div class="muted small">${esc(x.detail)}</div><small>${day(x.at)}</small></div></div>`).join('')}</div>${state.events.length>historyLimit?'<button class="action ghost" data-action="more-history">Pokaż starsze wpisy</button>':''}`:'<div class="empty">Historia będzie się uzupełniać przy zapisywaniu celów, głowic, drzwi i pomiarów.</div>'}</section>`}
 function renderMap(){return `${sec('Mapa mieszkania','Prywatny plan przechowywany wyłącznie na tym urządzeniu.')}<div class="banner info">Publiczna aplikacja nie zawiera planu, wymiarów ani adresu. Możesz wczytać własną mapę SVG, PNG lub JPEG. Trafi tylko do lokalnego zapisu i Twojej kopii JSON.</div><section class="card">${state.privateMap?`<img class="map" alt="Twoja prywatna mapa" src="${esc(state.privateMap)}">`:'<div class="empty">Nie wczytano prywatnej mapy.</div>'}<div class="actions" style="margin-top:15px"><button class="action ghost" data-action="map-import">Wczytaj prywatną mapę</button>${state.privateMap?'<button class="action ghost" data-action="map-download">Pobierz mapę</button>':''}</div></section>`}
 function renderSettings(){let g=state.global;return `${sec('Ustawienia wspólne','Zadane temperatury kotła i ENGO mają wpływ na całe mieszkanie.')}<div class="grid cols2"><section class="card"><h3>BRÖTJE · kocioł</h3><p class="subtitle" style="margin-bottom:15px">Zadana temperatura wody na zasilaniu. Odczyt bieżący na wyświetlaczu może być inny.</p><label for="boilerSet">Temperatura zadana kotła (°C)</label>${tempInput('boilerSet',g.boiler,25,85,1)}<p class="hint">Wartość początkowa: 55°C. Wpisz faktyczną nastawę.</p><div class="actions" style="margin-top:14px"><button class="action" data-action="set-boiler">Zapisz nastawę kotła</button></div></section><section class="card"><h3>ENGO Smart · sypialnia</h3><p class="subtitle" style="margin-bottom:15px">Termostat wyznacza zapotrzebowanie na ogrzewanie dla całego mieszkania.</p><div class="form-grid"><div><label for="engoSet">Temperatura zadana (°C)</label>${tempInput('engoSet',g.engo,10,30,'.5')}</div><div><label for="engoCurrent">Aktualny odczyt ENGO (°C)</label>${tempInput('engoCurrent',g.engoCurrent,0,45,'.1')}</div><div class="wide"><label for="engoPlace">Położenie termostatu</label><input id="engoPlace" value="${esc(g.engoPlace)}" maxlength="220"></div></div><div class="actions" style="margin-top:14px"><button class="action" data-action="set-engo">Zapisz ustawienia ENGO</button></div><p class="hint">Po przeniesieniu termostatu wpisz nowe miejsce. Aplikacja zachowa zmianę w dzienniku.</p></section></div><section class="card" style="margin-top:16px"><div class="group-heading"><h3>Twoje dane i kopie zapasowe</h3><span class="pill">bez konta</span></div><p class="muted" style="font-size:13px;margin-bottom:17px">Dane są przechowywane lokalnie w tej przeglądarce na tym urządzeniu. Aktualizacja pod tym samym adresem zachowuje dane. Wyczyszczenie Safari, usunięcie aplikacji lub zmiana urządzenia mogą je usunąć. Regularnie zapisuj JSON w Plikach / iCloud. Przenosząc dane ze starej wersji lub między Safari a aplikacją z ekranu początkowego, użyj eksportu i importu JSON.</p><div class="actions filecontrols"><button class="action light" data-action="export-json">Pobierz kopię JSON</button><button class="action ghost" data-action="import-json">Wczytaj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button><button class="action ghost" data-action="recover">Przywróć poprzedni zapis</button><button class="action ghost" data-action="persist">Chroń zapis na urządzeniu</button><button class="action danger" data-action="reset">Wyczyść dane</button></div><div class="hr"></div><p class="footer-note">Aplikacja odczytuje publiczny plik z pomiarami Setti+, ale nie łączy się bezpośrednio z urządzeniami ani nie wysyła poleceń. Gdy pomiary są nieaktualne, możesz je nadal wpisać ręcznie.</p></section>`}
-function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.4.1 · Twoje wpisy tylko na tym urządzeniu</div>`}
+function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='boiler'?renderBoiler():page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.4.2 · Twoje wpisy tylko na tym urządzeniu</div>`}
 function numInput(id,min,max,allowEmpty=true){let e=document.getElementById(id);if(!e)return {ok:false};let raw=e.value.trim().replace(',','.');if(raw===''&&allowEmpty)return{ok:true,value:null};let v=Number(raw);if(raw===''||!Number.isFinite(v)||v<min||v>max){toast(`Sprawdź pole: ${id}. Dozwolony zakres ${min}–${max}.`);e.focus();return{ok:false}}return{ok:true,value:v}}
 function changed(a,b){return a!==b}
 function handleClick(e){let btn=e.target.closest('[data-action]');if(!btn)return;let ac=btn.dataset.action;
 if(ac==='page')return setPage(btn.dataset.page);
+if(ac==='edit-boiler'){
+ const id=btn.dataset.id;if(!(state.boilerReadings||[]).some(x=>x.id===id))return toast('Nie odnaleziono odczytu.');
+ editingBoiler=id;return setPage('boiler');
+}
+if(ac==='cancel-boiler'){editingBoiler=null;return render()}
+if(ac==='delete-boiler'){
+ const id=btn.dataset.id,index=(state.boilerReadings||[]).findIndex(x=>x.id===id);
+ if(index<0)return toast('Nie odnaleziono odczytu.');
+ const r=state.boilerReadings[index];
+ if(!confirm('Usunąć odczyt liczników BRÖTJE z '+day(r.at)+'? Zniknie z porównań.'))return;
+ state.boilerReadings.splice(index,1);
+ changeLog('Usunięto odczyt BRÖTJE',day(r.at)+' · AC001 '+r.ac001+' · AC005 '+r.ac005+' · AC006 '+r.ac006);
+ editingBoiler=null;save();toast('Usunięto odczyt liczników.');return render();
+}
+if(ac==='save-boiler'){
+ const inputs=['boilerAc001','boilerAc005','boilerAc006'].map(id=>numInput(id,0,100000000,false));
+ if(inputs.some(x=>!x.ok))return;
+ const vals=inputs.map(x=>x.value);
+ if(vals.some(x=>!Number.isSafeInteger(x)))return toast('W licznikach wpisz pełne liczby całkowite.');
+ const d=document.getElementById('boilerAt').value,at=new Date(d);
+ if(!Number.isFinite(at.valueOf())||at.valueOf()>Date.now()+3600000)return toast('Wpisz poprawną datę i godzinę zdjęcia.');
+ const note=document.getElementById('boilerNote').value.trim().slice(0,200);
+ const existing=editingBoiler?(state.boilerReadings||[]).find(x=>x.id===editingBoiler):null;
+ if(editingBoiler&&!existing)return toast('Nie odnaleziono edytowanego odczytu.');
+ if((state.boilerReadings||[]).some(x=>x.id!==editingBoiler&&Math.abs(Date.parse(x.at)-at.valueOf())<60000))
+   return toast('Odczyt z tej samej minuty już istnieje. Popraw go zamiast dodawać duplikat.');
+ const [ac001,ac005,ac006]=vals;
+ if(existing&&existing.at===at.toISOString()&&existing.ac001===ac001&&existing.ac005===ac005&&existing.ac006===ac006&&existing.note===note){editingBoiler=null;return render()}
+ if(!confirm((existing?'Poprawić':'Zapisać')+' liczniki BRÖTJE z '+day(at.toISOString())+'? AC001: '+ac001+', AC005: '+ac005+', AC006: '+ac006+'.'))return;
+ const row={id:existing?.id||'b-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),at:at.toISOString(),ac001,ac005,ac006,note};
+ if(existing){const idx=state.boilerReadings.findIndex(x=>x.id===existing.id);state.boilerReadings[idx]=row;}
+ else state.boilerReadings.push(row);
+ changeLog(existing?'Poprawiono liczniki BRÖTJE':'Odczyt liczników BRÖTJE',day(row.at)+' · AC001 '+ac001+' · AC005 '+ac005+' · AC006 '+ac006);
+ editingBoiler=null;save();toast('Zapisano liczniki BRÖTJE.');return render();
+}
 if(ac==='edit-gas'){
  const kind=btn.dataset.kind,index=Number(btn.dataset.index),list=kind==='condition'?state.conditions:kind==='history'?state.gasHistory:null;
  if(!list||!Number.isSafeInteger(index)||index<0||!list[index])return;
