@@ -31,6 +31,9 @@ test('stale readings are not presented as current', async () => {
   assert.equal(run('Setti.snapshot()'), null);
   assert.equal(run('Setti.room("salon")'), null);
   assert.equal(run('Setti.status().ok'), false);
+  assert.equal(run('Setti.lastRoom("salon").temp'), 21.5);
+  assert.equal(run('Setti.lastRoom("salon").at'), old.last_sync);
+  assert.equal(run('Setti.snapshot()'), null, 'stale values never become a live snapshot');
 });
 test('invalid and failed public responses cannot create false measurements', async () => {
   const run = instance();

@@ -257,3 +257,42 @@ test('cancelling gas confirmation does not write data',()=>{
  assert.equal(b.data.get(KEY),recorded);
  assert.equal(b.run('state.gasHistory.length'),1);
 });
+
+test('weather fallback never shows the raw hourly sample count as temperature',()=>{
+ const b=boot();
+ b.run("state.weather={hourly:[{at:Math.floor(Date.now()/1000)-2*86400,temp:7}],updated:new Date(Date.now()-24*3600000).toISOString()}");
+ const info=b.run('weatherStatus()');
+ assert.match(info,/Katowice: brak aktualnej temperatury/);
+ assert.doesNotMatch(info,/Dane godzinowe:/);
+ b.run("setPage('home')");
+ const home=b.element('view').innerHTML;
+ assert.match(home,/brak aktualnej temperatury/);
+ assert.doesNotMatch(home,/Dane godzinowe:/);
+ b.run("state.weather={hourly:[{at:Math.floor(Date.now()/1000/3600)*3600,temp:7}],updated:now()}");
+ assert.match(b.run('weatherStatus()'),/7,0°C/);
+});
+
+test('stale Setti readings show last automatic values and time, not the older manual entry',async()=>{
+ const b=boot();
+ b.run("state.rooms.bedroom.readings.push({at:'2026-11-14T06:00:00Z',temp:19.5,humidity:43,note:'ręcznie'});save()");
+ const before=b.data.get(KEY);
+ const rooms=Object.fromEntries(['bedroom','salon','kitchen','bigbath','smallbath','hall'].map(id=>[id,{temperature:21.6,humidity:49}]));
+ const data={version:1,last_sync:new Date(Date.now()-50*60000).toISOString(),rooms};
+ await b.run('Setti.refresh(async()=>({ok:true,json:async()=>('+JSON.stringify(data)+')}))');
+ assert.equal(b.run('Setti.room("bedroom")'),null);
+ assert.equal(b.run('Setti.snapshot()'),null);
+ assert.equal(b.run('latestReading("bedroom").temp'),21.6);
+ assert.equal(b.run('delta("bedroom")'),null);
+ b.run("setPage('home')");
+ const home=b.element('view').innerHTML;
+ assert.match(home,/21,6°C/);
+ assert.match(home,/Setti\+ · nieaktualne/);
+ assert.match(home,/Nieaktualny pomiar z/);
+ b.run("setPage('heads')");
+ assert.match(b.element('view').innerHTML,/Setti\+ · nieaktualne/);
+ assert.match(b.element('view').innerHTML,/Ostatni automatyczny pomiar:/);
+ b.run("setPage('room','bedroom')");
+ assert.match(b.element('view').innerHTML,/Setti\+ \(nieaktualne\):/);
+ assert.match(b.element('view').innerHTML,/Nie oceniaj na jego podstawie/);
+ assert.equal(b.data.get(KEY),before);
+});
