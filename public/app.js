@@ -155,6 +155,40 @@ function numInput(id,min,max,allowEmpty=true){let e=document.getElementById(id);
 function changed(a,b){return a!==b}
 function handleClick(e){let btn=e.target.closest('[data-action]');if(!btn)return;let ac=btn.dataset.action;
 if(ac==='page')return setPage(btn.dataset.page);
+if(ac==='edit-gas'){
+ const kind=btn.dataset.kind,index=Number(btn.dataset.index),list=kind==='condition'?state.conditions:kind==='history'?state.gasHistory:null;
+ if(!list||!Number.isSafeInteger(index)||index<0||!list[index])return;
+ editingGas={kind,index};return setPage('insights');
+}
+if(ac==='cancel-gas-edit'){editingGas=null;return render()}
+if(ac==='delete-gas'){
+ const kind=btn.dataset.kind,index=Number(btn.dataset.index),list=kind==='condition'?state.conditions:kind==='history'?state.gasHistory:null;
+ if(!list||!Number.isSafeInteger(index)||index<0||!list[index])return;
+ const old=list[index];if(!confirm('Usunąć odczyt '+fmt(old.gas,3)+' m³ z '+day(old.at)+'? Nie będzie uwzględniany w analizie.'))return;
+ if(kind==='history')list.splice(index,1);else list[index].gas=null; // Weather observation remains.
+ changeLog('Usunięto odczyt gazomierza',day(old.at)+' · '+fmt(old.gas,3)+' m³ · '+(kind==='condition'?'obserwacja pogody zachowana':old.meter));
+ editingGas=null;save();toast('Usunięto odczyt gazu.');return render();
+}
+if(ac==='save-gas-edit'){
+ if(!editingGas)return;
+ const {kind,index}=editingGas,list=kind==='condition'?state.conditions:state.gasHistory,old=list[index];
+ if(!old)return toast('Nie odnaleziono wpisu.');
+ const v=numInput('editGasValue',0,100000000,false);if(!v.ok)return;
+ const limited=kind==='condition';
+ const rawDate=limited?old.at:document.getElementById('editGasAt').value;
+ const millis=Date.parse(rawDate);
+ if(!Number.isFinite(millis)||millis>Date.now()+86400000)return toast('Nieprawidłowa data.');
+ const d=new Date(millis).toISOString(),meter=limited?(old.meter||'new'):document.getElementById('editGasMeter').value;
+ const source=limited?'pomiar':document.getElementById('editGasSource').value;
+ if(!['new','old'].includes(meter)||(!limited&&!['manual','orlen'].includes(source)))return toast('Nieprawidłowe źródło.');
+ if(Insights.readings(state).some(r=>!(r.kind===kind&&r.index===index)&&r.meter===meter&&Math.abs(r.at-millis)<30000&&Math.abs(r.gas-v.value)<.00001))return toast('Taki odczyt już istnieje.');
+ if(old.gas===v.value&&old.at===d&&(limited||(old.meter===meter&&old.source===source))){editingGas=null;return render()}
+ if(!confirm('Zatwierdzić poprawkę: '+fmt(old.gas,3)+' m³ → '+fmt(v.value,3)+' m³?'))return;
+ const detail=day(old.at)+' · '+fmt(old.gas,3)+' m³ → '+day(d)+' · '+fmt(v.value,3)+' m³';
+ list[index]={...old,at:d,gas:v.value,...(limited?{}:{meter,source})};
+ changeLog('Poprawiono odczyt gazomierza',detail);editingGas=null;save();toast('Zapisano poprawkę.');return render();
+}
+
 if(ac==='refresh-weather')return syncWeather(true);
 if(ac==='refresh-setti')return syncSetti(true);
 if(ac==='refresh-heads')return syncHeads(true);
@@ -164,12 +198,13 @@ if(ac==='save-radiators'){let rid=btn.dataset.room,updates=[];for(let k of RM[ri
 if(ac==='reading'){let rid=btn.dataset.room,n=numInput('tempReading',-10,45,false),h=numInput('humidityReading',0,100);if(!n.ok||!h.ok)return;let note=document.getElementById('readNote').value.slice(0,200);state.rooms[rid].readings.push({at:now(),temp:n.value,humidity:h.value,note});changeLog('Pomiar: '+RM[rid].name,`${T(n.value)}${h.value===null?'':' · '+fmt(h.value,0)+'%'}${note?' · '+note:''}`);save();toast('Zapisano pomiar Setti+.');return render()}
 if(ac==='set-boiler'){let n=numInput('boilerSet',25,85,false);if(!n.ok)return;let old=state.global.boiler;state.global.boiler=n.value;if(changed(old,n.value))changeLog('Kocioł BRÖTJE',`${fmt(old,0)}°C → ${fmt(n.value,0)}°C`);save();toast('Zapisano nastawę kotła.');return render()}
 if(ac==='set-engo'){let a=numInput('engoSet',10,30,false),b=numInput('engoCurrent',0,45);if(!a.ok||!b.ok)return;let place=document.getElementById('engoPlace').value.trim().slice(0,220);let old=state.global;let details=[];if(changed(old.engo,a.value))details.push(`zadana: ${T(old.engo)} → ${T(a.value)}`);if(changed(old.engoCurrent,b.value))details.push(`odczyt: ${T(old.engoCurrent)} → ${T(b.value)}`);if(changed(old.engoPlace,place))details.push(`położenie: ${old.engoPlace} → ${place}`);if(details.length)changeLog('ENGO Smart',details.join(' · '));state.global={...old,engo:a.value,engoCurrent:b.value,engoPlace:place};save();toast('Zapisano ustawienia ENGO.');return render()}
-if(ac==='record-conditions'){let b=numInput('gas',0,100000000);if(!b.ok)return;const near=Insights.near(state.weather?.hourly,Date.now());const outdoor=near?near.temp:null;const sky=document.getElementById('sky').value;if(b.value===null&&sky==='unknown'){toast('Wpisz stan licznika albo warunki.');return}let record={at:now(),outdoor,gas:b.value,sky,meter:'new'};if(b.value!==null){const snap=Setti.snapshot();if(snap)record.setti=snap;}state.conditions.push(record);changeLog('Warunki zewnętrzne / gaz',`${outdoor===null?'Pogoda: brak danych':T(outdoor)} · ${b.value===null?'Brak stanu licznika':fmt(b.value,3)+' m³'} · ${record.sky}`);save();toast('Zapisano odczyt. Pogoda jest pobierana automatycznie.');return render()}
+if(ac==='record-conditions'){let b=numInput('gas',0,100000000);if(!b.ok)return;const near=Insights.near(state.weather?.hourly,Date.now());const outdoor=near?near.temp:null;const sky=document.getElementById('sky').value;if(b.value===null&&sky==='unknown'){toast('Wpisz stan licznika albo warunki.');return}let record={at:now(),outdoor,gas:b.value,sky,meter:'new'};if(b.value!==null){const snap=Setti.snapshot();if(snap)record.setti=snap;}if(b.value!==null&&!confirm('Zatwierdzić stan gazomierza '+fmt(b.value,3)+' m³?'))return;state.conditions.push(record);changeLog('Warunki zewnętrzne / gaz',`${outdoor===null?'Pogoda: brak danych':T(outdoor)} · ${b.value===null?'Brak stanu licznika':fmt(b.value,3)+' m³'} · ${record.sky}`);save();toast('Zapisano odczyt. Pogoda jest pobierana automatycznie.');return render()}
 if(ac==='add-gas'){
  const d=document.getElementById('gasAt').value,v=numInput('gasValue',0,100000000,false),meter=document.getElementById('gasMeter').value,source=document.getElementById('gasSource').value;
  if(!v.ok)return;const at=new Date(d);if(!Number.isFinite(at.valueOf())||at.valueOf()>Date.now()+86400000)return toast('Wpisz prawidłową datę.');
  const dup=Insights.readings(state).some(r=>r.meter===meter&&Math.abs(r.at-at.valueOf())<30000&&Math.abs(r.gas-v.value)<.00001);
  if(dup)return toast('Ten odczyt już istnieje.');
+ if(!confirm('Zatwierdzić odczyt '+fmt(v.value,3)+' m³ z '+day(at.toISOString())+'?'))return;
  const snap=source==='manual'&&Math.abs(at.valueOf()-Date.now())<=300000?Setti.snapshot():null;
  state.gasHistory.push({id:'g-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),at:at.toISOString(),gas:v.value,meter,source,...(snap?{setti:snap}:{})});
  changeLog('Odczyt gazomierza',meter+' · '+fmt(v.value,3)+' m³ · '+d);save();toast('Zapisano odczyt.');return render();
@@ -218,6 +253,9 @@ async function syncHeads(force=false){
  if(force)toast(ok?'Pobrano aktualne dane głowic.':'Nie uzyskano aktualnych danych głowic. Ostatni zapis jest oznaczony czasem synchronizacji.');
 }
 window.addEventListener('load',()=>{syncWeather();syncSetti();syncHeads();if(typeof window.setInterval==='function')window.setInterval(()=>{syncSetti();syncHeads()},5*60*1000)});
+window.addEventListener('pageshow',()=>syncWeather());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncWeather()});
+window.addEventListener('online',()=>syncWeather());
 window.addEventListener('storage',e=>{if(DataStore.isKey(e.key)){document.getElementById('storageAlert').hidden=false;document.getElementById('storageAlert').textContent='Dane zmieniono w innej karcie. Odśwież aplikację przed kolejnym zapisem.'}});
 
 render();
