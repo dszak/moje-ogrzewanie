@@ -128,7 +128,7 @@ function renderBoiler(){
       <button class="action danger" data-action="delete-boiler" data-id="${esc(r.id)}">Usuń</button></div>
   </article>`;
  }).join('');
- return `${sec('Liczniki BRÖTJE','Ręczne odczyty z wyświetlacza kotła QWHC 20/24 — tylko dziennik, bez sterowania.')}
+ return `${sec('Liczniki BRÖTJE','Ręczne odczyty z wyświetlacza kotła QWHC — tylko dziennik, bez sterowania.')}
  <div class="banner info"><span>ℹ️</span><span><b>Co oznaczają liczniki?</b> AC001 to godziny zasilania elektrycznego kotła, nie czas pracy palnika. AC005 i AC006 to orientacyjne, narastające liczniki odpowiednio ogrzewania i ciepłej wody. Pokazujemy surowe wskazania i różnice, bez przypisywania niepotwierdzonych jednostek lub przeliczania na m³ gazu.</span></div>
  <section class="card" style="margin-bottom:16px"><div class="group-heading"><h3>Ostatni odczyt</h3><span class="pill">${all.length} zapisów</span></div>
  ${latest?`<p class="small muted">${day(latest.at)}</p><div class="panel-readings"><div><span>AC001 · godziny</span><strong>${count(latest.ac001)} h</strong></div><div><span>AC005 · c.o.</span><strong>${count(latest.ac005)}</strong></div><div><span>AC006 · c.w.u.</span><strong>${count(latest.ac006)}</strong></div></div>
