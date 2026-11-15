@@ -4,6 +4,7 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 function kit(){
  const ctx=vm.createContext({Date,Intl,Math});
+ vm.runInContext(fs.readFileSync('public/research.js','utf8'),ctx);
  vm.runInContext(fs.readFileSync('public/memory.js','utf8'),ctx);
  return vm.runInContext('MemoryKit',ctx);
 }
@@ -62,6 +63,8 @@ test('full memory context survives report period boundaries, includes superseded
    readable_summary:'Pomiary z 24 godzin',period:{key:'day'}};
  const out=m.augment(report,state),full=out.memory_context;
  assert.equal(out.format_version,2);
+ assert.equal(full.established_technical_research.sources.length,9);
+ assert.ok(full.established_technical_research.sources.some(s=>s.id==='nesta'));
  assert.equal(full.entire_knowledge_history.length,2);
  assert.equal(full.entire_knowledge_history[0].status,'superseded');
  assert.equal(full.entire_knowledge_history[1].outcome,'negative');
@@ -93,6 +96,7 @@ test('current configuration candidates are not silently called optimal',()=>{
 
 test('new chat and evidence proposal prompts explicitly forbid invented facts and repeating old attempts',()=>{
  const m=kit();
+ assert.match(m.CHAT_INSTRUCTIONS,/publiczną bazę wiedzy technicznej/);
  assert.match(m.CHAT_INSTRUCTIONS,/Nie powtarzaj zbadanych już prób/);
  assert.match(m.CHAT_INSTRUCTIONS,/Nie wymyślaj pomiarów/);
  assert.match(m.PROPOSAL_INSTRUCTIONS,/tylko WNIOSKI POPARTE DANYMI/);
