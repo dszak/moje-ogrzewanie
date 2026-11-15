@@ -37,6 +37,18 @@ Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotnoś
 
 Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy subiektywnego komfortu (obniżony komfort, optymalnie, przegrzanie). Te funkcje wymagają osobnego projektu interfejsu i testów bezpiecznej rozbudowy zapisu — **nie są jeszcze wprowadzone**.
 
+## Wersja 1.4.2 · ręczne liczniki kotła BRÖTJE
+
+Nowa zakładka **Kocioł** zawiera prywatny dziennik odczytów z wyświetlacza BRÖTJE QWHC 20/24:
+
+- **AC001**: skumulowana liczba godzin zasilania kotła, nie czas pracy palnika;
+- **AC005**: narastający, orientacyjny licznik związany z centralnym ogrzewaniem;
+- **AC006**: narastający, orientacyjny licznik związany z przygotowaniem ciepłej wody.
+
+Można wpisać datę i godzinę zdjęcia, trzy wartości całkowite oraz opcjonalną notatkę, przeglądać historię, poprawiać i usuwać błędne wpisy po potwierdzeniu. Program oblicza nieujemne różnice pomiędzy kolejnymi odczytami w porządku chronologicznym. Przy spadku lub resecie licznika nie wylicza fałszywego „ujemnego zużycia”. Wartości AC005 i AC006 pozostają **surowymi wskazaniami bez jednostek**: nie są automatycznie przeliczane na kWh, m³ gazu ani koszt.
+
+Historia jest przechowywana **tylko lokalnie** jako opcjonalne `boilerReadings` w dotychczasowym formacie danych `version:1` i pojawia się również w eksporcie JSON. Stare pliki JSON nieposiadające tego pola są nadal akceptowane; nie jest zmieniany klucz pamięci `moje-ogrzewanie-data-v1`. Aplikacja nie łączy się z elektroniką kotła, nie przełącza ENGO ani nie zmienia nastaw grzania. Pierwsze odczyty ze zdjęć użytkownik wprowadza prywatnie po publikacji — nie znajdują się w publicznym repozytorium.
+
 ## Wersja 1.4.1 · czytelne stany danych pogodowych i Setti+
 
 - Na ekranie głównym i w zakładce **Gaz i pogoda** brak aktualnej temperatury zewnętrznej jest opisywany jako niedostępny pomiar z czasem ostatniej aktualizacji. Liczba historycznych godzinowych próbek (np. `8275`) nie zastępuje temperatury.
