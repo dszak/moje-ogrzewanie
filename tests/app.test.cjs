@@ -5,12 +5,12 @@ const fs=require('node:fs');
 const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
- let quota=false;
+ let quota=false,allowConfirm=true;
  const storage={get length(){return data.size},key:i=>[...data.keys()][i],getItem:k=>data.get(k)??null,setItem(k,v){if(quota)throw Error('quota');data.set(k,v)}};
  const element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',value:'',hidden:true,style:{},addEventListener(){},focus(){}});return elements.get(id)};
- const ctx=vm.createContext({localStorage:storage,document:{getElementById:element,addEventListener:(n,f)=>listeners[n]=f,createElement:()=>({style:{}}),body:{appendChild(){}}},navigator:{},window:{addEventListener(){}},location:{protocol:'https:'},setTimeout:()=>0,clearTimeout(){},scrollTo(){},confirm:()=>true,alert(){},console,Blob,URL});
+ const ctx=vm.createContext({localStorage:storage,document:{getElementById:element,addEventListener:(n,f)=>listeners[n]=f,createElement:()=>({style:{}}),body:{appendChild(){}}},navigator:{},window:{addEventListener(){}},location:{protocol:'https:'},setTimeout:()=>0,clearTimeout(){},scrollTo(){},confirm:()=>allowConfirm,alert(){},console,Blob,URL});
  vm.runInContext(source,ctx);
- return {run:s=>vm.runInContext(s,ctx),data,elements,listeners,element,setQuota:v=>quota=v};
+ return {run:s=>vm.runInContext(s,ctx),data,elements,listeners,element,setQuota:v=>quota=v,setConfirm:v=>allowConfirm=v};
 }
 const KEY='moje-ogrzewanie-data-v1';
 test('six rooms, eight heads, doors, all screens render',()=>{
@@ -236,4 +236,24 @@ test('daily gas comparisons are visible despite intermediate measurements',()=>{
  assert.match(b.element('view').innerHTML,/7,96 m³\/dobę/);
  assert.match(b.element('view').innerHTML,/Edytuj/);
  assert.match(b.element('view').innerHTML,/Usuń/);
+});
+
+test('cancelling gas confirmation does not write data',()=>{
+ const b=boot(),click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ b.run('save()');
+ const baseline=b.data.get(KEY);
+ b.setConfirm(false);
+ b.element('gasAt').value='2026-11-15T09:00';b.element('gasMeter').value='new';
+ b.element('gasSource').value='manual';b.element('gasValue').value='125.4';
+ click('add-gas');
+ assert.equal(b.data.get(KEY),baseline);
+ assert.equal(b.run('state.gasHistory.length'),0);
+ b.setConfirm(true);
+ click('add-gas');
+ assert.equal(b.run('state.gasHistory.length'),1);
+ const recorded=b.data.get(KEY);
+ b.setConfirm(false);
+ click('delete-gas',{kind:'history',index:'0'});
+ assert.equal(b.data.get(KEY),recorded);
+ assert.equal(b.run('state.gasHistory.length'),1);
 });
