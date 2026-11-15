@@ -6,14 +6,20 @@
 
 **To jest najważniejszy cel całego projektu**, nadrzędny wobec oszczędności, wykresów, ustawień kotła i samej automatyzacji. Mieszkanie, jego wyposażenie, energia, pieniądze, czas, zdobyta wiedza oraz warunki codziennego życia są dobrami, którymi należy gospodarować odpowiedzialnie. Technologia ma pomagać w takim gospodarowaniu, a nie stawać się celem samym w sobie.
 
-Zasadę realizujemy w duchu **czterech cnót kardynalnych**:
+### Dobro jako cel, umiejętna decyzja jako droga
 
-1. **Roztropność (prudentia):** rozpoznawać stan rzeczy na podstawie pomiarów i sprawdzonej wiedzy, odróżniać pewność od przypuszczeń, przewidywać skutki, wybierać właściwe środki i umieć zrezygnować z niepotrzebnej zmiany. Roztropność kieruje całym procesem „WIDZIEĆ → OCENIĆ → DZIAŁAĆ → UCZYĆ SIĘ”.
-2. **Sprawiedliwość (iustitia):** uczciwie gospodarować dobrem, szanować zasoby własne i wspólne, brać pod uwagę potrzeby ludzi, koszty energii, środowisko oraz skutki decyzji. Ograniczanie marnotrawstwa jest częścią odpowiedzialności, lecz nie usprawiedliwia zaniedbania zdrowia ani podstawowych potrzeb.
-3. **Umiarkowanie (temperantia):** zachowywać właściwą miarę — nie przegrzewać mieszkania z przyzwyczajenia, ale też nie oszczędzać za wszelką cenę. Szukać komfortu wystarczającego i racjonalnego, bez niepotrzebnej przesady.
-4. **Męstwo (fortitudo):** konsekwentnie i cierpliwie prowadzić obserwacje, przeprowadzać uzasadnione eksperymenty, przyjmować również wyniki negatywne i korygować błędne hipotezy; przerwać próbę, gdy przemawiają za tym bezpieczeństwo lub istotne pogorszenie komfortu.
+**W całym projekcie chodzi o rozpoznawanie i wybór dobra oraz umiejętne podejmowanie decyzji, które prowadzą do jego realizacji.** Nie chodzi o samo techniczne usprawnianie instalacji ani o bezwzględne minimalizowanie kosztów. Dobre gospodarowanie powierzonym dobrem jest konkretną formą odpowiedzialnego dążenia do dobra.
 
-**Praktyczny test każdej decyzji:** czy pomaga lepiej gospodarować powierzonym dobrem, jest zgodna z prawdą o danych, szanuje człowieka, zachowuje bezpieczeństwo i rozsądną proporcję kosztu do komfortu? Jeżeli nie, sama liczba zaoszczędzonych metrów sześciennych gazu nie wystarcza do uznania decyzji za dobrą.
+Zasadę realizujemy w duchu **czterech cnót kardynalnych**. Najpierw przyjmujemy ich znaczenie moralne, a dopiero później stosujemy je do praktycznych decyzji:
+
+1. **Roztropność (prudentia)** — **rozpoznawać prawdziwe dobro i wybierać właściwy sposób jego osiągnięcia**. W projekcie roztropność prowadzi do korzystania ze sprawdzonej wiedzy, rzetelnego odczytywania pomiarów, przewidywania skutków i podejmowania decyzji odpowiednich do celu. To ona nadaje kierunek metodzie „WIDZIEĆ → OCENIĆ → DZIAŁAĆ → UCZYĆ SIĘ”.
+2. **Sprawiedliwość (iustitia)** — **oddawać każdemu to, co mu się należy**. W naszym zastosowaniu: **Bogu** — należną cześć i wdzięczność; **sobie** — troskę o zdrowie, bezpieczeństwo i godne warunki; **gościom** — życzliwe przyjęcie i właściwy komfort; **dostawcy gazu (ORLEN)** — uczciwe rozliczenie; **budynkowi** — odpowiednią eksploatację, konserwację i ochronę przed zniszczeniem; **przyrodzie** — szacunek i powstrzymywanie się od zbędnego marnowania zasobów. W odniesieniu do budynku i przyrody mówimy o obowiązkach troski o dobra powierzone, a nie o przypisywaniu rzeczom praw identycznych jak prawa osób.
+3. **Umiarkowanie (temperantia)** — **panowanie nad pragnieniami; równowaga w korzystaniu z dóbr doczesnych i powstrzymywanie przed nadużyciami**. W projekcie oznacza właściwą miarę: ani nieograniczone podnoszenie komfortu i temperatury, ani oszczędzanie za wszelką cenę ze szkodą dla zdrowia czy potrzebnych warunków życia.
+4. **Męstwo (fortitudo)** — **stałość i wytrwałość w dążeniu do dobra, pokonywanie przeszkód i pokus**. W projekcie to cierpliwość w zbieraniu danych, gotowość do zmiany nietrafionych decyzji, konsekwencja w realizacji tych dobrych oraz zachowanie odwagi i odpowiedzialności wobec trudności.
+
+**Wszystkie cztery cnoty służą wyborowi dobra i jego urzeczywistnianiu.** Roztropność rozpoznaje dobro i dobiera drogę; sprawiedliwość ukazuje powinności wobec innych i powierzonych dóbr; umiarkowanie pomaga zachować właściwą miarę; męstwo podtrzymuje wytrwałość, by dobro rzeczywiście osiągnąć.
+
+**Praktyczny test każdej decyzji:** jakie dobro chcemy osiągnąć, czy wybrane środki naprawdę do niego prowadzą, co jest komu należne, czy zachowujemy właściwą miarę i czy potrafimy wytrwać w dobrym wyborze? Czy decyzja jest zgodna z prawdą o danych, szanuje człowieka i zachowuje bezpieczeństwo? Jeżeli nie, sama liczba zaoszczędzonych metrów sześciennych gazu nie wystarcza do uznania decyzji za dobrą.
 
 **Hierarchia celów:** odpowiedzialność za powierzone dobro → bezpieczeństwo, uczciwość i potrzeby ludzi → komfort oraz efektywne wykorzystanie zasobów → optymalizacja parametrów technicznych. Poniższe cele i procedury są sposobami realizacji tej nadrzędnej zasady, a nie konkurującymi z nią wartościami.
 
