@@ -39,6 +39,8 @@ Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy sub
 
 ## Wersja 1.8.0 · Pamięć i Optymalizacja
 
+**Biblioteka wiedzy technicznej:** wersja 1.8 zawiera osobną, źródłową bazę wiedzy (BRÖTJE, ENGO, Nesta, Energy Saving Trust, CIBSE, ASHRAE, PKN i Citizens Advice). Każdy materiał ma podaną tezę, praktyczne zastosowanie i ograniczenia. Źródła są widoczne w zakładce „Pamięć projektu” i dołączane do pakietu JSON; są oddzielone od lokalnych pomiarów i zatwierdzonych wyników eksperymentów. Patrz [metodyka badań i literatura](docs/BAZA-WIEDZY-TECHNICZNEJ.md). **Nie przepisuj ogólnych wyników z literatury jako potwierdzonych oszczędności tego mieszkania.**
+
 **Cel nadrzędny:** nie gromadzić samych wykresów, lecz stopniowo *uczyć się zachowania instalacji*, łącząc komfort i ekonomię oraz wykorzystując wyniki wszystkich wcześniejszych eksperymentów. Zasady projektu: [najważniejsza karta metodologii](docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md).
 
 - Nowa prywatna zakładka **Pamięć projektu**: karta charakterystyki mieszkania, instalacji, czujników, indywidualnych kryteriów komfortu, ograniczeń i aktualnego pytania badawczego. Pola startują puste: szczegóły budynku i instalacji wpisuje użytkownik **lokalnie**, nie są publikowane w kodzie aplikacji.
