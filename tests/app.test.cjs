@@ -2,20 +2,20 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
- let quota=false;
+ let quota=false,allowConfirm=true;
  const storage={get length(){return data.size},key:i=>[...data.keys()][i],getItem:k=>data.get(k)??null,setItem(k,v){if(quota)throw Error('quota');data.set(k,v)}};
  const element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',value:'',hidden:true,style:{},addEventListener(){},focus(){}});return elements.get(id)};
- const ctx=vm.createContext({localStorage:storage,document:{getElementById:element,addEventListener:(n,f)=>listeners[n]=f,createElement:()=>({style:{}}),body:{appendChild(){}}},navigator:{},window:{addEventListener(){}},location:{protocol:'https:'},setTimeout:()=>0,clearTimeout(){},scrollTo(){},confirm:()=>true,alert(){},console,Blob,URL});
+ const ctx=vm.createContext({localStorage:storage,document:{getElementById:element,addEventListener:(n,f)=>listeners[n]=f,createElement:()=>({style:{}}),body:{appendChild(){}}},navigator:{},window:{addEventListener(){}},location:{protocol:'https:'},setTimeout:()=>0,clearTimeout(){},scrollTo(){},confirm:()=>allowConfirm,alert(){},console,Blob,URL});
  vm.runInContext(source,ctx);
- return {run:s=>vm.runInContext(s,ctx),data,elements,listeners,element,setQuota:v=>quota=v};
+ return {run:s=>vm.runInContext(s,ctx),data,elements,listeners,element,setQuota:v=>quota=v,setConfirm:v=>allowConfirm=v};
 }
 const KEY='moje-ogrzewanie-data-v1';
 test('six rooms, eight heads, doors, all screens render',()=>{
  const b=boot();assert.equal(b.run('ROOMS.length'),6);assert.equal(b.run('Object.keys(RADS).length'),8);
- for(const page of ['home','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
+ for(const page of ['home','heads','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
  for(const r of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])b.run(`setPage('room','${r}')`);
  assert.equal(b.run('Object.keys(DOORS).length'),6);
 });
@@ -175,4 +175,85 @@ test('narrow screens use gas cards while desktop keeps a scrollable table',()=>{
  assert.match(html,/@media\(max-width:640px\)\{[\s\S]*?\.gas-history-mobile\{display:grid;gap:12px\}/);
  assert.match(html,/\.gas-history-entry-rooms\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.match(html,/\.gas-history-entry-value\{[^}]*white-space:nowrap/);
+});
+
+test('head screen shows eight validated readings without changing local data or history', async () => {
+  const b=boot(), when=new Date().toISOString();
+  const heads={};
+  for(let i=1;i<=8;i++)heads['g'+i]={temperature:21+i/10,target_temperature:22,calibration:-1,mode_raw:'standy'};
+  const payload={version:1,last_sync:when,heads};
+  await b.run('Heads.refresh(async()=>({ok:true,json:async()=>('+JSON.stringify(payload)+')}))');
+  const before=b.data.get(KEY);
+  b.run("setPage('heads')");
+  const view=b.element('view').innerHTML;
+  assert.match(view,/Panel ogrzewania/);
+  assert.equal((view.match(/class="panel-head"/g)||[]).length,8);
+  assert.match(view,/Tryb:/);
+  assert.match(view,/21,1°C/);
+  assert.match(view,/Odśwież głowice/);
+  assert.equal(b.data.get(KEY),before);
+  assert.equal(b.run('state.events.length'),0);
+});
+
+test('gas readings can be edited and deleted while unrelated weather observations remain',()=>{
+ const b=boot(),click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ b.run("state.conditions.push({at:'2026-11-14T06:00:00Z',gas:500,outdoor:4,sky:'clouds',meter:'new'});state.gasHistory.push({id:'g-test',at:'2026-11-15T06:00:00Z',gas:505,meter:'new',source:'manual'});save()");
+ click('edit-gas',{kind:'history',index:'0'});
+ assert.match(b.element('view').innerHTML,/Popraw odczyt gazomierza/);
+ b.element('editGasAt').value='2026-11-15T06:00';
+ b.element('editGasMeter').value='new';
+ b.element('editGasSource').value='manual';
+ b.element('editGasValue').value='506.123';
+ click('save-gas-edit');
+ assert.equal(b.run('state.gasHistory[0].gas'),506.123);
+ assert.equal(b.run('state.gasHistory.length'),1);
+ assert.match(b.run('state.events[0].label'),/Poprawiono/);
+ click('delete-gas',{kind:'condition',index:'0'});
+ assert.equal(b.run('state.conditions.length'),1);
+ assert.equal(b.run('state.conditions[0].gas'),null);
+ assert.equal(b.run("state.conditions[0].sky"),'clouds');
+ assert.equal(b.run('state.gasHistory.length'),1);
+ click('delete-gas',{kind:'history',index:'0'});
+ assert.equal(b.run('state.gasHistory.length'),0);
+ b.run('DataStore.validate(state)');
+ const again=boot(Object.fromEntries(b.data));
+ assert.equal(again.run('state.conditions[0].sky'),'clouds');
+ assert.equal(again.run('state.conditions[0].gas'),null);
+ assert.equal(again.run('state.events.length'),3);
+});
+
+test('daily gas comparisons are visible despite intermediate measurements',()=>{
+ const b=boot();
+ const list=[
+ {id:'a',at:'2026-11-14T06:47:00Z',gas:100,meter:'new',source:'manual'},
+ {id:'b',at:'2026-11-14T08:57:00Z',gas:101,meter:'new',source:'manual'},
+ {id:'c',at:'2026-11-14T20:00:00Z',gas:105,meter:'new',source:'manual'},
+ {id:'d',at:'2026-11-15T06:55:00Z',gas:108,meter:'new',source:'manual'}
+ ];
+ b.run('state.gasHistory.push(...'+JSON.stringify(list)+');save()');
+ b.run("setPage('insights')");
+ assert.match(b.element('view').innerHTML,/Porównania dobowe/);
+ assert.match(b.element('view').innerHTML,/7,96 m³\/dobę/);
+ assert.match(b.element('view').innerHTML,/Edytuj/);
+ assert.match(b.element('view').innerHTML,/Usuń/);
+});
+
+test('cancelling gas confirmation does not write data',()=>{
+ const b=boot(),click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ b.run('save()');
+ const baseline=b.data.get(KEY);
+ b.setConfirm(false);
+ b.element('gasAt').value='2026-11-15T09:00';b.element('gasMeter').value='new';
+ b.element('gasSource').value='manual';b.element('gasValue').value='125.4';
+ click('add-gas');
+ assert.equal(b.data.get(KEY),baseline);
+ assert.equal(b.run('state.gasHistory.length'),0);
+ b.setConfirm(true);
+ click('add-gas');
+ assert.equal(b.run('state.gasHistory.length'),1);
+ const recorded=b.data.get(KEY);
+ b.setConfirm(false);
+ click('delete-gas',{kind:'history',index:'0'});
+ assert.equal(b.data.get(KEY),recorded);
+ assert.equal(b.run('state.gasHistory.length'),1);
 });

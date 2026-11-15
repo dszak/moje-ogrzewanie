@@ -19,6 +19,24 @@ Zakładka **Gaz i pogoda** pobiera temperaturę godzinową dla Katowic z Open-Me
 
 Na ekranach o szerokości do 640 px historia odczytów gazomierza jest wyświetlana jako karty z datą, wartością w m³, źródłem i — jeśli dostępne — rozwijanymi pomiarami sześciu pomieszczeń. Na większych ekranach pozostaje tabela z możliwością przewijania poziomego. Zmiana dotyczy tylko wyglądu: nie modyfikuje formatu danych, klucza zapisu ani historii.
 
+## Wersja 1.4.0 · panel ogrzewania i bezpieczne poprawki
+
+Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotność w sześciu pomieszczeniach, osiem głowic TRV001 oraz ręcznie zapisane wartości ENGO i kotła. Pomiary Setti+ są pobierane tylko do odczytu z `pomiary.json`, a głowice z publicznego `https://raw.githubusercontent.com/dszak/moje-ogrzewanie/setti-data/glowice.json`.
+
+- Każda z ośmiu głowic pokazuje temperaturę przy głowicy, temperaturę zadaną, kalibrację i dosłowną wartość `mode_raw`. Dane głowic nie są tożsame z temperaturą pomieszczenia. Nieaktualne odczyty są oznaczone, a stare nie są udawane jako bieżące.
+- Głowice i czujniki odświeżają się przy uruchomieniu, co 5 minut oraz na żądanie, bez tokenów i logowania do Setti+/Tuya.
+- ENGO Smart i temperatura kotła pozostają **wpisami ręcznymi**. Panel nie wydaje żadnych poleceń urządzeniom.
+- Odczyty gazu z formularza i historii mogą być indywidualnie **edytowane lub usuwane** po potwierdzeniu. Każda poprawka jest odnotowana w historii zmian. W przypadku połączonej obserwacji pogody usunięcie jej wartości gazu pozostawia pozostałe informacje pogodowe.
+- Nowe odczyty gazu są potwierdzane przed zapisaniem. Import ORLEN nadal tylko dopisuje dane bez zastępowania istniejących.
+- Zakładka Gaz i pogoda posiada osobne **porównania dobowe**, wyszukujące odczyt najbliższy 24 godzinom wstecz (przyjmowany odstęp: 18–30 godzin), nawet jeśli wystąpiły pomiary pośrednie. Porównanie odbywa się wyłącznie między odczytami tego samego gazomierza. Krótsze niż 18 godzin okresy prezentują przeliczenie m³/dobę z oznaczeniem **szac.**; jest to tempo orientacyjne, nie obserwacja całej doby.
+- Pogoda jest odświeżana po otwarciu aplikacji, po jej przywróceniu na ekran i po ponownym połączeniu z internetem — jeżeli poprzednie pobranie było co najmniej 12 godzin wcześniej. Przycisk ręczny pozostaje jako opcja awaryjna.
+- Tekst i opisy na telefonie zostały powiększone, a panel korzysta z czytelnych kart bez wykresów.
+- Nie zmieniono klucza zapisu `moje-ogrzewanie-data-v1`, struktury lokalnych danych, istniejących pomieszczeń, identyfikatorów ani dotychczasowej historii. GitHub nie otrzymuje prywatnych odczytów gazu.
+
+### Zaplanowane oddzielnie na wersję 1.5.0
+
+Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy subiektywnego komfortu (obniżony komfort, optymalnie, przegrzanie). Te funkcje wymagają osobnego projektu interfejsu i testów bezpiecznej rozbudowy zapisu — **nie są jeszcze wprowadzone**.
+
 ## Uruchomienie i publikacja
 
 Aplikacja nie wymaga instalowania bibliotek. Podgląd: `python3 -m http.server 8765 --directory public`. Otwórz `http://localhost:8765`.

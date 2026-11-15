@@ -40,13 +40,41 @@ test('weather update retains prior hours when only recent forecast endpoint is a
  assert.equal(fresh.hourly.length,2);assert.equal(fresh.hourly.at(-1).temp,8.5);
 });
 
-test('short gas intervals keep gas usage but do not extrapolate to m³ per day',()=>{
+test('short gas intervals provide an explicitly estimated daily rate',()=>{
  const c=insight(),start=Date.parse('2026-11-14T06:00:00Z');
  const hourly=Array.from({length:3},(_,i)=>({at:start/1000+i*3600,temp:3}));
  c.data={gasHistory:[{at:new Date(start).toISOString(),gas:500,meter:'new',source:'manual'},{at:new Date(start+2*3600000).toISOString(),gas:501.1,meter:'new',source:'manual'}],conditions:[],weather:{hourly}};
  const r=vm.runInContext('Insights.intervals(data)[0]',c);
  assert.ok(Math.abs(r.gas-1.1)<1e-7);
- assert.equal(r.perDay,null);
+ assert.ok(Math.abs(r.perDay-13.2)<1e-7);
+ assert.equal(r.estimated,true);
  assert.equal(r.normalized,null);
  assert.ok(r.days<0.75);
+});
+
+test('a complete day is found across intermediate readings of the same meter',()=>{
+ const c=insight();
+ const mk=(at,gas,meter='new')=>({at,gas,meter,source:'manual'});
+ c.data={gasHistory:[
+  mk('2026-11-14T07:47:00+01:00',100),
+  mk('2026-11-14T09:57:00+01:00',101),
+  mk('2026-11-14T21:00:00+01:00',105),
+  mk('2026-11-15T07:55:00+01:00',108),
+  mk('2026-11-14T07:50:00+01:00',500,'old')
+ ],conditions:[],weather:{hourly:[]}};
+ const rows=vm.runInContext('Insights.dailyComparisons(data)',c);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].gas,8);
+ assert.ok(rows[0].days>1&&rows[0].days<1.01);
+ assert.ok(rows[0].perDay>7.9&&rows[0].perDay<8);
+ assert.equal(rows[0].estimated,false);
+ assert.equal(rows[0].meter,'new');
+});
+test('editable gas readings retain their original collection references',()=>{
+ const c=insight();
+ c.data={gasHistory:[{at:'2026-11-15T07:55:00Z',gas:105,meter:'new',source:'manual'}],
+ conditions:[{at:'2026-11-14T07:55:00Z',gas:98,meter:'new',sky:'clouds'}],weather:{hourly:[]}};
+ const list=vm.runInContext('Insights.readings(data)',c);
+ assert.equal(list[0].kind,'condition');assert.equal(list[0].index,0);
+ assert.equal(list[1].kind,'history');assert.equal(list[1].index,0);
 });
