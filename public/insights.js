@@ -24,9 +24,20 @@ const Insights=(()=>{
   }
   function near(hourly,ms){const ts=ms/1000;let best=null,d=5401;for(const h of hourly||[]){const delta=Math.abs(h.at-ts);if(delta<d){best=h;d=delta}}return d<=5400?best:null}
   function readings(state){
-    const a=(state.gasHistory||[]).map(r=>({at:Date.parse(r.at),gas:r.gas,meter:r.meter,source:r.source,setti:r.setti||null}));
-    for(const c of state.conditions||[])if(validNum(c.gas))a.push({at:Date.parse(c.at),gas:c.gas,meter:c.meter||'new',source:'pomiar',setti:c.setti||null});
+    const a=(state.gasHistory||[]).map((r,index)=>({at:Date.parse(r.at),gas:r.gas,meter:r.meter,source:r.source,setti:r.setti||null,kind:'history',index}));
+    for(const [index,c] of (state.conditions||[]).entries())if(validNum(c.gas))a.push({at:Date.parse(c.at),gas:c.gas,meter:c.meter||'new',source:'pomiar',setti:c.setti||null,kind:'condition',index});
     return a.filter(x=>validNum(x.at)&&validNum(x.gas)).sort((x,y)=>x.at-y.at);
+  }
+  // Both consecutive and daily comparisons use the same gas-meter and weather rules.
+  function usage(state,b,e,meter){
+    const days=(e.at-b.at)/86400000,gas=e.gas-b.gas;
+    if(days<=0.03||gas<0)return null;
+    const hourly=(state.weather?.hourly||[]).filter(h=>h.at*1000>=b.at&&h.at*1000<e.at);
+    const coverage=Math.min(1,hourly.length/(days*24)),have=coverage>=.75&&hourly.length>0;
+    const avg=have?hourly.reduce((s,h)=>s+h.temp,0)/hourly.length:null;
+    const dd=have?hourly.reduce((s,h)=>s+Math.max(0,BASE-h.temp),0)/24:null;
+    return {meter,start:b.at,end:e.at,gas,days,perDay:gas/days,estimated:days<.75,
+      avg,dd,normalized:days>=.75&&dd>0?gas/dd:null,coverage,from:b.source,to:e.source};
   }
   function intervals(state){
     const list=readings(state), groups={old:[],new:[]};
@@ -35,13 +46,28 @@ const Insights=(()=>{
     for(const meter of ['old','new']){
       const a=groups[meter].sort((x,y)=>x.at-y.at||x.gas-y.gas);
       for(let i=1;i<a.length;i++){
-        const b=a[i-1],e=a[i],days=(e.at-b.at)/86400000,gas=e.gas-b.gas;
-        if(days<=0.03||gas<0)continue;
-        const hourly=(state.weather?.hourly||[]).filter(h=>h.at*1000>=b.at&&h.at*1000<e.at);
-        const coverage=Math.min(1,hourly.length/(days*24)),have=coverage>=.75&&hourly.length>0;
-        const avg=have?hourly.reduce((s,h)=>s+h.temp,0)/hourly.length:null;
-        const dd=have?hourly.reduce((s,h)=>s+Math.max(0,BASE-h.temp),0)/24:null;
-        rows.push({meter,start:b.at,end:e.at,gas,days,perDay:days>=.75?gas/days:null,avg,dd,normalized:days>=.75&&dd>0?gas/dd:null,coverage,from:b.source,to:e.source});
+        const result=usage(state,a[i-1],a[i],meter);
+        if(result)rows.push(result);
+      }
+    }
+    return rows.sort((a,b)=>b.end-a.end);
+  }
+  function dailyComparisons(state){
+    const groups={old:[],new:[]},rows=[];
+    for(const r of readings(state))groups[r.meter]?.push(r);
+    for(const meter of ['old','new']){
+      const a=groups[meter];
+      for(let i=1;i<a.length;i++){
+        const end=a[i];
+        // Pick the earlier reading closest to 24 hours ago, even across intermediate entries.
+        // Only reasonably complete cycles (18–30 h) qualify as a daily comparison.
+        const candidates=a.slice(0,i).filter(b=>{
+          const hours=(end.at-b.at)/3600000;
+          return hours>=18&&hours<=30&&end.gas>=b.gas;
+        }).sort((x,y)=>Math.abs(end.at-x.at-86400000)-Math.abs(end.at-y.at-86400000));
+        if(!candidates.length)continue;
+        const result=usage(state,candidates[0],end,meter);
+        if(result)rows.push(result);
       }
     }
     return rows.sort((a,b)=>b.end-a.end);
@@ -66,5 +92,5 @@ const Insights=(()=>{
     for(const item of result){const k=item.meter+'|'+item.at+'|'+item.gas;if(!keys.has(k)){all.push(item);keys.add(k);added++}}
     all.sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));return {rows:all,added};
   }
-  return {refresh,near,readings,intervals,importRows,BASE};
+  return {refresh,near,readings,intervals,dailyComparisons,importRows,BASE};
 })();
