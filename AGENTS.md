@@ -1,5 +1,20 @@
 # Zasady projektu
 
+## ZASADA NACZELNA — odpowiedzialne gospodarowanie powierzonym dobrem
+
+**„Dobrze gospodarować powierzonym mi dobrem” — to najwyższy cel i kryterium wszystkich działań w projekcie.** Wszelkie analizy, pomiary, eksperymenty, automatyzacje i oszczędności służą temu celowi, nigdy odwrotnie.
+
+Cztery cnoty kardynalne wskazują sposób działania:
+
+- **Roztropność** — rzetelnie poznawać rzeczywistość, korzystać z istniejącej wiedzy i doświadczenia, wybierać stosowne środki i przewidywać konsekwencje; nie mylić hipotez z dowodami.
+- **Sprawiedliwość** — szanować powierzone zasoby, uczciwie ważyć potrzeby ludzi, koszty i dobro wspólne; nie marnować energii, pieniędzy ani pracy.
+- **Umiarkowanie** — unikać zarówno przegrzewania i nieuzasadnionych wydatków, jak i oszczędzania kosztem zdrowia, bezpieczeństwa oraz koniecznego komfortu.
+- **Męstwo** — wytrwale prowadzić rozważne obserwacje i eksperymenty, przyjmować także wyniki negatywne, korygować pomyłki, zachowując gotowość do przerwania niebezpiecznych prób.
+
+**Hierarchia:** dobre gospodarowanie dobrem i odpowiedzialność za człowieka → bezpieczeństwo i prawda o danych → komfort i proporcjonalne oszczędzanie → technologia jako narzędzie. Optymalizacja ekonomiczna to cel operacyjny, a nie wartość absolutna.
+
+Szczegóły i interpretacja znajdują się **na samym początku** [docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md](docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md). Nie spychaj tego fundamentu na dalszy plan w przyszłych wersjach, raportach lub rekomendacjach.
+
 ## Cel nadrzędny — obowiązkowa lektura przed zmianami
 
 **Przeczytaj i zachowaj zasady z [docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md](docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md).** Dokument jest kartą celów i metodologii projektu, ma pierwszeństwo przed pomysłami na nowe funkcje. Każda nowa wersja musi wspierać kumulowanie wiedzy o instalacji, a nie samą prezentację pomiarów. Nie wolno wracać do odrzuconych eksperymentów bez uzasadnienia nowymi danymi. Komfort, porównywalna ekonomia i bezpieczeństwo są równorzędnymi warunkami optymalizacji.

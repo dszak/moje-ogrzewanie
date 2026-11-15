@@ -1,10 +1,31 @@
 # Fundamentalne zasady projektu „Moje Ogrzewanie”
 
+## 0. ZASADA NACZELNA: odpowiedzialne gospodarowanie powierzonym dobrem
+
+> **„Dobrze gospodarować powierzonym mi dobrem”.**
+
+**To jest najważniejszy cel całego projektu**, nadrzędny wobec oszczędności, wykresów, ustawień kotła i samej automatyzacji. Mieszkanie, jego wyposażenie, energia, pieniądze, czas, zdobyta wiedza oraz warunki codziennego życia są dobrami, którymi należy gospodarować odpowiedzialnie. Technologia ma pomagać w takim gospodarowaniu, a nie stawać się celem samym w sobie.
+
+Zasadę realizujemy w duchu **czterech cnót kardynalnych**:
+
+1. **Roztropność (prudentia):** rozpoznawać stan rzeczy na podstawie pomiarów i sprawdzonej wiedzy, odróżniać pewność od przypuszczeń, przewidywać skutki, wybierać właściwe środki i umieć zrezygnować z niepotrzebnej zmiany. Roztropność kieruje całym procesem „WIDZIEĆ → OCENIĆ → DZIAŁAĆ → UCZYĆ SIĘ”.
+2. **Sprawiedliwość (iustitia):** uczciwie gospodarować dobrem, szanować zasoby własne i wspólne, brać pod uwagę potrzeby ludzi, koszty energii, środowisko oraz skutki decyzji. Ograniczanie marnotrawstwa jest częścią odpowiedzialności, lecz nie usprawiedliwia zaniedbania zdrowia ani podstawowych potrzeb.
+3. **Umiarkowanie (temperantia):** zachowywać właściwą miarę — nie przegrzewać mieszkania z przyzwyczajenia, ale też nie oszczędzać za wszelką cenę. Szukać komfortu wystarczającego i racjonalnego, bez niepotrzebnej przesady.
+4. **Męstwo (fortitudo):** konsekwentnie i cierpliwie prowadzić obserwacje, przeprowadzać uzasadnione eksperymenty, przyjmować również wyniki negatywne i korygować błędne hipotezy; przerwać próbę, gdy przemawiają za tym bezpieczeństwo lub istotne pogorszenie komfortu.
+
+**Praktyczny test każdej decyzji:** czy pomaga lepiej gospodarować powierzonym dobrem, jest zgodna z prawdą o danych, szanuje człowieka, zachowuje bezpieczeństwo i rozsądną proporcję kosztu do komfortu? Jeżeli nie, sama liczba zaoszczędzonych metrów sześciennych gazu nie wystarcza do uznania decyzji za dobrą.
+
+**Hierarchia celów:** odpowiedzialność za powierzone dobro → bezpieczeństwo, uczciwość i potrzeby ludzi → komfort oraz efektywne wykorzystanie zasobów → optymalizacja parametrów technicznych. Poniższe cele i procedury są sposobami realizacji tej nadrzędnej zasady, a nie konkurującymi z nią wartościami.
+
+---
+
 > **Status:** nadrzędna karta celu i metodologii projektu. Ta karta ma pierwszeństwo przed pomysłami na dodatkowe ekrany i funkcje. Nie jest potwierdzeniem skuteczności żadnej konkretnej nastawy ani wynikiem badania. Przyjęto wspólnie 15 listopada 2026 r.
 
-## 1. Jedyny cel nadrzędny
+## 1. Cel techniczny podporządkowany zasadzie naczelnej
 
 **Poznać rzeczywiste zachowanie mieszkania i instalacji, a następnie systematycznie dochodzić do najniższego rozsądnie osiągalnego kosztu utrzymania komfortu cieplnego — bez pogarszania bezpieczeństwa i jakości życia.**
+
+Jest to **cel operacyjny**, który służy odpowiedzialnemu gospodarowaniu powierzonym dobrem. Nie jest wartością nadrzędną wobec czterech cnót kardynalnych ani dobra osób.
 
 Nie optymalizujemy pojedynczej liczby, np. najniższej nastawy kotła, najmniejszej liczby cykli ENGO albo najmniejszego bezwzględnego zużycia gazu. Oceniamy **komfort i ekonomię łącznie**, z uwzględnieniem zmiennych warunków zewnętrznych.
 
