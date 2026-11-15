@@ -22,7 +22,7 @@ test('proposal parser is strict, deduplicated, never mutates knowledge before co
  assert.equal(parsed.items.length,1);
  assert.equal(existing.length,1);
  assert.equal(parsed.items[0].title,'Nowe pytanie');
- assert.throws(()=>m.parseProposal('{"format":"other","version":1,"items":[]}',[],[]),/format/);
+ assert.throws(()=>m.parseProposal('{"format":"other","version":1,"items":[]}',[],[]),/formacie/);
  assert.throws(()=>m.parseProposal(proposal([{...item(),kind:'configuration',outcome:'positive'}]),[],[]),/Wynik/);
  assert.throws(()=>m.parseProposal(proposal([{...item(),kind:'result',outcome:'none'}]),[],[]),/wynik|Wynik/i);
  assert.throws(()=>m.parseProposal(proposal([{...item(),experimentId:'missing'}]),[],[]),/nie istnieje/);
