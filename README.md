@@ -37,6 +37,13 @@ Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotnoś
 
 Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy subiektywnego komfortu (obniżony komfort, optymalnie, przegrzanie). Te funkcje wymagają osobnego projektu interfejsu i testów bezpiecznej rozbudowy zapisu — **nie są jeszcze wprowadzone**.
 
+## Wersja 1.4.1 · czytelne stany danych pogodowych i Setti+
+
+- Na ekranie głównym i w zakładce **Gaz i pogoda** brak aktualnej temperatury zewnętrznej jest opisywany jako niedostępny pomiar z czasem ostatniej aktualizacji. Liczba historycznych godzinowych próbek (np. `8275`) nie zastępuje temperatury.
+- Jeśli synchronizacja Setti+ jest starsza niż 20 minut, ostatni zatwierdzony odczyt automatyczny jest nadal widoczny jako **nieaktualny**, z godziną przesłania. Nie jest zastępowany starszą ręczną temperaturą tylko z powodu przekroczenia progu świeżości.
+- Nieaktualna temperatura nie jest wykorzystywana do diagnozowania różnicy względem celu, nie staje się bieżącym odczytem ani migawką do odczytów gazu.
+- To tylko poprawka prezentacji danych. Nie dotyka `public/storage.js`, klucza lokalnego zapisu, pomiarów użytkownika, danych na GitHub `setti-data`, automatyzacji Setti+/Tuya ani urządzeń ogrzewania.
+
 ## Uruchomienie i publikacja
 
 Aplikacja nie wymaga instalowania bibliotek. Podgląd: `python3 -m http.server 8765 --directory public`. Otwórz `http://localhost:8765`.
