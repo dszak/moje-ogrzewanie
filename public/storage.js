@@ -48,6 +48,17 @@ const DataStore = (() => {
       if(engoSeen.has(minute))fail();
       engoSeen.set(minute,e.status);
     });
+    // Optional additive Home Assistant history; older v1 backups have no such field.
+    if(p.temperatureHistory===undefined)p.temperatureHistory=[];
+    if(arr(p.temperatureHistory).length>25000)fail();
+    const temperaturesSeen=new Set();
+    p.temperatureHistory.forEach(r=>{
+      obj(r);date(r.at);number(r.temp,-10,45,false);
+      if(!roomIds.includes(r.room))fail();
+      const key=r.room+'|'+Date.parse(r.at);
+      if(temperaturesSeen.has(key))fail();
+      temperaturesSeen.add(key);
+    });
     if(p.heatingEvents===undefined)p.heatingEvents=[];
     arr(p.heatingEvents).forEach(e=>{obj(e);str(e.id,100);date(e.at);number(e.engo,10,30,false);str(e.note,300)});
     if(p.weather===undefined)p.weather={hourly:[],updated:null};

@@ -97,17 +97,34 @@
 .engo-history-item{min-height:64px}
 .engo-history-item b{font-variant-numeric:tabular-nums}
 @media(max-width:560px){.engo-day,.engo-history-item{align-items:flex-start;flex-direction:column}.engo-history-item .gas-actions{margin:0}}
+/* v1.6: private Home Assistant history chart, usable on narrow phones */
+.temp-chart-wrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;padding:8px 6px;-webkit-overflow-scrolling:touch}
+.temp-chart{display:block;width:100%;min-width:720px;height:auto}
+.temp-legend{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px}
+.temp-legend .action{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:9px 12px;font-size:14px}
+.temp-room{opacity:.58}
+.temp-room.selected{opacity:1;border-color:#9ebbb0;background:#f2faf6}
+.temp-dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none}
+.temp-preview{border:2px solid #96c8b8}
+.temp-import-breakdown{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.temp-import-breakdown span{font-size:14px;color:var(--ink2)}
+.temp-summary{min-width:510px}
+.temp-summary th,.temp-summary td{white-space:nowrap}
+@media(max-width:560px){.temp-import-breakdown{grid-template-columns:1fr}.temp-chart-wrap{margin:0 -4px}}
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.5.0</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
+<header class="top"><div class="wrap"><div class="brand"><div><div class="eyebrow">Twój dziennik · wersja 1.6.0</div><h1>Moje Ogrzewanie</h1><p>Komfort w sześciu pomieszczeniach. Decyzje oparte na pomiarach.</p></div><div class="sun" aria-hidden="true">♨</div></div><nav class="nav" id="nav" aria-label="Główne zakładki"></nav></div></header>
 <div id="storageAlert" role="alert" class="banner warn" hidden></div><main id="view" class="wrap" aria-live="polite"></main>
 <input type="file" id="importFile" accept="application/json,.json" style="display:none">
 <input type="file" id="mapFile" accept="image/svg+xml,image/png,image/jpeg" hidden>
 <input type="file" id="engoFile" accept=".csv,text/csv,text/plain,.txt" hidden>
+<input type="file" id="tempFile" accept=".csv,text/csv,text/plain,.txt" hidden>
 <script src="./storage.js"></script>
 <script src="./insights.js"></script>
 <script src="./engo.js"></script>
+<script src="./temperatures.js"></script>
+<script src="./temperature-view.js"></script>
 <script src="./setti.js"></script>
 <script src="./heads.js"></script>
 <script src="./app.js"></script>

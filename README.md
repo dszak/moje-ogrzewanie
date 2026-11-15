@@ -37,6 +37,16 @@ Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotnoś
 
 Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy subiektywnego komfortu (obniżony komfort, optymalnie, przegrzanie). Te funkcje wymagają osobnego projektu interfejsu i testów bezpiecznej rozbudowy zapisu — **nie są jeszcze wprowadzone**.
 
+## Wersja 1.6.0 · Historia temperatur z Home Assistant i cykle ENGO
+
+Zakładka **Wykresy temperatur** przyjmuje prywatny plik CSV z Home Assistant → Historia → ⋮ → Pobierz dane. Obsługiwane kolumny eksportu to `entity_id,state,last_changed`. Import rozpoznaje sześć encji temperatur Setti+ MQTT, zachowuje znaczniki czasu ISO ze strefą, pomija niezwiązane encje i stany `unknown` / `unavailable`, a pozostałe wiersze rygorystycznie sprawdza.
+
+Po wczytaniu wyświetlany jest **podgląd**: nowe pomiary, duplikaty i liczba zapisów dla poszczególnych pokoi. Po zatwierdzeniu import **dopisuje** tylko nowe wartości. Powtórny eksport z tym samym okresem nie podwaja danych, a sprzeczne wartości tego samego czujnika w tej samej chwili zatrzymują import. Na urządzeniu można przechowywać do 25 000 zmian temperatur; **nigdy nie są automatycznie usuwane**. W każdej chwili można wyeksportować pełną kopię JSON, a usunięcie wybranego dnia wymaga potwierdzenia.
+
+Wykres dzienny pokazuje wybrane spośród sześciu pomieszczeń, historię temperatur jako linie schodkowe oraz zaznaczone okresy zapotrzebowania ENGO z wcześniej wprowadzonych zdarzeń. Oś czasu używa **Europe/Warsaw**, także w dniach zmiany czasu. Przebieg od poprzedniego dnia ma sens tylko wtedy, gdy istnieje wcześniejsza zarejestrowana wartość; aplikacja nie generuje sztucznych pomiarów i nie przedłuża nieznanego końca historii. Pod wykresem widać liczbę zmian oraz minima i maksima dla pomieszczeń danego dnia. Nie są wyliczane pozorne średnie ze zmian wartości.
+
+Historia jest opcjonalnym polem `temperatureHistory` w dotychczasowym schemacie danych `version:1`, z niezmienionym kluczem `moje-ogrzewanie-data-v1`. Eksporty CSV użytkownika **nie są** dodawane do repozytorium ani publicznych plików Pages. Wykres i historia pozostają na iPhonie / urządzeniu, na którym je zaimportowano. Aplikacja nie łączy się z Home Assistant, ENGO ani Setti+ po prywatne dane i niczego nie steruje. Testy opierają się na **sztucznych** pomiarach.
+
 ## Wersja 1.5.0 · Cykle ENGO: import ze zrzutów i analiza
 
 Zakładka **Cykle ENGO** umożliwia wklejenie lub wczytanie pliku CSV przygotowanego ze zrzutów dziennika ENGO Smart. Wiersz ma format `RRRR-MM-DD;GG:MM;ON` albo `RRRR-MM-DD;GG:MM;OFF`; nagłówek `data;godzina;stan` jest opcjonalny. Daty wpisuje się zgodnie z lokalnym czasem urządzenia (w Polsce).
