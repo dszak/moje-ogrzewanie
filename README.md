@@ -37,6 +37,16 @@ Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotnoś
 
 Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy subiektywnego komfortu (obniżony komfort, optymalnie, przegrzanie). Te funkcje wymagają osobnego projektu interfejsu i testów bezpiecznej rozbudowy zapisu — **nie są jeszcze wprowadzone**.
 
+## Wersja 1.7.0 · Widzieć – Ocenić – Działać
+
+Zakładka **Analiza i decyzje** wprowadza trzy etapy świadomej oceny ogrzewania:
+
+1. **WIDZIEĆ:** wybierz ostatnie 24 godziny, 7 dni lub 30 dni. Aplikacja lokalnie przygotuje czytelne podsumowanie i kompletny **raport JSON do ChatGPT**. Raport zawiera: historię zmian temperatur z sześciu czujników MQTT (z wcześniejszymi punktami odniesienia), zdarzenia i kompletne pary ENGO, odczyty starego i nowego gazomierza z jednoznacznymi granicami okresów, modelową pogodę, liczniki kotła BRÖTJE, ustawienia ręczne, obserwacje, eksperymenty, decyzje oraz najnowsze migawki Setti+/głowic ze znacznikiem aktualności. Zakres jest wyraźnie ograniczony do okresu i opisany wraz z brakami danych.
+2. **OCENIĆ:** użytkownik pobiera raport JSON i **sam dołącza go do rozmowy ChatGPT**. Nie ma automatycznego dostępu ChatGPT do danych na iPhonie. W raporcie prosimy o oddzielenie faktów, hipotez, danych brakujących i bezpiecznego następnego kroku. Bez dostatecznych danych nie wyznaczamy sprawności kotła ani gazu zużytego wyłącznie na ogrzewanie.
+3. **DZIAŁAĆ:** po wspólnej ocenie można zapisać lokalnie uzasadnienie i jedno z rozstrzygnięć: **pozostawić ustawienia**, **zebrać więcej danych** albo **przeprowadzić eksperyment**. Dziennik zawiera uzgodniony następny krok, datę ponownej oceny, opcjonalne powiązanie z istniejącym eksperymentem i migawkę dwóch głównych nastaw w chwili decyzji. Decyzje można poprawiać i usuwać, a ich historia jest uwzględniana w prywatnych kopiach JSON.
+
+**Prywatność i zasady pomiarów:** raport jest tworzony na urządzeniu i nie jest przesyłany automatycznie. Nie zawiera mapy mieszkania, pełnego dziennika wpisów ani haseł/tokenów (nie są one przechowywane w aplikacji). Raport może natomiast zawierać szczegółowe temperatury, gaz oraz opisy własnych eksperymentów — należy go przejrzeć przed wysłaniem. Projekt nie publikuje żadnych raportów użytkownika na GitHubie. Nowe pole `decisionLog` jest opcjonalne dla starych kopii, a klucz `moje-ogrzewanie-data-v1` i schemat `version:1` nie uległy zmianie. Żadna część nie steruje termostatem, głowicami ani kotłem. Przed zmianą fizycznych nastaw potrzebna jest świadoma decyzja.
+
 ## Wersja 1.6.0 · Historia temperatur z Home Assistant i cykle ENGO
 
 Zakładka **Wykresy temperatur** przyjmuje prywatny plik CSV z Home Assistant → Historia → ⋮ → Pobierz dane. Obsługiwane kolumny eksportu to `entity_id,state,last_changed`. Import rozpoznaje sześć encji temperatur Setti+ MQTT, zachowuje znaczniki czasu ISO ze strefą, pomija niezwiązane encje i stany `unknown` / `unavailable`, a pozostałe wiersze rygorystycznie sprawdza.

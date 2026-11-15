@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/review.js','utf8')+'\n'+fs.readFileSync('public/review-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false,allowConfirm=true;
@@ -15,7 +15,7 @@ function boot(initial={}){
 const KEY='moje-ogrzewanie-data-v1';
 test('six rooms, eight heads, doors, all screens render',()=>{
  const b=boot();assert.equal(b.run('ROOMS.length'),6);assert.equal(b.run('Object.keys(RADS).length'),8);
- for(const page of ['home','heads','boiler','engo-cycles','temperatures','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
+ for(const page of ['home','heads','boiler','engo-cycles','temperatures','review','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
  for(const r of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])b.run(`setPage('room','${r}')`);
  assert.equal(b.run('Object.keys(DOORS).length'),6);
 });
@@ -468,4 +468,62 @@ test('temperature history is optional for old backups, validated on new writes, 
  b.run("state.temperatureHistory.push({room:'salon',at:'2024-11-15T10:00:00.000Z',temp:23});save();setPage('temperatures')");
  click('temp-delete-day',{day:'2024-11-15'});
  assert.equal(b.run('state.temperatureHistory.length'),0);
+});
+
+
+test('See–Judge–Act: manually reviewed decision is local, editable, deletable and persists in JSON',()=>{
+ const b=boot(),click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ b.run("setPage('review')");
+ assert.match(b.element('view').innerHTML,/Widzieć/);
+ assert.match(b.element('view').innerHTML,/Pobierz raport dla ChatGPT/);
+ b.element('reviewChoice').value='observe';
+ b.element('reviewAssessment').value='Stabilność temperatury dobra, ale za mało danych o gazie.';
+ b.element('reviewAction').value='Pozostawić ENGO 22°C i kocioł 55°C.';
+ b.element('reviewOn').value='2026-11-23';
+ b.element('reviewExperiment').value='';
+ click('review-save');
+ assert.equal(b.run('state.decisionLog.length'),1);
+ assert.equal(b.run('state.decisionLog[0].settings.engo'),22);
+ assert.equal(b.run('state.decisionLog[0].choice'),'observe');
+ assert.equal(b.run('state.decisionLog[0].reviewOn'),'2026-11-23');
+ assert.equal(b.run('state.engoCycles.length'),0);
+ const c=boot(Object.fromEntries(b.data)),again=(action,extra={})=>c.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ assert.equal(c.run('state.decisionLog.length'),1);
+ c.run("setPage('review')");
+ const id=c.run('state.decisionLog[0].id');
+ again('review-edit',{id});
+ assert.match(c.element('view').innerHTML,/Stabilność temperatury dobra/);
+ c.element('reviewChoice').value='keep';
+ c.element('reviewAssessment').value='<img src=x onerror=alert(1)> pozostawić bez zmian';
+ c.element('reviewAction').value='Nie zmieniać nastaw.';
+ c.element('reviewOn').value='';
+ c.element('reviewExperiment').value='';
+ again('review-save');
+ assert.equal(c.run('state.decisionLog.length'),1);
+ assert.equal(c.run('state.decisionLog[0].choice'),'keep');
+ assert.match(c.element('view').innerHTML,/&lt;img src=x onerror=alert\(1\)&gt;/);
+ assert.doesNotMatch(c.element('view').innerHTML,/<img src=x onerror/);
+ again('review-delete',{id});
+ assert.equal(c.run('state.decisionLog.length'),0);
+});
+
+test('See–Judge–Act: old state migrates to empty decision log; invalid decisions rejected',()=>{
+ const b=boot();
+ assert.equal(b.run('{const p=seed();delete p.decisionLog;DataStore.validate(p).decisionLog.length}'),0);
+ assert.throws(()=>b.run("{const p=seed();p.decisionLog.push({id:'x',at:now(),choice:'auto-control'});DataStore.validate(p)}"));
+ assert.throws(()=>b.run("{const p=seed();p.decisionLog.push({id:'x',at:now(),periodStart:now(),periodEnd:now(),periodKey:'week',choice:'keep',assessment:'',action:'',reviewOn:null,experimentId:null,settings:{boiler:55,engo:22}});DataStore.validate(p)}"));
+});
+
+test('See–Judge–Act: report download is explicit, private and does not mutate data',()=>{
+ const b=boot();
+ b.run("state.privateMap='data:image/png;base64,QUJD';state.events.push({id:'private',at:now(),label:'private',detail:'PERSONAL_DIARY_SECRET'});save()");
+ const before=b.data.get(KEY);
+ b.run("downloadText=(filename,body,mime)=>{globalThis.savedReport={filename,body,mime}};exportAnalysisReport()");
+ assert.equal(b.data.get(KEY),before);
+ const file=JSON.parse(b.run('savedReport.body'));
+ assert.equal(file.format,'moje-ogrzewanie-analiza');
+ assert.ok(b.run('savedReport.filename').endsWith('.json'));
+ assert.equal(file.period.hours,168);
+ assert.ok(!JSON.stringify(file).includes('PERSONAL_DIARY_SECRET'));
+ assert.ok(!JSON.stringify(file).includes('QUJD'));
 });

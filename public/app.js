@@ -19,8 +19,8 @@ const DOORS={
 };
 const DOORSTATUS={unknown:'Nie ustalono',open:'Otwarte',ajar:'Uchylone',closed:'Zamknięte'};
 const RM=Object.fromEntries(ROOMS.map(x=>[x.id,x]));
-const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:'',electric:null},rooms:Object.fromEntries(ROOMS.map(r=>[r.id,{target:r.id==='bedroom'?22:null,readings:[]}])),radiators:Object.fromEntries(Object.keys(RADS).map(k=>[k,null])),doors:Object.fromEntries(Object.keys(DOORS).map(k=>[k,'unknown'])),events:[],experiments:[],conditions:[],gasHistory:[],heatingEvents:[],engoCycles:[],temperatureHistory:[],boilerReadings:[],weather:{hourly:[],updated:null}});
-let tempDay=null;let tempPreview=null;let tempImportDraft='';let tempVisible=new Set(['bedroom','salon','kitchen','bigbath','smallbath','hall']);let historyLimit=120;let engoLimit=120;let editingGas=null;let editingBoiler=null;let editingEngo=null;let engoImportDraft='';let pendingEngo=null;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
+const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:'',electric:null},rooms:Object.fromEntries(ROOMS.map(r=>[r.id,{target:r.id==='bedroom'?22:null,readings:[]}])),radiators:Object.fromEntries(Object.keys(RADS).map(k=>[k,null])),doors:Object.fromEntries(Object.keys(DOORS).map(k=>[k,'unknown'])),events:[],experiments:[],conditions:[],gasHistory:[],heatingEvents:[],engoCycles:[],temperatureHistory:[],decisionLog:[],boilerReadings:[],weather:{hourly:[],updated:null}});
+let reviewPeriod='week';let editingDecision=null;let tempDay=null;let tempPreview=null;let tempImportDraft='';let tempVisible=new Set(['bedroom','salon','kitchen','bigbath','smallbath','hall']);let historyLimit=120;let engoLimit=120;let editingGas=null;let editingBoiler=null;let editingEngo=null;let engoImportDraft='';let pendingEngo=null;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
 function load(){return DataStore.load(seed)}
 function save(){DataStore.save(state);const el=document.getElementById('storageAlert');el.hidden=!DataStore.warning;if(DataStore.warning)el.textContent=DataStore.warning}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -35,7 +35,7 @@ function stat(rid){if(!Setti.room(rid)&&Setti.lastRoom(rid))return ['Dane nieakt
 function changeLog(label,detail){state.events.unshift({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),at:now(),label,detail});}
 function toast(msg){let p=document.getElementById('toast');if(!p){p=document.createElement('div');p.id='toast';p.style='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#103f39;color:white;padding:12px 18px;border-radius:12px;box-shadow:0 12px 25px #0003;z-index:99;font-size:13px;max-width:92%;text-align:center';document.body.appendChild(p)}p.textContent=msg;p.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>p.style.display='none',3600)}
 function setPage(p,r){page=p;if(r)currentRoom=r;render();scrollTo({top:0,behavior:'instant'})}
-function renderNav(){let tabs=[['home','Mieszkanie'],['heads','Panel ogrzewania'],['boiler','Kocioł'],['engo-cycles','Cykle ENGO'],['temperatures','Wykresy temperatur'],['insights','Gaz i pogoda'],['experiments','Eksperymenty'],['history','Historia'],['map','Mapa'],['settings','Ustawienia']];document.getElementById('nav').innerHTML=tabs.map(([id,title])=>`<button data-action="page" data-page="${id}" class="${page===id||id==='home'&&page==='room'?'active':''}" ${page===id?'aria-current="page"':''}>${title}</button>`).join('')}
+function renderNav(){let tabs=[['home','Mieszkanie'],['heads','Panel ogrzewania'],['boiler','Kocioł'],['engo-cycles','Cykle ENGO'],['temperatures','Wykresy temperatur'],['review','Analiza i decyzje'],['insights','Gaz i pogoda'],['experiments','Eksperymenty'],['history','Historia'],['map','Mapa'],['settings','Ustawienia']];document.getElementById('nav').innerHTML=tabs.map(([id,title])=>`<button data-action="page" data-page="${id}" class="${page===id||id==='home'&&page==='room'?'active':''}" ${page===id?'aria-current="page"':''}>${title}</button>`).join('')}
 function sec(title,desc,extra=''){return `<div class="section-head"><div><h2>${title}</h2><p>${desc||''}</p></div>${extra}</div>`}
 function settiBanner(){const st=Setti.status();return `<div class="banner ${st.ok?'info':'warn'}"><span>🌡️</span><span><b>Setti+: ${esc(st.label)}</b>${st.at?' · synchronizacja '+day(st.at):''}. Dane tylko do odczytu; brak aktualizacji nie blokuje ręcznego zapisu. <button class="text-link" data-action="refresh-setti">Odśwież pomiary</button></span></div>`}
 
@@ -255,12 +255,61 @@ function renderExperiments(){let active=state.experiments.find(x=>x.status==='ac
 function renderHistory(){let ev=state.events.slice(0,historyLimit);return `${sec('Historia zmian','Wszystkie zapisane nastawy i pomiary — żebyś wiedział, co naprawdę zmieniono.') }<div class="actions" style="margin-bottom:17px"><button class="action light" data-action="export-json">Eksportuj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button></div><section class="card"><div class="group-heading"><h3>Dziennik</h3><span class="pill">${state.events.length} wpisów</span></div>${ev.length?`<div class="timeline">${ev.map(x=>`<div class="event"><span class="event-marker"></span><div><strong>${esc(x.label)}</strong><div class="muted small">${esc(x.detail)}</div><small>${day(x.at)}</small></div></div>`).join('')}</div>${state.events.length>historyLimit?'<button class="action ghost" data-action="more-history">Pokaż starsze wpisy</button>':''}`:'<div class="empty">Historia będzie się uzupełniać przy zapisywaniu celów, głowic, drzwi i pomiarów.</div>'}</section>`}
 function renderMap(){return `${sec('Mapa mieszkania','Prywatny plan przechowywany wyłącznie na tym urządzeniu.')}<div class="banner info">Publiczna aplikacja nie zawiera planu, wymiarów ani adresu. Możesz wczytać własną mapę SVG, PNG lub JPEG. Trafi tylko do lokalnego zapisu i Twojej kopii JSON.</div><section class="card">${state.privateMap?`<img class="map" alt="Twoja prywatna mapa" src="${esc(state.privateMap)}">`:'<div class="empty">Nie wczytano prywatnej mapy.</div>'}<div class="actions" style="margin-top:15px"><button class="action ghost" data-action="map-import">Wczytaj prywatną mapę</button>${state.privateMap?'<button class="action ghost" data-action="map-download">Pobierz mapę</button>':''}</div></section>`}
 function renderSettings(){let g=state.global;return `${sec('Ustawienia wspólne','Zadane temperatury kotła i ENGO mają wpływ na całe mieszkanie.')}<div class="grid cols2"><section class="card"><h3>BRÖTJE · kocioł</h3><p class="subtitle" style="margin-bottom:15px">Zadana temperatura wody na zasilaniu. Odczyt bieżący na wyświetlaczu może być inny.</p><label for="boilerSet">Temperatura zadana kotła (°C)</label>${tempInput('boilerSet',g.boiler,25,85,1)}<p class="hint">Wartość początkowa: 55°C. Wpisz faktyczną nastawę.</p><div class="actions" style="margin-top:14px"><button class="action" data-action="set-boiler">Zapisz nastawę kotła</button></div></section><section class="card"><h3>ENGO Smart · sypialnia</h3><p class="subtitle" style="margin-bottom:15px">Termostat wyznacza zapotrzebowanie na ogrzewanie dla całego mieszkania.</p><div class="form-grid"><div><label for="engoSet">Temperatura zadana (°C)</label>${tempInput('engoSet',g.engo,10,30,'.5')}</div><div><label for="engoCurrent">Aktualny odczyt ENGO (°C)</label>${tempInput('engoCurrent',g.engoCurrent,0,45,'.1')}</div><div class="wide"><label for="engoPlace">Położenie termostatu</label><input id="engoPlace" value="${esc(g.engoPlace)}" maxlength="220"></div></div><div class="actions" style="margin-top:14px"><button class="action" data-action="set-engo">Zapisz ustawienia ENGO</button></div><p class="hint">Po przeniesieniu termostatu wpisz nowe miejsce. Aplikacja zachowa zmianę w dzienniku.</p></section></div><section class="card" style="margin-top:16px"><div class="group-heading"><h3>Twoje dane i kopie zapasowe</h3><span class="pill">bez konta</span></div><p class="muted" style="font-size:13px;margin-bottom:17px">Dane są przechowywane lokalnie w tej przeglądarce na tym urządzeniu. Aktualizacja pod tym samym adresem zachowuje dane. Wyczyszczenie Safari, usunięcie aplikacji lub zmiana urządzenia mogą je usunąć. Regularnie zapisuj JSON w Plikach / iCloud. Przenosząc dane ze starej wersji lub między Safari a aplikacją z ekranu początkowego, użyj eksportu i importu JSON.</p><div class="actions filecontrols"><button class="action light" data-action="export-json">Pobierz kopię JSON</button><button class="action ghost" data-action="import-json">Wczytaj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button><button class="action ghost" data-action="recover">Przywróć poprzedni zapis</button><button class="action ghost" data-action="persist">Chroń zapis na urządzeniu</button><button class="action danger" data-action="reset">Wyczyść dane</button></div><div class="hr"></div><p class="footer-note">Aplikacja odczytuje publiczny plik z pomiarami Setti+, ale nie łączy się bezpośrednio z urządzeniami ani nie wysyła poleceń. Gdy pomiary są nieaktualne, możesz je nadal wpisać ręcznie.</p></section>`}
-function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='boiler'?renderBoiler():page==='engo-cycles'?renderEngo():page==='temperatures'?TemperatureView.render(state,tempDay,tempVisible,tempPreview,tempImportDraft):page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.6.0 · Twoje wpisy tylko na tym urządzeniu</div>`}
+function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='boiler'?renderBoiler():page==='engo-cycles'?renderEngo():page==='temperatures'?TemperatureView.render(state,tempDay,tempVisible,tempPreview,tempImportDraft):page==='review'?ReviewView.render(state,reviewPeriod,editingDecision):page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.7.0 · Twoje wpisy tylko na tym urządzeniu</div>`}
 function numInput(id,min,max,allowEmpty=true){let e=document.getElementById(id);if(!e)return {ok:false};let raw=e.value.trim().replace(',','.');if(raw===''&&allowEmpty)return{ok:true,value:null};let v=Number(raw);if(raw===''||!Number.isFinite(v)||v<min||v>max){toast(`Sprawdź pole: ${id}. Dozwolony zakres ${min}–${max}.`);e.focus();return{ok:false}}return{ok:true,value:v}}
 function changed(a,b){return a!==b}
 function handleClick(e){let btn=e.target.closest('[data-action]');if(!btn)return;let ac=btn.dataset.action;
 if(ac==='page')return setPage(btn.dataset.page);
 
+
+
+if(ac==='review-export')return exportAnalysisReport();
+if(ac==='review-copy'){
+ const content=HeatingReview.build(state,reviewPeriod,analysisSources()).readable_summary;
+ if(!navigator.clipboard?.writeText)return toast('Kopiowanie niedostępne. Pobierz plik JSON.');
+ navigator.clipboard.writeText(content).then(()=>toast('Skopiowano podsumowanie raportu.')).catch(()=>toast('Nie udało się skopiować. Pobierz plik JSON.'));
+ return;
+}
+if(ac==='review-edit'){
+ const id=btn.dataset.id;
+ if(!(state.decisionLog||[]).some(d=>d.id===id))return toast('Nie odnaleziono oceny.');
+ editingDecision=id;return render();
+}
+if(ac==='review-cancel'){editingDecision=null;return render()}
+if(ac==='review-delete'){
+ const id=btn.dataset.id,idx=(state.decisionLog||[]).findIndex(d=>d.id===id);
+ if(idx<0)return toast('Nie odnaleziono oceny.');
+ if(!confirm('Usunąć tę ocenę i decyzję z dziennika? Najpierw warto pobrać kopię JSON.'))return;
+ const entry=state.decisionLog[idx];
+ state.decisionLog.splice(idx,1);
+ changeLog('Usunięto ocenę ogrzewania',day(entry.at)+' · '+entry.choice);
+ save();editingDecision=null;toast('Usunięto ocenę.');return render();
+}
+if(ac==='review-save'){
+ const choice=document.getElementById('reviewChoice').value;
+ const assessment=document.getElementById('reviewAssessment').value.trim();
+ const action=document.getElementById('reviewAction').value.trim();
+ const reviewOn=document.getElementById('reviewOn').value;
+ const experimentId=document.getElementById('reviewExperiment').value||null;
+ if(!['keep','observe','experiment'].includes(choice))return toast('Wybierz jedną z trzech decyzji.');
+ if(!assessment||assessment.length>4000||action.length>1500)return toast('Wpisz ocenę (do 4000 znaków) i działanie (do 1500 znaków).');
+ if(reviewOn&&(!/^\d{4}-\d{2}-\d{2}$/.test(reviewOn)||new Date(reviewOn+'T12:00:00Z').toISOString().slice(0,10)!==reviewOn))
+   return toast('Sprawdź datę ponownej oceny.');
+ if(experimentId&&!state.experiments.some(e=>e.id===experimentId))return toast('Nie znaleziono eksperymentu.');
+ const existing=editingDecision?(state.decisionLog||[]).find(d=>d.id===editingDecision):null;
+ if(editingDecision&&!existing)return toast('Nie znaleziono edytowanej oceny.');
+ const b=HeatingReview.bounds(reviewPeriod);
+ const entry={id:existing?.id||'ocena-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),
+   at:existing?.at||now(),periodStart:existing?.periodStart||new Date(b.start).toISOString(),
+   periodEnd:existing?.periodEnd||new Date(b.end).toISOString(),periodKey:existing?.periodKey||reviewPeriod,
+   choice,assessment,action,reviewOn:reviewOn||null,experimentId,
+   settings:existing?.settings||{boiler:state.global.boiler,engo:state.global.engo}};
+ if(!confirm('Zapisać '+(existing?'poprawioną ':'')+'ocenę: '+ReviewView.OPTIONS[choice]+'?'))return;
+ if(existing)state.decisionLog[state.decisionLog.findIndex(d=>d.id===existing.id)]=entry;
+ else state.decisionLog.push(entry);
+ changeLog(existing?'Poprawiono ocenę ogrzewania':'Ocena ogrzewania i decyzja',ReviewView.OPTIONS[choice]+' · '+assessment.slice(0,160));
+ save();editingDecision=null;toast('Zapisano ocenę i decyzję.');return render();
+}
 
 if(ac==='temp-file')return document.getElementById('tempFile').click();
 if(ac==='temp-clear'){tempImportDraft='';tempPreview=null;return render()}
@@ -461,6 +510,20 @@ if(ac==='map-import')return document.getElementById('mapFile').click();
 if(ac==='map-download'){const mime=state.privateMap.split(';')[0].slice(5);const bytes=Uint8Array.from(atob(state.privateMap.split(',')[1]),c=>c.charCodeAt(0));return downloadBlob('moja-prywatna-mapa.'+(mime==='image/svg+xml'?'svg':mime==='image/png'?'png':'jpg'),new Blob([bytes],{type:mime}))}
 if(ac==='export-json')return exportJson();if(ac==='export-csv')return exportCsv();if(ac==='import-json')return document.getElementById('importFile').click();
 if(ac==='reset'){if(confirm('Czy na pewno skasować wszystkie lokalne nastawy, pomiary i eksperymenty? Najpierw pobierz kopię JSON.')){state=seed();save();setPage('home');toast('Wyczyszczono dane lokalne.')}}}
+
+function analysisSources(){
+ const st=Setti.status(),hs=Heads.status();
+ return {setti:{data:Setti.snapshot()||null,fresh:st.ok,at:st.at},
+   heads:{data:Heads.lastSnapshot(),fresh:hs.ok,at:hs.at}};
+}
+function exportAnalysisReport(){
+ const report=HeatingReview.build(state,reviewPeriod,analysisSources());
+ const label=report.period.end.slice(0,10);
+ downloadText('moje-ogrzewanie-raport-chatgpt-'+reviewPeriod+'-'+label+'.json',
+   JSON.stringify(report,null,2),'application/json;charset=utf-8');
+ toast('Raport przygotowany. Przejrzyj go i prześlij w rozmowie ChatGPT jako załącznik.');
+}
+
 function snapshot(){return {boiler:state.global.boiler,engo:state.global.engo,engoPlace:state.global.engoPlace,radiators:{...state.radiators},doors:{...state.doors},targets:Object.fromEntries(ROOMS.map(r=>[r.id,state.rooms[r.id].target])),measurements:Object.fromEntries(ROOMS.map(r=>[r.id,last(r.id)?.temp??null]))}}
 function downloadText(name,body,mime){return downloadBlob(name,new Blob([body],{type:mime}));}
 function downloadBlob(name,blob){let url=URL.createObjectURL(blob);let a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
@@ -470,7 +533,7 @@ function exportCsv(){let out=[['data','pomieszczenie','czujnik','temperatura_C',
 function guarded(fn){return (...args)=>{try{return fn(...args)}catch(error){state=DataStore.current(seed);document.getElementById('storageAlert').hidden=false;document.getElementById('storageAlert').textContent=error.message;toast(error.message)}}}
 document.addEventListener('click',guarded(handleClick));
 document.addEventListener('input',e=>{if(e.target?.id==='engoBulk'){engoImportDraft=e.target.value;pendingEngo=null}if(e.target?.id==='tempBulk'){tempImportDraft=e.target.value;tempPreview=null}});
-document.addEventListener('change',guarded(e=>{let el=e.target;if(el.dataset.change==='temp-day'){tempDay=el.value;return render()}if(el.dataset.change==='door'){let id=el.dataset.id,old=state.doors[id];if(old!==el.value){state.doors[id]=el.value;changeLog('Drzwi: '+DOORS[id].name,`${DOORSTATUS[old]} → ${DOORSTATUS[el.value]}`);save();toast('Zapisano położenie drzwi.') }}if(el.dataset.change==='electric'){let old=state.global.electric;let next=el.value||null;state.global.electric=next;if(old!==next){changeLog('Grzejnik elektryczny GE1',`${old||'nie zapisano'} → ${next||'nie zapisano'}`);save();toast('Zapisano stan konwektora.')}}}));
+document.addEventListener('change',guarded(e=>{let el=e.target;if(el.dataset.change==='review-period'){reviewPeriod=el.value;return render()}if(el.dataset.change==='temp-day'){tempDay=el.value;return render()}if(el.dataset.change==='door'){let id=el.dataset.id,old=state.doors[id];if(old!==el.value){state.doors[id]=el.value;changeLog('Drzwi: '+DOORS[id].name,`${DOORSTATUS[old]} → ${DOORSTATUS[el.value]}`);save();toast('Zapisano położenie drzwi.') }}if(el.dataset.change==='electric'){let old=state.global.electric;let next=el.value||null;state.global.electric=next;if(old!==next){changeLog('Grzejnik elektryczny GE1',`${old||'nie zapisano'} → ${next||'nie zapisano'}`);save();toast('Zapisano stan konwektora.')}}}));
 
 
 document.getElementById('tempFile').addEventListener('change',async e=>{

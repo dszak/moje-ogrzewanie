@@ -59,6 +59,25 @@ const DataStore = (() => {
       if(temperaturesSeen.has(key))fail();
       temperaturesSeen.add(key);
     });
+    // Private and optional decision journal; old JSON backups still import unchanged.
+    if(p.decisionLog===undefined)p.decisionLog=[];
+    if(arr(p.decisionLog).length>4000)fail();
+    const decisionsSeen=new Set();
+    p.decisionLog.forEach(d=>{
+      obj(d);str(d.id,100);if(decisionsSeen.has(d.id))fail();decisionsSeen.add(d.id);
+      date(d.at);date(d.periodStart);date(d.periodEnd);
+      if(Date.parse(d.periodEnd)<Date.parse(d.periodStart))fail();
+      if(!['day','week','month'].includes(d.periodKey)||!['keep','observe','experiment'].includes(d.choice))fail();
+      str(d.assessment,4000);if(!d.assessment.trim())fail();
+      str(d.action,1500);
+      if(d.reviewOn!==null){
+        str(d.reviewOn,10);
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(d.reviewOn)||!Number.isFinite(Date.parse(d.reviewOn+'T12:00:00Z'))||
+            new Date(d.reviewOn+'T12:00:00Z').toISOString().slice(0,10)!==d.reviewOn)fail();
+      }
+      if(d.experimentId!==null)str(d.experimentId,100);
+      obj(d.settings);number(d.settings.boiler,25,85,false);number(d.settings.engo,10,30,false);
+    });
     if(p.heatingEvents===undefined)p.heatingEvents=[];
     arr(p.heatingEvents).forEach(e=>{obj(e);str(e.id,100);date(e.at);number(e.engo,10,30,false);str(e.note,300)});
     if(p.weather===undefined)p.weather={hourly:[],updated:null};
