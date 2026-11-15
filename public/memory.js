@@ -3,6 +3,26 @@
 const MemoryKit=(()=>{
   const GOAL='Stopniowo poznać instalację i minimalizować koszt utrzymania komfortu, bez pogorszenia bezpieczeństwa.';
   const METHOD='WIDZIEĆ → OCENIĆ → DZIAŁAĆ → UCZYĆ SIĘ';
+
+  // Public project charters live in the repository. References supplement, not replace,
+  // the embedded principles and technical research that make offline exports useful.
+  const PROJECT_DOCUMENTATION=[
+    {
+      id:'fundamental-principles',
+      title:'Fundamentalne zasady projektu „Moje Ogrzewanie”',
+      url:'https://github.com/dszak/moje-ogrzewanie/blob/main/docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md',
+      purpose:'Nadrzędny wybór dobra, cztery cnoty kardynalne, hierarchia celów, ocena decyzji, metodologia eksperymentów, bezpieczeństwo.',
+      priority:'Przeczytaj przed wydaniem rekomendacji i przed projektowaniem eksperymentu.'
+    },
+    {
+      id:'technical-knowledge',
+      title:'Baza wiedzy technicznej — nie odkrywać ogrzewania od nowa',
+      url:'https://github.com/dszak/moje-ogrzewanie/blob/main/docs/BAZA-WIEDZY-TECHNICZNEJ.md',
+      purpose:'Zweryfikowane źródła techniczne, ograniczenia wnioskowania, zasady rozdzielania literatury od wyników konkretnego mieszkania i hierarchia badań.',
+      priority:'Przeczytaj przed analizą techniczną i decyzją o eksperymencie.'
+    }
+  ];
+
   // Moral foundation from the project's governing charter; not a household observation.
   const ETHICS={
     principle:'Dobrze gospodarować powierzonym mi dobrem.',
@@ -105,6 +125,8 @@ const MemoryKit=(()=>{
     ];
     const knowledge={method:METHOD,primary_goal:GOAL,
       supreme_principle:ETHICS,
+      governing_documents:PROJECT_DOCUMENTATION,
+      governing_documents_notice:'Powyższe publiczne dokumenty rozwijają zasady i źródła osadzone w raporcie. Jeśli masz dostęp do ich treści, zapoznaj się z nimi przed rekomendacją; jeśli nie, pracuj na wiedzy zawartej w tym pliku i jawnie zaznacz ograniczenie. Sam link nie oznacza, że dokument został przeczytany.',
       established_technical_research:HeatingResearch.exportContext(),
       durable_project_card:card,entire_knowledge_history:history,
       currently_applicable_knowledge:current,
@@ -116,7 +138,7 @@ const MemoryKit=(()=>{
       newest_decision:decisions.at(-1)||null,
       rules_and_limits:assumptions,
       source_notice:'Historia i karta pochodzą z prywatnych wpisów użytkownika; ich pewność nie została automatycznie zweryfikowana.',
-      continuity_instruction:'Odtwórz najpierw cel, instalację, ustalenia i wyniki wcześniejszych eksperymentów. Nie wracaj do odrzuconych hipotez bez nowych dowodów. Odziel fakty od interpretacji, respektuj granice zastosowania i zaproponuj najwyżej jeden uzasadniony następny krok.'};
+      continuity_instruction:'W pierwszej kolejności przeczytaj dwa publiczne dokumenty projektu wskazane w governing_documents, jeśli są dostępne. Nie twierdź, że je przeczytałeś, jeżeli nie uzyskałeś dostępu do ich treści; w takim przypadku oprzyj się na zasadach i bazie wiedzy osadzonych w tym raporcie. Odtwórz cel, instalację, ustalenia i wyniki wcześniejszych eksperymentów. Nie wracaj do odrzuconych hipotez bez nowych dowodów. Oddziel fakty od interpretacji, respektuj granice zastosowania i zaproponuj najwyżej jeden uzasadniony następny krok.'};
     // Preserve v1.7 report shape and its period-specific measurements; add full durable context.
     return {...report,format_version:2,memory_context:knowledge,readable_summary:
       report.readable_summary+'\n\n'+summary(knowledge)};
@@ -125,6 +147,9 @@ const MemoryKit=(()=>{
     const c=context.durable_project_card;
     const rows=[
       'PAMIĘĆ PROJEKTU — WAŻNA TAKŻE PO ZMIANIE ROZMOWY',
+      'DOKUMENTY NACZELNE — PRZECZYTAJ PRZED REKOMENDACJĄ, JEŚLI DOSTĘPNE:',
+      ...context.governing_documents.map(doc=>doc.title+': '+doc.url+' / '+doc.purpose),
+      'UWAGA: linki odsyłają do pełnych dokumentów; jeśli nie masz do nich dostępu, nie twierdź, że je przeczytałeś. Korzystaj z osadzonych zasad i źródeł.',
       'ZASADA NACZELNA: '+context.supreme_principle.principle,
       'SENS PROJEKTU: '+context.supreme_principle.purpose,
       ...context.supreme_principle.virtues.map(v=>v.name.toUpperCase()+': '+v.definition+' Zastosowanie: '+v.practice),
@@ -151,6 +176,7 @@ const MemoryKit=(()=>{
     return rows.join('\n');
   }
   const CHAT_INSTRUCTIONS=
+    'Przed rekomendacją i eksperymentem zapoznaj się z oboma dokumentami GitHub wymienionymi w memory_context.governing_documents, o ile możesz je otworzyć. Jeśli dostęp jest niemożliwy, powiedz o tym i korzystaj z pełnych danych osadzonych w raporcie. '+
     'Zanim przeanalizujesz ogrzewanie, odczytaj nadrzędną zasadę i cnoty kardynalne z memory_context.supreme_principle. Chodzi o wybór dobra i rozważną realizację, nie o samą redukcję kosztów. '+
     'Wykorzystaj publiczną bazę wiedzy technicznej z raportu jako punkt wyjścia, lecz zawsze oddziel ją od lokalnych dowodów. ' +
     'Analizuj załączony raport „Moje Ogrzewanie” v2 jako samowystarczalny zapis projektu. '+ 
@@ -169,6 +195,6 @@ const MemoryKit=(()=>{
     'Nigdy nie deklaruj „optymalnych” ustawień bez wiarygodnego porównania. '+
     'Nie kopiuj ogólnej wiedzy z publikacji do rejestru WYNIKÓW mieszkania bez lokalnego potwierdzenia. '+
     'Nie dopisuj wniosków już obecnych w rejestrze. Maksymalnie pięć propozycji. Użytkownik je oceni przed importem.';
-  return {GOAL,METHOD,ETHICS,CARD_FIELDS,KINDS,CONFIDENCE,OUTCOMES,EMPTY_CARD,parseProposal,createRecord,augment,summary,
+  return {GOAL,METHOD,ETHICS,PROJECT_DOCUMENTATION,CARD_FIELDS,KINDS,CONFIDENCE,OUTCOMES,EMPTY_CARD,parseProposal,createRecord,augment,summary,
     CHAT_INSTRUCTIONS,PROPOSAL_INSTRUCTIONS};
 })();

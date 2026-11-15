@@ -1,6 +1,6 @@
 'use strict';
 // The release packager replaces this marker with a hash of public assets.
-const VERSION='development-1.8.1';
+const VERSION='development-1.8.2';
 const PREFIX='moje-ogrzewanie:'+self.registration.scope+':';
 const CACHE=PREFIX+VERSION;
 const ASSETS=['./','./index.html','./app.js','./storage.js','./insights.js','./engo.js','./temperatures.js','./temperature-view.js','./research.js','./memory.js','./memory-view.js','./review.js','./review-view.js','./setti.js','./heads.js','./manifest.webmanifest','./icons/icon192.png','./icons/icon512.png'];

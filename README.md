@@ -39,6 +39,12 @@ Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotnoś
 
 Interaktywne oznaczanie drzwi na lokalnej mapie mieszkania oraz trzy poziomy subiektywnego komfortu (obniżony komfort, optymalnie, przegrzanie). Te funkcje wymagają osobnego projektu interfejsu i testów bezpiecznej rozbudowy zapisu — **nie są jeszcze wprowadzone**.
 
+## Wersja 1.8.2 · Odnośniki do pełnych dokumentów w raporcie ChatGPT
+
+Każdy nowo eksportowany raport zawiera w `memory_context.governing_documents` **bezpośrednie adresy** dwóch kanonicznych plików GitHub: `docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md` i `docs/BAZA-WIEDZY-TECHNICZNEJ.md`, wraz z ich przeznaczeniem i instrukcją przeczytania przed analizą lub eksperymentem. Odnośniki są także wypisane w `readable_summary` i instrukcji nowego czatu.
+
+Samo dodanie linku **nie pobiera zdalnej treści**. Gdy dostęp do GitHub nie jest możliwy, ChatGPT ma to jawnie zaznaczyć i korzystać z zasad moralnych, skróconej bazy 9 źródeł i historii zapisanych **wewnątrz** raportu. Brak zmian w schemacie lokalnych danych i ustawieniach urządzeń.
+
 ## Wersja 1.8.1 · Zasada naczelna i cztery cnoty w aplikacji
 
 Na ekranie **Mieszkanie** widoczna jest zasada „Dobrze gospodarować powierzonym mi dobrem” oraz link do rozwinięcia. Na początku zakładki **Pamięć projektu** wyświetlane są cztery cnoty kardynalne: roztropność, sprawiedliwość, umiarkowanie i męstwo — z pełnym sensem moralnym, osobistymi przykładami zastosowania i pytaniem o dobro przed każdą decyzją.
