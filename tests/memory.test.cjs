@@ -165,3 +165,27 @@ test('v1.8.1: moral foundation is exported for a fresh chat without changing use
  assert.match(m.CHAT_INSTRUCTIONS,/nadrzędną zasadę/i);
  assert.equal(report.memory_context.established_technical_research.sources.length,9);
 });
+
+
+test('v1.8.2: every report links to both full GitHub charters and is useful if those pages cannot be opened',()=>{
+ const m=kit();
+ const state={projectMemory:{...m.EMPTY_CARD(),overview:'Prywatna karta pozostaje bez zmian'},
+   knowledgeLog:[],decisionLog:[],experiments:[]};
+ const before=JSON.stringify(state);
+ const report=m.augment({readable_summary:'Dane ostatnich dni'},state);
+ assert.equal(JSON.stringify(state),before);
+ const documents=report.memory_context.governing_documents;
+ assert.equal(documents.length,2);
+ assert.equal(documents[0].url,'https://github.com/dszak/moje-ogrzewanie/blob/main/docs/NAJWAZNIEJSZE-ZASADY-PROJEKTU.md');
+ assert.equal(documents[1].url,'https://github.com/dszak/moje-ogrzewanie/blob/main/docs/BAZA-WIEDZY-TECHNICZNEJ.md');
+ for(const doc of documents){
+   assert.ok(report.readable_summary.includes(doc.url));
+   assert.ok(doc.purpose.length>30);
+ }
+ assert.match(report.memory_context.governing_documents_notice,/Sam link nie oznacza/);
+ assert.match(report.memory_context.continuity_instruction,/jeżeli nie uzyskałeś dostępu/);
+ assert.equal(report.memory_context.supreme_principle.virtues.length,4);
+ assert.equal(report.memory_context.established_technical_research.sources.length,9);
+ assert.equal(report.memory_context.durable_project_card.overview,'Prywatna karta pozostaje bez zmian');
+ assert.match(m.CHAT_INSTRUCTIONS,/governing_documents/);
+});
