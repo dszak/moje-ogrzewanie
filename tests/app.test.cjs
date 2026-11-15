@@ -15,7 +15,7 @@ function boot(initial={}){
 const KEY='moje-ogrzewanie-data-v1';
 test('six rooms, eight heads, doors, all screens render',()=>{
  const b=boot();assert.equal(b.run('ROOMS.length'),6);assert.equal(b.run('Object.keys(RADS).length'),8);
- for(const page of ['home','heads','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
+ for(const page of ['home','heads','boiler','insights','experiments','history','map','settings'])b.run(`setPage('${page}')`);
  for(const r of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])b.run(`setPage('room','${r}')`);
  assert.equal(b.run('Object.keys(DOORS).length'),6);
 });
@@ -295,4 +295,107 @@ test('stale Setti readings show last automatic values and time, not the older ma
  assert.match(b.element('view').innerHTML,/Setti\+ \(nieaktualne\):/);
  assert.match(b.element('view').innerHTML,/Nie oceniaj na jego podstawie/);
  assert.equal(b.data.get(KEY),before);
+});
+
+test('boiler counters: add, compare, correct and delete without changing original gas history',()=>{
+ const b=boot(),click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}}); 
+ b.run("state.gasHistory.push({id:'old-meter',at:'2026-11-13T14:00:00Z',gas:450,meter:'new',source:'manual'});save()");
+ const firstSnapshot=b.run("JSON.stringify(state.gasHistory)");
+ b.run("setPage('boiler')");
+ assert.match(b.element('view').innerHTML,/Liczniki BRÖTJE/);
+ b.element('boilerAt').value='2026-11-15T14:00';
+ b.element('boilerAc001').value='20000';
+ b.element('boilerAc005').value='50000';
+ b.element('boilerAc006').value='1000';
+ b.element('boilerNote').value='Pierwszy odczyt';
+ click('save-boiler');
+ assert.equal(b.run('state.boilerReadings.length'),1);
+ assert.equal(b.run('state.boilerReadings[0].ac005'),50000);
+ assert.match(b.element('view').innerHTML,/Pierwszy odczyt/);
+ assert.equal(b.run("JSON.stringify(state.gasHistory)"),firstSnapshot);
+ b.element('boilerAt').value='2026-11-22T14:00';
+ b.element('boilerAc001').value='20168';
+ b.element('boilerAc005').value='50250';
+ b.element('boilerAc006').value='1030';
+ b.element('boilerNote').value='Tydzień później';
+ click('save-boiler');
+ assert.equal(b.run('state.boilerReadings.length'),2);
+ assert.equal(b.run("boilerGain(...boilerEntries(),'ac005')"),250);
+ assert.match(b.element('view').innerHTML,/Przyrost od/);
+ assert.match(b.element('view').innerHTML,/250/);
+ const id=b.run('boilerEntries().at(-1).id');
+ click('edit-boiler',{id});
+ assert.match(b.element('view').innerHTML,/Popraw odczyt liczników/);
+ b.element('boilerAc005').value='50260';
+ click('save-boiler');
+ assert.equal(b.run('state.boilerReadings.length'),2);
+ assert.equal(b.run("boilerGain(...boilerEntries(),'ac005')"),260);
+ b.run('DataStore.validate(state)');
+ const again=boot(Object.fromEntries(b.data));
+ again.run("setPage('boiler')");
+ assert.equal(again.run('state.boilerReadings.length'),2);
+ assert.equal(again.run("boilerGain(...boilerEntries(),'ac005')"),260);
+ const still=again.run("JSON.stringify(state.gasHistory)");
+ assert.equal(still,firstSnapshot);
+ const prior=b.data.get(KEY);
+ b.setConfirm(false);
+ click('delete-boiler',{id});
+ assert.equal(b.data.get(KEY),prior);
+ b.setConfirm(true);
+ click('delete-boiler',{id});
+ assert.equal(b.run('state.boilerReadings.length'),1);
+ assert.equal(b.run("JSON.stringify(state.gasHistory)"),firstSnapshot);
+ assert.match(b.run('state.events[0].label'),/Usunięto/);
+});
+
+test('boiler counter input validation and negative counter increments are safe',()=>{
+ const b=boot(),click=(action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}}); 
+ b.run("setPage('boiler')");
+ b.element('boilerAt').value='2026-11-15T14:00';
+ b.element('boilerAc001').value='13.4';
+ b.element('boilerAc005').value='200';
+ b.element('boilerAc006').value='50';
+ click('save-boiler');
+ assert.equal(b.run('state.boilerReadings.length'),0);
+ b.element('boilerAc001').value='12';
+ b.setConfirm(false);
+ click('save-boiler');
+ assert.equal(b.run('state.boilerReadings.length'),0);
+ b.setConfirm(true);
+ click('save-boiler');
+ assert.equal(b.run('state.boilerReadings.length'),1);
+ const before=b.data.get(KEY);
+ b.element('boilerAt').value='2026-11-15T14:00';
+ click('save-boiler');
+ assert.equal(b.data.get(KEY),before,'duplicate timestamp does not overwrite history');
+ assert.equal(b.run("boilerGain({ac005:20},{ac005:10},'ac005')"),null);
+ assert.equal(b.run("boilerGain({ac005:20},{ac005:30},'ac005')"),10);
+ assert.match(b.element('view').innerHTML,/godziny zasilania elektrycznego/);
+ assert.doesNotMatch(b.element('view').innerHTML,/dokładne zużycie gazu/);
+});
+
+test('legacy backups without boilerReadings remain valid; extra data are preserved on import',()=>{
+ const b=boot();
+ const old=b.run('seed()');
+ delete old.boilerReadings;
+ old.gasHistory.push({id:'old',at:'2026-10-01T08:00:00Z',gas:123,meter:'new',source:'manual'});
+ const validated=b.run('DataStore.validate('+JSON.stringify(old)+')');
+ assert.equal(validated.boilerReadings.length,0);
+ assert.equal(validated.gasHistory.length,1);
+ assert.equal(b.run('DataStore.validate({...seed(),boilerReadings:[{id:"a",at:now(),ac001:1,ac005:2,ac006:3,note:"ok"}]}).boilerReadings.length'),1);
+ assert.throws(()=>b.run('DataStore.validate({...seed(),boilerReadings:[{id:"a",at:now(),ac001:1.5,ac005:2,ac006:3,note:"ok"}]})'));
+ assert.throws(()=>b.run('DataStore.validate({...seed(),boilerReadings:[{id:"a",at:now(),ac001:1,ac005:-2,ac006:3,note:"ok"}]})'));
+});
+
+test('boiler counter reading cards remain responsive on phone-sized screens',()=>{
+ const html=fs.readFileSync('public/index.html','utf8');
+ assert.match(html,/@media\(max-width:560px\)\{\.cols3\{grid-template-columns:1fr\}/);
+ const b=boot();
+ b.run("setPage('boiler')");
+ const view=b.element('view').innerHTML;
+ assert.match(view,/class="grid cols2"/);
+ assert.match(view,/id="boilerAc001"/);
+ assert.match(view,/id="boilerAc005"/);
+ assert.match(view,/id="boilerAc006"/);
+ assert.match(view,/inputmode="numeric"/);
 });
