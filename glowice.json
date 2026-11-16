@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "last_sync": "2026-11-16T13:31:47+00:00",
+  "last_sync": "2026-11-16T13:41:47+00:00",
   "heads": {
     "g1": {
       "temperature": 20.7,
@@ -21,7 +21,7 @@
       "mode_raw": "standy"
     },
     "g4": {
-      "temperature": 21.8,
+      "temperature": 21.2,
       "target_temperature": 21.5,
       "calibration": -1,
       "mode_raw": "standy"
@@ -39,13 +39,13 @@
       "mode_raw": "standy"
     },
     "g7": {
-      "temperature": 23.6,
+      "temperature": 23.3,
       "target_temperature": 25.0,
       "calibration": -1,
       "mode_raw": "standy"
     },
     "g8": {
-      "temperature": 21.3,
+      "temperature": 20.7,
       "target_temperature": 22.5,
       "calibration": -4,
       "mode_raw": "standy"
