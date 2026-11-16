@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "last_sync": "2026-11-16T20:31:50+00:00",
+  "last_sync": "2026-11-16T20:41:50+00:00",
   "heads": {
     "g1": {
       "temperature": 20.7,
@@ -21,7 +21,7 @@
       "mode_raw": "standy"
     },
     "g4": {
-      "temperature": 20.6,
+      "temperature": 21.2,
       "target_temperature": 21.5,
       "calibration": -1,
       "mode_raw": "standy"
