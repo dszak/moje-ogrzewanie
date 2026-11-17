@@ -87,8 +87,9 @@ async function github(path,token,opts={}){
 }
 async function main(){
  const haUrl=requireEnv('HA_URL').replace(/\/$/,'');
- if(!haUrl.startsWith('https://')&&!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(haUrl))
-  throw Error('HA_URL musi być HTTPS lub localhost; nie przesyłaj tokenu zwykłym HTTP');
+ if(!haUrl.startsWith('https://')&&!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(haUrl) &&
+    !(process.env.HA_ALLOW_LAN_HTTP==='1'&&/^http:\/\/(?:192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|[a-z0-9-]+\.local)(?::\d+)?$/i.test(haUrl)))
+  throw Error('HA_URL wymaga HTTPS; HTTP tylko dla localhost lub prywatnego LAN z HA_ALLOW_LAN_HTTP=1');
  const haToken=requireEnv('HA_TOKEN'),ghToken=requireEnv('GITHUB_TOKEN'),pass=requireEnv('HA_HISTORY_PASSPHRASE');
  if(pass.length<16)throw Error('Hasło historii musi mieć co najmniej 16 znaków (zalecane 24+)');
  const days=Number(process.env.HA_DAYS||'3');
