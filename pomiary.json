@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "last_sync": "2026-11-17T20:42:04+00:00",
+  "last_sync": "2026-11-17T20:52:04+00:00",
   "rooms": {
     "bedroom": {
       "temperature": 21.6,
@@ -19,12 +19,12 @@
       "humidity": 58.0
     },
     "smallbath": {
-      "temperature": 21.6,
-      "humidity": 60.0
+      "temperature": 21.4,
+      "humidity": 62.0
     },
     "hall": {
       "temperature": 20.8,
-      "humidity": 54.0
+      "humidity": 53.0
     }
   }
 }
