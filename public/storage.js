@@ -43,7 +43,7 @@ const DataStore = (() => {
     const engoSeen=new Map();
     arr(p.engoCycles).forEach(e=>{
       obj(e);str(e.id,100);date(e.at);
-      if(!['on','off'].includes(e.status)||e.source!=='import')fail();
+      if(!['on','off'].includes(e.status)||!['import','ha-auto'].includes(e.source))fail();
       const minute=Math.floor(Date.parse(e.at)/60000);
       if(engoSeen.has(minute))fail();
       engoSeen.set(minute,e.status);

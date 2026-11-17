@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/research.js','utf8')+'\n'+fs.readFileSync('public/memory.js','utf8')+'\n'+fs.readFileSync('public/memory-view.js','utf8')+'\n'+fs.readFileSync('public/review.js','utf8')+'\n'+fs.readFileSync('public/review-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/research.js','utf8')+'\n'+fs.readFileSync('public/memory.js','utf8')+'\n'+fs.readFileSync('public/memory-view.js','utf8')+'\n'+fs.readFileSync('public/review.js','utf8')+'\n'+fs.readFileSync('public/review-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/ha-sync.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false,allowConfirm=true;
@@ -654,7 +654,7 @@ test('v1.8.1: governing principle is visible on the first screen, with all four 
  assert.match(output,/ORLENOWI/);
  assert.match(output,/Trwała karta projektu/);
  assert.match(output,/Rejestr zdobytej wiedzy/);
- assert.match(output,/Moje Ogrzewanie v1.8.2/);
+ assert.match(output,/Moje Ogrzewanie v1.9.0/);
 });
 
 test('v1.8.1: ethics is in exported report without changing existing five knowledge records',()=>{

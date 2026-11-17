@@ -21,6 +21,7 @@ const DOORSTATUS={unknown:'Nie ustalono',open:'Otwarte',ajar:'Uchylone',closed:'
 const RM=Object.fromEntries(ROOMS.map(x=>[x.id,x]));
 const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:'',electric:null},rooms:Object.fromEntries(ROOMS.map(r=>[r.id,{target:r.id==='bedroom'?22:null,readings:[]}])),radiators:Object.fromEntries(Object.keys(RADS).map(k=>[k,null])),doors:Object.fromEntries(Object.keys(DOORS).map(k=>[k,'unknown'])),events:[],experiments:[],conditions:[],gasHistory:[],heatingEvents:[],engoCycles:[],temperatureHistory:[],decisionLog:[],projectMemory:MemoryKit.EMPTY_CARD(),knowledgeLog:[],boilerReadings:[],weather:{hourly:[],updated:null}});
 let reviewPeriod='week';let editingDecision=null;let memoryPreview=null;let memoryImportDraft='';let tempDay=null;let tempPreview=null;let tempImportDraft='';let tempVisible=new Set(['bedroom','salon','kitchen','bigbath','smallbath','hall']);let historyLimit=120;let engoLimit=120;let editingGas=null;let editingBoiler=null;let editingEngo=null;let engoImportDraft='';let pendingEngo=null;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
+let haUnlocked=false,haSyncLabel='Nie połączono jeszcze prywatnej historii HA.';
 function load(){return DataStore.load(seed)}
 function save(){DataStore.save(state);const el=document.getElementById('storageAlert');el.hidden=!DataStore.warning;if(DataStore.warning)el.textContent=DataStore.warning}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -151,13 +152,23 @@ function renderBoiler(){
 }
 
 
+function haSyncPanel(){
+  return '<section class="card" style="margin-bottom:16px"><div class="group-heading"><h3>Historia automatyczna — Home Assistant</h3><span class="pill">szyfrowana · tylko odczyt</span></div>'+
+   '<p class="hint">'+esc(haSyncLabel)+'</p>'+
+   '<p class="hint">Szczegółowa historia jest przesyłana jako zaszyfrowany plik przez dotychczasowy GitHub. Hasło nie jest wysyłane do GitHub ani Home Assistant. Ta funkcja niczym nie steruje.</p>'+
+   (!haUnlocked?'<div style="margin:12px 0"><label for="haPass">Hasło prywatnego archiwum</label><input id="haPass" type="password" autocomplete="off" placeholder="Hasło ustawione w eksporterze" maxlength="300"></div>':'')+
+   '<div class="actions" style="margin-top:13px">'+
+   (!haUnlocked?'<button class="action" data-action="ha-unlock">Połącz prywatną historię</button>':'<button class="action" data-action="ha-refresh">Synchronizuj teraz</button>')+
+   '<button class="action ghost" data-action="ha-forget">Zapomnij klucz na tym urządzeniu</button></div>'+
+   '<p class="hint">Historia gazu i kotła pozostaje prywatna i ręczna. W razie braku synchronizacji nadal działają importy CSV.</p></section>';
+}
 function renderEngo(){
  const entries=state.engoCycles||[],report=EngoCycles.analyze(entries);
  const recent=entries.slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
  const editor=editingEngo?entries.find(r=>r.id===editingEngo):null;
  const latest=report.days[0]||null;
- let output=sec('Cykle ENGO','Włączenia i wyłączenia zapotrzebowania na ogrzewanie, przepisane ze zrzutów ENGO Smart.');
- output+='<div class="banner info"><span>ℹ️</span><span>Wpisy są prywatne, tylko na tym urządzeniu. To sygnał termostatu, nie pomiar pracy palnika kotła. Godziny zrzutów traktujemy z dokładnością do minuty.</span></div>';
+ let output=sec('Cykle ENGO','Historia żądań termostatu: automatyczna z Home Assistant lub awaryjnie z CSV ENGO Smart.');
+ output+='<div class="banner info"><span>ℹ️</span><span>Wpisy są prywatne, tylko na tym urządzeniu. ON/OFF oznacza żądanie termostatu, a nie potwierdzoną pracę palnika. Wpisy ręczne CSV mają dokładność do minuty.</span></div>'+haSyncPanel();
  output+='<section class="card" style="margin-bottom:16px"><h3>Import wielu zdarzeń ENGO</h3>'+
   '<p class="hint">Wklej CSV przygotowany na podstawie dziennika ENGO Smart. Jeden wiersz na zdarzenie: <b>data;godzina;stan</b>. Godziny dotyczą czasu polskiego. Na przykład:</p>'+
   '<pre class="engo-example">data;godzina;stan\n2024-01-01;08:00;ON\n2024-01-01;08:15;OFF</pre>'+
@@ -195,7 +206,7 @@ function renderEngo(){
  }
  output+='<section class="card"><h3>Historia zdarzeń ('+entries.length+')</h3>'+
   (recent.length?recent.slice(0,engoLimit).map(r=>
-   '<div class="engo-history-item"><div><b>'+day(r.at)+'</b><div class="small muted">'+(r.status==='on'?'Ogrzewanie WŁĄCZONE':'Ogrzewanie WYŁĄCZONE')+' · wpis z ENGO Smart</div></div>'+
+   '<div class="engo-history-item"><div><b>'+day(r.at)+'</b><div class="small muted">'+(r.status==='on'?'Żądanie ON':'Żądanie OFF')+' · '+(r.source==='ha-auto'?'Home Assistant':'wpis z ENGO Smart')+'</div></div>'+
    '<div class="gas-actions"><button class="action ghost" data-action="edit-engo" data-id="'+esc(r.id)+'">Edytuj</button>'+
    '<button class="action danger" data-action="delete-engo" data-id="'+esc(r.id)+'">Usuń</button></div></div>').join('')+
     (recent.length>engoLimit?'<button class="action ghost" data-action="more-engo">Pokaż starsze</button>':''):
@@ -255,7 +266,7 @@ function renderExperiments(){let active=state.experiments.find(x=>x.status==='ac
 function renderHistory(){let ev=state.events.slice(0,historyLimit);return `${sec('Historia zmian','Wszystkie zapisane nastawy i pomiary — żebyś wiedział, co naprawdę zmieniono.') }<div class="actions" style="margin-bottom:17px"><button class="action light" data-action="export-json">Eksportuj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button></div><section class="card"><div class="group-heading"><h3>Dziennik</h3><span class="pill">${state.events.length} wpisów</span></div>${ev.length?`<div class="timeline">${ev.map(x=>`<div class="event"><span class="event-marker"></span><div><strong>${esc(x.label)}</strong><div class="muted small">${esc(x.detail)}</div><small>${day(x.at)}</small></div></div>`).join('')}</div>${state.events.length>historyLimit?'<button class="action ghost" data-action="more-history">Pokaż starsze wpisy</button>':''}`:'<div class="empty">Historia będzie się uzupełniać przy zapisywaniu celów, głowic, drzwi i pomiarów.</div>'}</section>`}
 function renderMap(){return `${sec('Mapa mieszkania','Prywatny plan przechowywany wyłącznie na tym urządzeniu.')}<div class="banner info">Publiczna aplikacja nie zawiera planu, wymiarów ani adresu. Możesz wczytać własną mapę SVG, PNG lub JPEG. Trafi tylko do lokalnego zapisu i Twojej kopii JSON.</div><section class="card">${state.privateMap?`<img class="map" alt="Twoja prywatna mapa" src="${esc(state.privateMap)}">`:'<div class="empty">Nie wczytano prywatnej mapy.</div>'}<div class="actions" style="margin-top:15px"><button class="action ghost" data-action="map-import">Wczytaj prywatną mapę</button>${state.privateMap?'<button class="action ghost" data-action="map-download">Pobierz mapę</button>':''}</div></section>`}
 function renderSettings(){let g=state.global;return `${sec('Ustawienia wspólne','Zadane temperatury kotła i ENGO mają wpływ na całe mieszkanie.')}<div class="grid cols2"><section class="card"><h3>BRÖTJE · kocioł</h3><p class="subtitle" style="margin-bottom:15px">Zadana temperatura wody na zasilaniu. Odczyt bieżący na wyświetlaczu może być inny.</p><label for="boilerSet">Temperatura zadana kotła (°C)</label>${tempInput('boilerSet',g.boiler,25,85,1)}<p class="hint">Wartość początkowa: 55°C. Wpisz faktyczną nastawę.</p><div class="actions" style="margin-top:14px"><button class="action" data-action="set-boiler">Zapisz nastawę kotła</button></div></section><section class="card"><h3>ENGO Smart · sypialnia</h3><p class="subtitle" style="margin-bottom:15px">Termostat wyznacza zapotrzebowanie na ogrzewanie dla całego mieszkania.</p><div class="form-grid"><div><label for="engoSet">Temperatura zadana (°C)</label>${tempInput('engoSet',g.engo,10,30,'.5')}</div><div><label for="engoCurrent">Aktualny odczyt ENGO (°C)</label>${tempInput('engoCurrent',g.engoCurrent,0,45,'.1')}</div><div class="wide"><label for="engoPlace">Położenie termostatu</label><input id="engoPlace" value="${esc(g.engoPlace)}" maxlength="220"></div></div><div class="actions" style="margin-top:14px"><button class="action" data-action="set-engo">Zapisz ustawienia ENGO</button></div><p class="hint">Po przeniesieniu termostatu wpisz nowe miejsce. Aplikacja zachowa zmianę w dzienniku.</p></section></div><section class="card" style="margin-top:16px"><div class="group-heading"><h3>Twoje dane i kopie zapasowe</h3><span class="pill">bez konta</span></div><p class="muted" style="font-size:13px;margin-bottom:17px">Dane są przechowywane lokalnie w tej przeglądarce na tym urządzeniu. Aktualizacja pod tym samym adresem zachowuje dane. Wyczyszczenie Safari, usunięcie aplikacji lub zmiana urządzenia mogą je usunąć. Regularnie zapisuj JSON w Plikach / iCloud. Przenosząc dane ze starej wersji lub między Safari a aplikacją z ekranu początkowego, użyj eksportu i importu JSON.</p><div class="actions filecontrols"><button class="action light" data-action="export-json">Pobierz kopię JSON</button><button class="action ghost" data-action="import-json">Wczytaj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button><button class="action ghost" data-action="recover">Przywróć poprzedni zapis</button><button class="action ghost" data-action="persist">Chroń zapis na urządzeniu</button><button class="action danger" data-action="reset">Wyczyść dane</button></div><div class="hr"></div><p class="footer-note">Aplikacja odczytuje publiczny plik z pomiarami Setti+, ale nie łączy się bezpośrednio z urządzeniami ani nie wysyła poleceń. Gdy pomiary są nieaktualne, możesz je nadal wpisać ręcznie.</p></section>`}
-function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='boiler'?renderBoiler():page==='engo-cycles'?renderEngo():page==='temperatures'?TemperatureView.render(state,tempDay,tempVisible,tempPreview,tempImportDraft):page==='review'?ReviewView.render(state,reviewPeriod,editingDecision,MemoryKit.augment(HeatingReview.build(state,reviewPeriod),state)):page==='memory'?MemoryView.render(state,memoryPreview,memoryImportDraft):page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.8.2 · Twoje wpisy tylko na tym urządzeniu</div>`}
+function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='boiler'?renderBoiler():page==='engo-cycles'?renderEngo():page==='temperatures'?TemperatureView.render(state,tempDay,tempVisible,tempPreview,tempImportDraft):page==='review'?ReviewView.render(state,reviewPeriod,editingDecision,MemoryKit.augment(HeatingReview.build(state,reviewPeriod),state)):page==='memory'?MemoryView.render(state,memoryPreview,memoryImportDraft):page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.9.0 (wersja testowa) · Twoje wpisy tylko na tym urządzeniu</div>`}
 function numInput(id,min,max,allowEmpty=true){let e=document.getElementById(id);if(!e)return {ok:false};let raw=e.value.trim().replace(',','.');if(raw===''&&allowEmpty)return{ok:true,value:null};let v=Number(raw);if(raw===''||!Number.isFinite(v)||v<min||v>max){toast(`Sprawdź pole: ${id}. Dozwolony zakres ${min}–${max}.`);e.focus();return{ok:false}}return{ok:true,value:v}}
 function changed(a,b){return a!==b}
 function handleClick(e){let btn=e.target.closest('[data-action]');if(!btn)return;let ac=btn.dataset.action;
@@ -418,6 +429,17 @@ if(ac==='temp-delete-day'){
  save();tempDay=null;toast('Usunięto '+count+' odczytów.');return render();
 }
 
+if(ac==='ha-unlock'){
+ const el=document.getElementById('haPass'),pass=el?.value||'';
+ if(el)el.value='';
+ return syncHa(true,pass);
+}
+if(ac==='ha-refresh')return syncHa(true);
+if(ac==='ha-forget'){
+ if(!confirm('Zapomnieć klucz szyfrowania na tym iPhonie? Historia już zapisana w aplikacji pozostanie bez zmian.'))return;
+ HaSync.forget().then(()=>{haUnlocked=false;haSyncLabel='Klucz odłączony. Dotychczasowa historia pozostała bez zmian.';render()});
+ return;
+}
 if(ac==='file-engo')return document.getElementById('engoFile').click();
 if(ac==='clear-engo-import'){engoImportDraft='';pendingEngo=null;return render()}
 if(ac==='cancel-engo-import'){pendingEngo=null;return render()}
@@ -651,7 +673,35 @@ async function syncHeads(force=false){
  if(!document.activeElement||!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))render();
  if(force)toast(ok?'Pobrano aktualne dane głowic.':'Nie uzyskano aktualnych danych głowic. Ostatni zapis jest oznaczony czasem synchronizacji.');
 }
-window.addEventListener('load',()=>{syncWeather();syncSetti();syncHeads();if(typeof window.setInterval==='function')window.setInterval(()=>{syncSetti();syncHeads()},5*60*1000)});
+async function syncHa(force=false,pass=null){
+ if(typeof fetch!=='function'||navigator.onLine===false){
+  haSyncLabel='Brak internetu — używamy zapisanej historii lokalnej.';
+  if(force)toast(haSyncLabel);
+  return;
+ }
+ try{
+  const payload=pass!==null?await HaSync.unlock(pass,fetch):await HaSync.refresh(fetch);
+  if(payload.locked){
+   haUnlocked=false;haSyncLabel='Oczekuje na hasło archiwum. Historia lokalna jest bezpieczna.';
+   if(force)toast('Najpierw wpisz hasło prywatnego archiwum.');
+  }else{
+   const merged=HaSync.merge(payload,state.engoCycles||[],state.temperatureHistory||[]);
+   if(merged.addedEngo||merged.addedTemps){
+    const next=DataStore.validate({...state,engoCycles:merged.engos,temperatureHistory:merged.temps});
+    DataStore.save(next);state=next;
+   }
+   haUnlocked=true;
+   haSyncLabel='Odczyt HA z '+day(payload.generatedAt)+' · nowe ENGO: '+merged.addedEngo+
+    ', temperatury: '+merged.addedTemps+'. Wszystkie dane zachowane lokalnie.';
+   if(force)toast('Synchronizacja zakończona. Nowe ENGO: '+merged.addedEngo+', temperatury: '+merged.addedTemps+'.');
+  }
+ }catch(error){
+  haSyncLabel='Synchronizacja HA niedostępna: '+error.message+'. Dotychczasowa historia nie została zmieniona.';
+  if(force)toast(haSyncLabel);
+ }
+ if(!document.activeElement||!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))render();
+}
+window.addEventListener('load',()=>{syncWeather();syncSetti();syncHeads();syncHa();if(typeof window.setInterval==='function')window.setInterval(()=>{syncSetti();syncHeads();syncHa()},5*60*1000)});
 window.addEventListener('pageshow',()=>syncWeather());
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncWeather()});
 window.addEventListener('online',()=>syncWeather());
