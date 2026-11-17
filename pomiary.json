@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "last_sync": "2026-11-17T10:31:59+00:00",
+  "last_sync": "2026-11-17T10:41:59+00:00",
   "rooms": {
     "bedroom": {
-      "temperature": 21.6,
-      "humidity": 49.0
+      "temperature": 21.5,
+      "humidity": 50.0
     },
     "salon": {
       "temperature": 22.0,
