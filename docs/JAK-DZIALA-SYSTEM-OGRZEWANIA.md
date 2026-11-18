@@ -142,7 +142,17 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 5. Hasła, PAT GitHub, token HA i hasło szyfrowania pozostają w bezpiecznym magazynie Maca — **nigdy w dokumentacji, repozytorium ani rozmowie**.
 6. Nie przypisywać ChatGPT automatycznego sterowania, alertowania ani ciągłego monitoringu. Wnioski wymagają przeczytania aktualnych źródeł i określenia niepewności.
 
-## 9. Stan wdrożenia i kolejne prace
+## 9. Decyzja zakresowa — energia elektryczna a ogrzewanie (18.11.2026)
+
+**Decyzja:** nie uruchamiać obecnie odrębnego systemu monitorowania całkowitego zużycia energii elektrycznej ani integracji TAURON AMIplus. Priorytetem pozostają **komfort cieplny, gaz, praca kotła, ENGO, głowice, temperatury i rzetelne porównania kosztów**. Rachunki za energię elektryczną są według oceny użytkownika na akceptowalnym poziomie, dlatego dodatkowe inwestycje i obsługa pomiarów prądu nie mają obecnie uzasadnionego priorytetu. Niezależnie od tego eLicznik TAURON nie jest aktualnie dostępny dla tego punktu poboru, a brak wyznaczonej daty wymiany licznika oznacza jedynie termin graniczny do końca 2030 r., nie datę konkretnej instalacji.
+
+**Zależność, którą należy uwzględniać w analizie:** w sezonie grzewczym kocioł zużywa nie tylko gaz, lecz także **energię elektryczną** do zasilania elementów takich jak pompa obiegowa i elektronika sterująca (a zależnie od fazy pracy również inne elementy urządzenia). Użytkownik obserwuje wyższe rachunki za prąd w okresie ogrzewania niż poza sezonem. Jest to obserwacja, **nie potwierdzony pomiarem udział kotła** w całej różnicy rachunków.
+
+**Wniosek warunkowy:** zmniejszenie rzeczywistego zapotrzebowania na ciepło i czasu działania pompy/urządzeń kotła **może dodatkowo ograniczyć zużycie prądu**. Nie wolno jednak zakładać, że każdy spadek zużycia gazu oznacza proporcjonalny lub nawet pewny spadek zużycia energii elektrycznej. Przykładowo niższa temperatura zasilania może zmniejszyć spalanie gazu, a jednocześnie wydłużyć czas pracy pompy. Rzeczywisty efekt elektryczny wymaga osobnego pomiaru; bez niego traktujemy go jako możliwą **korzyść uboczną**, nie wyliczoną oszczędność.
+
+**Praktyczne następstwo:** optymalizujemy przede wszystkim ogrzewanie gazowe przy zachowaniu komfortu i bezpieczeństwa. Nie kupujemy dodatkowych liczników prądu tylko w celu potwierdzenia tej hipotezy. Decyzję można przejrzeć ponownie, jeśli rachunki znacząco wzrosną, zmieni się sposób ogrzewania lub monitoring stanie się dostępny bez istotnych kosztów.
+
+## 10. Stan wdrożenia i kolejne prace
 
 **Potwierdzone 18.11.2026:** dostęp MacBooka do prywatnego repozytorium, jednorazowa synchronizacja 13 plików, powtarzalne wykonanie `launchd` bez błędów, odczyt indeksu i przykładowych plików przez ChatGPT z połączeniem GitHub.
 
@@ -153,7 +163,7 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 - bezpieczna, świadomie zatwierdzana aktualizacja prywatnej historii wpisów z aplikacji iPhone oraz nowych dokumentów ORLEN;
 - obsługa dłuższej historii i limitów eksportu HA.
 
-## 10. Gdzie szukać danych i dokumentów?
+## 11. Gdzie szukać danych i dokumentów?
 
 - [Główna strona projektu i kod aplikacji](../README.md)
 - [Zasady nadrzędne](NAJWAZNIEJSZE-ZASADY-PROJEKTU.md)
