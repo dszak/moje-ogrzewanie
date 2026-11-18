@@ -1,6 +1,6 @@
 # Projekt prywatnego archiwum analitycznego „Moje Ogrzewanie”
 
-> **Status: projekt architektury, 18.11.2026.** Dokument publiczny opisuje reguły, schematy i etapowanie. Nie zawiera pomiarów, faktur, adresów, numerów umów, tokenów ani innych prywatnych danych. Sam dokument **nie uruchamia synchronizacji** i nie daje ChatGPT dostępu do prywatnych plików.
+> **Status: dokument założeń projektowych z 18.11.2026.** Od tego dnia uruchomiono już prywatne repozytorium oraz synchronizację na MacBooku. **Aktualny opis działającej instalacji** znajduje się w [Jak działa cały system ogrzewania](JAK-DZIALA-SYSTEM-OGRZEWANIA.md). Treść poniżej opisuje wcześniejszy plan i wymaga czytania jako założenia, nie bieżąca lista wdrożonych funkcji. Dokument publiczny nie zawiera prywatnych pomiarów, faktur, adresów ani tokenów.
 
 ## 1. Cel i zasady nadrzędne
 
