@@ -131,3 +131,45 @@ Regularnie sprawdzamy:
 ---
 
 **Zasada końcowa:** „Nie chodzi o to, żeby stale coś przestawiać. Chodzi o to, żeby coraz lepiej rozumieć instalację i wyciskać z niej najwięcej pod względem komfortu i ekonomii — na podstawie dowodów, bez kręcenia się w kółko”.
+
+---
+
+## 10. Odpowiedzialna sprawczość — świadomie korzystać z realnego wpływu
+
+**Sprawczość jest środkiem do realizacji dobra, nie osobnym celem ani obowiązkiem ciągłego przestawiania urządzeń.** Polega na rozpoznaniu, co można zmienić, na ile rzeczywiście wpływa to na rezultat i czy wysiłek jest proporcjonalny do oczekiwanej korzyści.
+
+Rozróżniać:
+- **Decyzje użytkownika:** cele temperatur, położenie czujnika referencyjnego, harmonogramy, nastawy głowic, dopuszczalne ustawienia temperatury zasilania c.o., sposób wietrzenia i użytkowania, plan modernizacji.
+- **Wymagające diagnostyki lub fachowca:** równoważenie hydrauliczne, dobór grzejników, zmiany nastaw serwisowych i wszelkie ingerencje w gaz, zabezpieczenia oraz hydraulikę.
+- **Czynniki zewnętrzne:** pogoda, nasłonecznienie, wiatr, ceny i taryfy, sąsiednie lokale oraz właściwości przegród.
+
+Dla każdego proponowanego działania określić: *na co dokładnie mamy wpływ → co zmierzymy → jakie dobro chcemy chronić → jakie są koszty, ryzyka i warunki rezygnacji*. **Świadome zachowanie dotychczasowych ustawień także jest decyzją.** Nie mylić sprawczości z pełną kontrolą nad temperaturą czy rachunkami.
+
+## 11. Ekonomia, faktury, przedpłaty i rzeczywisty koszt gazu
+
+Badać odrębnie pięć wielkości:
+1. **Zużycie fizyczne:** zmiana licznika w m³, energia rozliczeniowa w kWh, okres i jakość odczytu; osobno rejestrować wymianę i zerowanie gazomierza.
+2. **Koszt gazu za okres:** paliwo, dystrybucja zmienna i stała, abonament, podatki i ewentualne korekty, z informacją o taryfie i obowiązujących cenach.
+3. **Kwota faktury:** jej rodzaj, data wystawienia, okres rozliczeniowy oraz ewentualne rozliczenia prognoz i korekt.
+4. **Rzeczywisty przepływ pieniędzy:** regularne przedpłaty, inne wpłaty, zwroty, terminy i potwierdzenia księgowania.
+5. **Saldo rozrachunków:** nadpłata lub niedopłata u dostawcy; nie utożsamiać salda z oszczędnością energetyczną.
+
+**Zużycie ≠ wartość faktury ≠ kwota do zapłaty ≠ przedpłata ≠ saldo.** Koszty przypisywać do faktycznych okresów rozliczeniowych, a wpłaty do dat płatności. Nie przenosić kosztów miesięcznych na pojedyncze eksperymenty bez adekwatnego rozdzielenia okresów.
+
+Budżet jest narzędziem płynności i przezorności, a nie celem wydawania określonej sumy. Szukać *najniższego rozsądnego kosztu* utrzymania właściwych warunków, nie oszczędności kosztem zdrowia, gościnności, budynku lub bezpieczeństwa. Ochrona przed nadmierną nadpłatą u dostawcy jest oddzielnym pytaniem finansowym.
+
+## 12. Zdrowie, wilgotność, trwałość mieszkania i gościnność
+
+Komfort to nie tylko jeden odczyt °C: uwzględniać różnice między pomieszczeniami, temperaturę przy podłodze, przeciągi, subiektywne odczucia, czas przebywania w pokoju oraz potrzeby gości.
+
+W łazienkach i innych wilgotnych strefach obserwować także wilgotność względną, wentylację, osuszanie i potencjalną kondensację na zimnych przegrodach. **Nie zmniejszać temperatury bez oceny ryzyka zawilgocenia i pleśni.** Wynik oceniać łącznie z ochroną mieszkania, nie tylko z oszczędnością gazu.
+
+Mieszkanie i energia służą zdrowemu odpoczynkowi, życiu codziennemu, przyjmowaniu gości i wykonywaniu powierzonych obowiązków. Technologia powinna ograniczać niepotrzebną pracę administracyjną i nie tworzyć presji ciągłej kontroli.
+
+## 13. Ciągłość analityczna i granica prywatności
+
+Oddzielać **publiczną wiedzę o metodach** od **prywatnej historii konkretnego gospodarstwa**. Architekturę i zasady danych opisuje [projekt prywatnego archiwum analitycznego](ARCHIWUM-ANALITYCZNE-PROJEKT.md).
+
+- Faktury, adresy, identyfikatory, odczyty gazomierzy, codzienne nastawy, notatki i dokładne historie pomieszczeń nie należą do publicznego repozytorium.
+- W analizach ChatGPT wolno wykorzystywać wyłącznie zasoby rzeczywiście udostępnione w danej rozmowie lub przez uprawnione połączenie; nie zakładać automatycznej synchronizacji.
+- Przechowywać źródła, pochodzenie danych, wersje schematów, historię ich korekt, decyzje i wyniki eksperymentów; **przed kolejnym krokiem odtworzyć wiedzę już zdobytą**.
