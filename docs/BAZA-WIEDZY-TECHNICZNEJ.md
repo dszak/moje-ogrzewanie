@@ -106,3 +106,47 @@ Przy każdej nowej analizie z pakietu JSON:
 3. Wyraźnie odróżniać „literatura sugeruje” od „pomiary tego mieszkania potwierdziły”.
 4. Nie wracać do sprawdzonych już nastaw bez nowego uzasadnienia.
 5. Wybierać pojedynczy następny krok, którego użyteczność da się zweryfikować w mierzalnym eksperymencie.
+
+---
+
+## Uzupełnienie: diagnostyka, pomiary i bezpieczne eksperymenty (18.11.2026)
+
+Poniższe wskazówki są **metodyką badania**, nie potwierdzeniem usterek ani sprawności konkretnej instalacji. Wnioski wymagają lokalnych pomiarów; przed decyzją techniczną sprawdzić dokumentację aktualnego modelu urządzenia.
+
+### A. Głowice termostatyczne, korekty temperatury i równoważenie
+
+- Odróżniać **temperaturę przy głowicy**, **temperaturę czujnika pokojowego**, **nastawę głowicy**, **otwarcie zaworu** oraz **rzeczywisty przepływ wody**. Sama różnica wskazań nie dowodzi błędnej kalibracji.
+- Rozdzielić **kalibrację skoku napędu TRV**, **korektę wskazania temperatury** i **hydrauliczne równoważenie instalacji**. To trzy odmienne czynności o różnych celach.
+- Gdy w jednym pomieszczeniu pracuje kilka grzejników, nie wymagać identycznej temperatury ich powierzchni ani identycznych nastaw za wszelką cenę. Celem jest równomierny komfort i właściwa moc cieplna przy danej pogodzie.
+- Test porównawczy: przy udokumentowanym żądaniu ENGO zapisać temperatury pokoju i przy głowicach, nastawy, stan otwarcia (jeśli faktycznie dostępny), reakcję każdego grzejnika i czas; następnie sprawdzić, czy obserwowane różnice wynikają z zaworu czy z przepływu.
+- Nie wykonywać losowych zmian zaworów powrotnych lub wstępnych nastaw. Jeżeli diagnoza wskazuje problem hydrauliczny, plan i wykonanie regulacji powierzyć fachowcowi z zachowaniem minimalnego przepływu wymaganego przez kocioł.
+
+### B. Regulator ENGO, palnik i kocioł kondensacyjny
+
+- Algorytm TPI lub histerezę w ENGO **sprawdzić w konkretnej konfiguracji**. Cykle wyjścia ENGO nie potwierdzają startów, modulacji ani czasu pracy palnika.
+- Rozróżniać: żądanie c.o., faktyczną aktywność palnika, tryb c.w.u., temperaturę zasilania i powrotu, stan pompy, ciśnienie wody oraz ewentualne ograniczenia i blokady.
+- Nie wnioskować o sprawności kondensacji z samej zadanej temperatury zasilania. Temperatury powrotu, warunki pracy i obciążenie są niezbędne do rzetelniejszej oceny.
+- Pomiar gazu obejmuje również c.w.u.; krótkie pobory ciepłej wody i przerwy w pomiarach mogą zniekształcać interpretację krótkich cykli.
+- Dokumentować parametry z zakresu dostępnego użytkownikowi; **nastawy spalania, gazu, mocy palnika i zabezpieczeń są zastrzeżone dla uprawnionego serwisu**.
+
+### C. Wilgotność, wentylacja i straty przez przegrody
+
+- Łączyć pomiary °C i %RH z miejscem czujnika, czasem kąpieli, pracą osuszacza, wietrzeniem i temperaturą powierzchni chłodnych przegród.
+- Temperatura powietrza i wilgotność względna nie wystarczą do rozpoznania pleśni — znaczenie mają m.in. punkt rosy, wilgotność przy powierzchni, wentylacja i długotrwałość warunków.
+- Przy porównywaniu pokoi uwzględnić niejednakową izolację stropu/strychu, powierzchnię zewnętrznych przegród, sąsiadów i nasłonecznienie. Nie przypisywać całej różnicy głowicom.
+
+### D. Reguły czasu i porównywania danych
+
+- Dobę lokalną definiować od **00:00 do następnej 00:00 w strefie Europe/Warsaw**; w dniach zmiany czasu może ona mieć 23 lub 25 godzin. Bieżący dzień jest niepełny i nie może być przedstawiany jako ukończony.
+- Dla ENGO i temperatur pochodzących ze zdarzeń stanowych obliczać czas trwania stanu z granic przedziałów, nie z liczby zapisanych rekordów. Przerwa o nieznanym stanie nie jest automatycznie OFF.
+- **Udział ON** = potwierdzony czas żądania c.o. / odpowiednio zdefiniowany czas obserwacji; osobno pokazywać pokrycie danych i to, czy mianownik obejmuje całą dobę czy tylko jej fragment.
+- Odczyty gazomierza w odstępach 18–30 h normalizować jawnie do m³/24h jako **średnią z tego okresu**, nie nazywać ich rzeczywistym zużyciem pełnej doby kalendarzowej.
+- Eksperymenty porównywać po uwzględnieniu pogody, c.w.u., zakłóceń i kompletności danych. W razie braku odpowiedniego punktu odniesienia wynik pozostaje nierozstrzygnięty.
+
+### E. Dodatkowe kierunki badań
+
+- Rozważyć opłacalność lokalnego docieplenia, wymiany lub zwiększenia grzejników, dodatkowych czujników i pomiarów rzeczywistej pracy palnika **dopiero po określeniu problemu, spodziewanego efektu i kosztu wdrożenia**.
+- Dla modernizacji odróżniać koszt inwestycji, zmianę komfortu, spodziewane i potwierdzone oszczędności oraz okres zwrotu (z niepewnością).
+- Opis schematów i kontroli jakości danych znajduje się w [projekcie archiwum analitycznego](ARCHIWUM-ANALITYCZNE-PROJEKT.md).
+
+> Data dopisania metodyki nie oznacza ponownej weryfikacji wszystkich zewnętrznych źródeł przywołanych w starszych częściach dokumentu.
