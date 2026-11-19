@@ -117,12 +117,23 @@ const HaSync=(()=>{
       if(!x||!['on','off'].includes(x.status))fail('Nieprawidłowy stan ENGO.');
       return {at:timestamp(x.at),status:x.status};
     });
+    const engoReadings=(data.engo_readings||[]);
+    if(!Array.isArray(engoReadings)||engoReadings.length>25000)
+      fail('Nieprawidłowa historia temperatur ENGO.');
+    const verifiedEngoReadings=engoReadings.map(x=>{
+      if(!x||typeof x.temp!=='number'||!Number.isFinite(x.temp)||x.temp<0||x.temp>45||
+         !(x.target===null||(typeof x.target==='number'&&Number.isFinite(x.target)&&x.target>=5&&x.target<=35))||
+         !(x.source_updated_at==null||typeof x.source_updated_at==='string'))
+        fail('Nieprawidłowy pomiar termostatu ENGO.');
+      const at=timestamp(x.at),sourceUpdated=x.source_updated_at?timestamp(x.source_updated_at):null;
+      return {at,temp:x.temp,target:x.target,source_updated_at:sourceUpdated};
+    });
     const temperatures=data.temperatures.map(x=>{
       if(!x||!ROOM_IDS.has(x.room)||typeof x.temp!=='number'||!Number.isFinite(x.temp)||
          x.temp< -10||x.temp>45)fail('Nieprawidłowa temperatura HA.');
       return {at:timestamp(x.at),room:x.room,temp:x.temp};
     });
-    return {engo:engos,temperatures,generatedAt:timestamp(data.generated_at)};
+    return {engo:engos,temperatures,engoReadings:verifiedEngoReadings,generatedAt:timestamp(data.generated_at)};
   }
   function merge(data,oldEngo=[],oldTemps=[]){
     const engos=[...oldEngo],temps=[...oldTemps];
