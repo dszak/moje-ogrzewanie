@@ -1,0 +1,9 @@
+# Kopia wzorcowa. Przed uruchomieniem przenieś do wrangler.toml i sprawdź ustawienia.
+# ŻADNYCH SEKRETÓW w tym pliku. Wprowadź GITHUB_TOKEN, SYNC_READ_TOKEN_SHA256,
+# SYNC_WRITE_TOKEN_SHA256 przez 'wrangler secret put ...'.
+name = "moje-ogrzewanie-gaz-sync"
+main = "./worker.mjs"
+compatibility_date = "2026-11-19"
+
+[vars]
+ALLOWED_ORIGIN = "https://dszak.github.io"
