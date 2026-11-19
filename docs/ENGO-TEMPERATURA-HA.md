@@ -1,6 +1,6 @@
 # Temperatura ENGO z Home Assistant — odczyt i eksport
 
-**Status:** propozycja do przeglądu. Nie jest wdrożona na MacBooku ani opublikowana w `main`.
+**Status na 19.11.2026:** **lokalny eksporter na MacBooku działa** i zapisał zweryfikowane próbki `engo_readings`; prywatne archiwum zawiera jawne, udostępnione uprawnionym odbiorcom próbki. **Zmiany publicznego kodu iPhone/PWA pozostają w PR #23 (nie scalone z `main`, niepotwierdzone wdrożenie na telefonie).**
 
 ## Źródło pomiaru
 
@@ -10,7 +10,7 @@
 - Weryfikacja ręczna w szablonie HA (19 listopada 2026): obie wartości 22,0°C.
 - Niezależny czujnik Setti+ w sypialni pokazywał w tym okresie około 21,6°C; położenie czujników jest różne. Różnicy nie traktować automatycznie jako błędu kalibracji.
 
-## Co dodaje propozycja
+## Sposób działania i zakres propozycji kodu
 
 Eksporter `scripts/ha-history-export.mjs` korzysta z **tego samego istniejącego tokenu Home Assistant**. Oprócz dotychczasowej historii ENGO ON/OFF i czujników pokojowych wykonuje jedno zapytanie GET `/api/states/climate.wireless_internet_thermostat_wi_fi` i dołącza próbkę `engo_readings` do **już szyfrowanego** pliku `ha-historia.enc.json`.
 
@@ -25,6 +25,8 @@ Każda próbka ma `at` (czas odczytu przez eksporter), `temp` (temperatura mierz
 
 ## Ograniczenia i dalsze prace
 
-Prywatne repozytorium analityczne jest oddzielnym etapem. Jego lokalne zadanie synchronizujące musi zostać dostosowane, aby udostępniać odczyty ENGO ChatGPT przez prywatne pliki — **sam zaszyfrowany eksport nie daje asystentowi jawnego odczytu**.
+**Etap prywatnego repozytorium został już wdrożony lokalnie i zweryfikowany**: skrypt synchronizujący dzieli odszyfrowane próbki na pliki `ha/engo-pomiary/YYYY-MM-DD.json`, a indeks zawiera pole `engo_temperature_readings`. ChatGPT ma dostęp do tych jawnych plików **tylko przez autoryzowane połączenie do prywatnego repozytorium i tylko na żądanie**, nie w tle. Sam zaszyfrowany eksport na publicznej gałęzi nie daje dostępu do odczytów.
 
-Przed wdrożeniem: przetestować `node --test tests/ha-sync.test.cjs` i cały zestaw testów, skontrolować istniejący stan skryptu na MacBooku i wykonać kopię. Wdrożyć dopiero po świadomym zatwierdzeniu. Po wdrożeniu potwierdzić, że prywatny plik zawiera nowe odczyty, dotychczasowe ON/OFF nie zniknęły, a aplikacja nie pokazuje starej wartości jako aktualnej.
+**Wykonano 19.11.2026:** pełne testy `node --test tests/*.test.cjs` (86/86), `scripts/check.py` i przygotowanie pakietu; zweryfikowano zgodność pliku lokalnego z bazą, wykonano kopię zapasową, uruchomiono faktyczny eksport z diagnostyką oraz synchronizację prywatnego archiwum. W prywatnym pliku potwierdzono próbki ENGO i zachowanie dotychczasowych zdarzeń ON/OFF oraz temperatur SETTI+. **Nie wykonano ani nie potwierdzono testu rzeczywistej aplikacji PWA na iPhonie.**
+
+**Do zrobienia:** osobno przejrzeć i zatwierdzić PR #23 przed scaleniem/wydaniem aplikacji, sprawdzić PWA na urządzeniu, kontrolować świeżość `source_updated_at` i zachować kopie zapasowe skryptów lokalnych. Nie traktować samego `at` jako dowodu świeżości źródłowej temperatury.
