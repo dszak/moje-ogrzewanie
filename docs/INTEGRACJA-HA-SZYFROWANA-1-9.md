@@ -1,6 +1,8 @@
 # Moje Ogrzewanie v1.9 — szyfrowana historia Home Assistant
 
-**Status:** gałąź testowa. Dopóki eksportera nie skonfigurowano, na iPhonie nic nowego nie synchronizuje się automatycznie. Nie publikować do `main` bez zgody właściciela i przejścia testów.
+**Status: dokument uruchomienia szyfrowanego toru HA, uaktualniony 20.11.2026.** Eksporter `ha-history` jest skonfigurowany na MacBooku i nominalnie działa co ok. 30 minut; na iPhonie działa odszyfrowywanie historii, zgodnie z [opisem instalacji](JAK-DZIALA-SYSTEM-OGRZEWANIA.md). Potwierdzenie uruchomienia nie gwarantuje świeżości ani braku luk — sprawdzać znaczniki czasu i stan HA/VM. Dokumentacja komend poniżej służy **odtwarzaniu i serwisowi**, nie jest instrukcją pierwszej instalacji w niezainstalowanym systemie.
+
+**Osobny tor gazu:** od 19/20.11.2026 iPhone wysyła wyłącznie odczyty gazomierza przez Cloudflare do **prywatnego** GitHuba (szczegóły: [Prywatna synchronizacja gazu](PRYWATNA-SYNCHRONIZACJA-GAZU.md)); nie ma to związku z szyfrowanym plikiem HA w publicznej gałęzi.
 
 ## Co daje wersja 1.9
 
@@ -51,5 +53,5 @@ Przycisk **Zapomnij klucz na tym urządzeniu** usuwa dostęp do przyszłych szyf
 - Eksporter czyta `last_changed`, a dane HA mogą odzwierciedlać rejestrację zmian, nie każdą próbkę z fizycznego czujnika. `unknown` i `unavailable` są pomijane, ale nie wolno udawać ciągłości w lukach.
 - Starsze ręczne wpisy ENGO mają rozdzielczość minutową. W razie sprzecznych stanów w tej samej minucie synchronizacja jawnie zgłasza konflikt zamiast zgadywać.
 - Historia temperatur w bieżącym lokalnym schemacie jest ograniczona do 25 000 zmian. Po dojściu do limitu należy wykonać kopię i zaplanować rozszerzenie modelu; **żadna historia nie jest kasowana automatycznie**.
-- GitHub nie otrzymuje danych gazu, liczników kotła ani prywatnej pamięci projektu.
-- Wypchnięcie poprawki w gałęzi nie oznacza publikacji na Pages. Przed scaleniem uruchomić `node --test tests/*.test.cjs`, `python3 scripts/check.py`, `python3 scripts/package.py`, przetestować iPhone'a i uzyskać zgodę na wdrożenie.
+- Publiczna gałąź `setti-data` **nie otrzymuje jawnych danych gazu**, liczników kotła ani prywatnej pamięci projektu. **Osobne prywatne repozytorium** otrzymuje od 19/20.11.2026 odczyty gazu przez Cloudflare Worker, a nie przez eksporter HA.
+- Wypchnięcie poprawki w gałęzi nie oznacza publikacji na Pages. Przed **kolejną zmianą funkcjonalną** uruchomić `node --test tests/*.test.cjs`, `python3 scripts/check.py`, `python3 scripts/package.py`, przetestować dotknięte funkcje na urządzeniach i uzyskać zgodę na wdrożenie.
