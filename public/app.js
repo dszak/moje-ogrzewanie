@@ -720,11 +720,11 @@ if(ac==='start-exp'){if(state.experiments.some(x=>x.status==='active'))return to
 if(ac==='finish-exp'){let x=state.experiments.find(x=>x.id===btn.dataset.id&&x.status==='active');if(!x)return;x.end=snapshot();x.ended=now();x.notes=document.getElementById('finishNotes').value.trim().slice(0,3000);x.status='done';changeLog('Zakończono eksperyment',x.title+(x.notes?' · '+x.notes:''));save();toast('Zakończono eksperyment i zapisano migawkę końcową.');return render()}
 if(ac==='more-history'){historyLimit+=120;return render()}
 if(ac==='persist'){navigator.storage?.persist?.().then(ok=>toast(ok?'Przeglądarka przyznała trwały zapis. Nadal twórz kopie JSON.':'Przeglądarka nie przyznała ochrony. Zapisuj kopie JSON.')).catch(()=>toast('Ochrona zapisu niedostępna. Zapisz kopię JSON.'));return}
-if(ac==='recover'){if(confirm('Przywrócić poprzedni lokalny zapis? Bieżące dane zostaną zastąpione.')){GasSync.pause();state=DataStore.recover();setPage('home');toast('Przywrócono poprzedni zapis. Wysyłanie gazu wstrzymane do ponownej decyzji.')}return}
+if(ac==='recover'){if(confirm('Przywrócić poprzedni lokalny zapis? Bieżące dane zostaną zastąpione.')){GasSync.pause(true);state=DataStore.recover();setPage('home');toast('Przywrócono poprzedni zapis. Wysyłanie gazu wstrzymane do ponownej decyzji.')}return}
 if(ac==='map-import')return document.getElementById('mapFile').click();
 if(ac==='map-download'){const mime=state.privateMap.split(';')[0].slice(5);const bytes=Uint8Array.from(atob(state.privateMap.split(',')[1]),c=>c.charCodeAt(0));return downloadBlob('moja-prywatna-mapa.'+(mime==='image/svg+xml'?'svg':mime==='image/png'?'png':'jpg'),new Blob([bytes],{type:mime}))}
 if(ac==='export-json')return exportJson();if(ac==='export-csv')return exportCsv();if(ac==='import-json')return document.getElementById('importFile').click();
-if(ac==='reset'){if(confirm('Czy na pewno skasować wszystkie lokalne nastawy, pomiary i eksperymenty? Najpierw pobierz kopię JSON.')){GasSync.pause();state=seed();save();setPage('home');toast('Wyczyszczono dane lokalne. Prywatne archiwum bez zmian.')}}}
+if(ac==='reset'){if(confirm('Czy na pewno skasować wszystkie lokalne nastawy, pomiary i eksperymenty? Najpierw pobierz kopię JSON.')){GasSync.pause(true);state=seed();save();setPage('home');toast('Wyczyszczono dane lokalne. Prywatne archiwum bez zmian.')}}}
 
 function analysisSources(){
  const st=Setti.status(),hs=Heads.status();
@@ -784,7 +784,7 @@ document.getElementById('engoFile').addEventListener('change',async e=>{
  finally{e.target.value=''}
 });
 
-document.getElementById('importFile').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('Kopia jest za duża (limit 20 MB).');let p=DataStore.validate(JSON.parse(await f.text()));if(confirm('Wczytać kopię i zastąpić bieżące dane? Poprzedni poprawny zapis pozostanie lokalną kopią odzyskiwania.')){GasSync.pause();DataStore.replace(p);state=p;setPage('home');document.getElementById('storageAlert').hidden=true;toast('Wczytano kopię JSON.')}}catch(ex){alert('Nie udało się wczytać kopii: '+ex.message)}finally{e.target.value=''}});
+document.getElementById('importFile').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('Kopia jest za duża (limit 20 MB).');let p=DataStore.validate(JSON.parse(await f.text()));if(confirm('Wczytać kopię i zastąpić bieżące dane? Poprzedni poprawny zapis pozostanie lokalną kopią odzyskiwania.')){GasSync.pause(true);DataStore.replace(p);state=p;setPage('home');document.getElementById('storageAlert').hidden=true;toast('Wczytano kopię JSON.')}}catch(ex){alert('Nie udało się wczytać kopii: '+ex.message)}finally{e.target.value=''}});
 document.getElementById('mapFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>2*1024*1024)throw Error('Mapa może mieć najwyżej 2 MB.');const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(f)});const next=DataStore.validate({...state,privateMap:data});DataStore.save(next);state=next;render();toast('Prywatna mapa zapisana lokalnie.')}catch(ex){alert('Nie udało się zapisać mapy: '+ex.message)}finally{e.target.value=''}});
 async function syncSetti(force=false){
  const ok=typeof fetch==='function'&&navigator.onLine!==false?await Setti.refresh(fetch):false;
