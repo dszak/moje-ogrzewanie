@@ -6,7 +6,9 @@ Prosty dziennik komfortu i zużycia gazu. Zachowuje sześć pomieszczeń, osiem 
 
 ## Jak działa cały system?
 
-**[Architektura „Moje Ogrzewanie” — ENGO, Setti+, Tuya, Home Assistant, MacBook, GitHub, iPhone i ChatGPT](docs/JAK-DZIALA-SYSTEM-OGRZEWANIA.md)** — aktualny schemat przepływu danych, automatyzacji, ograniczeń i postępowania przy awariach (stan 18.11.2026).
+**[Architektura „Moje Ogrzewanie” — ENGO, Setti+, Tuya, Home Assistant, MacBook, GitHub, iPhone i ChatGPT](docs/JAK-DZIALA-SYSTEM-OGRZEWANIA.md)** — schemat przepływu danych, automatyzacji, ograniczeń i postępowania przy awariach (stan bazowy 18.11.2026, uzupełnienie 19.11.2026).
+
+**[Badania SETTI+ TRV001 — DPS 119 i granice odczytu zaworu](docs/SETTI-TRV-DPS-BADANIA.md)** — udokumentowane rozpoznanie wskaźnika „Czas ogrzewania (%)”, sygnały nieprzydatne jako bieżące otwarcie i nierozstrzygnięte pytanie do producenta. Szczegółowe pomiary i historie konkretnej instalacji pozostają **wyłącznie w archiwum prywatnym**.
 
 ## Wersja 1.2 · Gaz i pogoda
 
