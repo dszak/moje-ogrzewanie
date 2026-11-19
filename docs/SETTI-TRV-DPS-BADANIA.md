@@ -19,7 +19,7 @@ Oficjalna dokumentacja [Zigbee2MQTT Saswell SEA801/SEA802](https://www.zigbee2mq
 [Mapa DPS konkretnego produktu `_TZE200_9m4kmbfu`](https://gist.github.com/alufers/05a15106d71b78af35dd90c0989dbac9) wskazuje:
 - `3`: surowy stan pracy `work_state` (obecna wartość `standy`, bez interpretacji)
 - `8`, `10`, `40`, `101`, `106`, `108`, `130`: pola logiczne wymagające walidacji semantyki
-- `104`: opisywany w mapach społecznościowych niejednolicie (m.in. `Heating Time` / `valve_position` w różnych wariantach integracji). **W aktualnym odczycie chmurowym wszystkie 904 wartości z 113 migawek × 8 głowic wyniosły 0**, także podczas rzeczywistego nagrzewania grzejników; parametr nie sprawdził się jako bieżące położenie zaworu.
+- `104`: opisywany w mapach społecznościowych niejednolicie (m.in. `Heating Time` / `valve_position` w różnych wariantach integracji). **W długotrwałym lokalnym odczycie chmurowym parametr pozostawał równy 0 na wszystkich głowicach**, także podczas rzeczywistego nagrzewania grzejników; nie sprawdził się jako bieżące położenie zaworu. Liczby i historia odczytów wyłącznie w prywatnym protokole.
 - `105`: alarm baterii; surowy kod/typ wymaga sprawdzenia
 - `110`, `112`–`114`: historia temperatury zadanej
 - `115`–`118`: historia temperatury zmierzonej
@@ -39,7 +39,7 @@ Testy offline: `python3 -m unittest discover -s tests -p 'test_trv_dps_history.p
 
 ## Wyniki uzupełniające i nierozstrzygnięte problemy (19.11.2026)
 
-- **DPS 3, 101, 104 i 108:** w 84 obserwacjach statusów wszystkich głowic nie zanotowano zmian (`3=standy`, `101=true`, `104=0`, `108=false`). Nie wolno traktować tych stałych wartości jako sygnału bieżącego `otwarte/zamknięte`.
+- **DPS 3, 101, 104 i 108:** w lokalnej serii obserwacji statusów wszystkich głowic nie zanotowano zmian (`3=standy`, `101=true`, `104=0`, `108=false`). Nie wolno traktować tych stałych wartości jako sygnału bieżącego `otwarte/zamknięte`.
 - **DPS 119:** przy fizycznej obserwacji ciepłego grzejnika w trakcie żądania ogrzewania, odpowiadający mu wskaźnik za zamkniętą godzinę pozostawał 0. **Zero nie potwierdza zamkniętego zaworu ani braku przepływu**. Dane i znaczniki czasu z poszczególnych głowic są w prywatnej dokumentacji, nie publikujemy ich w tym repozytorium.
 - **Niezależne kanały obserwacji:** stan ENGO ON/OFF (żądanie c.o.), temperatura głowicy, temperatura pokojowa, DPS 119 (historia) oraz fizyczna temperatura grzejnika to odrębne wielkości. Żadna z nich pojedynczo nie stanowi pomiaru rzeczywistej pracy palnika.
 - **Wysłano pytanie do producenta SETTI+** o możliwość odczytu bieżącego otwarcia zaworu 0–100% przez oryginalną bramkę/Tuya i identyfikator właściwego DPS. Odpowiedź oczekiwana, **nie zakładać istnienia takiego DPS**.
