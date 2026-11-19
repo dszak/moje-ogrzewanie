@@ -1,6 +1,6 @@
 # Plan wersji 1.9 — bezpieczna synchronizacja z Home Assistant
 
-> Status: projekt techniczny; **nie jest wdrożeniem**. Wersja aplikacji na iPhonie nie zmienia się do czasu testów i osobnej zgody na scalenie.
+> **Status: historyczny plan z fazy projektowania v1.9.** Szyfrowany kanał HA został później uruchomiony; jego bieżący opis znajduje się w [architekturze systemu](JAK-DZIALA-SYSTEM-OGRZEWANIA.md) i [instrukcji integracji HA](INTEGRACJA-HA-SZYFROWANA-1-9.md). **20.11.2026** odrębnie wdrożono synchronizację odczytów **gazu** (nie HA) do prywatnego GitHuba przez Cloudflare Worker — [szczegóły](PRYWATNA-SYNCHRONIZACJA-GAZU.md). Poniższa lista jest historycznym projektem wymagań, nie aktualnym backlogiem.
 
 ## Cel
 
@@ -23,7 +23,7 @@ Zastąpić ręczny import danych, które Home Assistant już zbiera, synchroniza
 | Home Assistant | historię zmian temperatur z czasem zdarzenia, identyfikatorem i jakością | automatyczny **prywatny** import przyrostowy |
 | Home Assistant / ENGO Bridge | historię rzeczywistych zmian żądania ON/OFF z czasem zdarzenia | automatyczny **prywatny** import przyrostowy |
 | Home Assistant | agregaty liczby cykli, czasu żądania ON, udziału i okna obserwacji | porównywać z historią i opisywać definicję okna |
-| iPhone lokalnie | odczyty gazomierza, AC001/AC005/AC006, eksperymenty, decyzje i wiedza | pozostać lokalne i ręczne |
+| iPhone lokalnie | odczyty gazomierza, AC001/AC005/AC006, eksperymenty, decyzje i wiedza | **Stan późniejszy:** gazomierz pozostaje ręczny i lokalny, ale odczyty są również wysyłane do prywatnego GitHuba przez osobny Worker po włączeniu tej funkcji; reszta pozostaje lokalna |
 
 ## Kluczowa decyzja o transporcie przed implementacją
 
@@ -38,7 +38,7 @@ PWA jest serwowana po HTTPS. Dostęp bezpośrednio do lokalnego Home Assistant p
 3. Zapamiętywać punkt synchronizacji i deduplikować historyczne zdarzenia. Przy konflikcie zachować dane bez nadpisania i przedstawić użytkownikowi ostrzeżenie.
 4. Import wcześniejszych plików CSV musi nadal działać, a powtarzający się pomiar z automatu nie może utworzyć drugiej kopii.
 5. Przerwy transmisji, `unknown`, `unavailable` i niekompletne cykle oznaczać jawnie. Nie estymować pracy palnika ani objętości gazu ze stanów ENGO.
-6. Zachować klucz `moje-ogrzewanie-data-v1` i obsłużyć stare kopie JSON. Nie przycinać istniejących archiwów. Zapisy prywatne pozostają lokalne.
+6. Zachować klucz `moje-ogrzewanie-data-v1` i obsłużyć stare kopie JSON. Nie przycinać istniejących archiwów. Dane lokalne nadal wymagają kopii bezpieczeństwa; osobny Worker synchronizuje tylko odczyty gazu (stan po wdrożeniu 19/20.11.2026).
 7. Bieżące publiczne migawki Setti+ mogą nadal zasilać dashboard, ale historia prywatna ma pochodzić wyłącznie z zatwierdzonego kanału.
 8. Rozdzielić **dane źródłowe**, **agregaty**, **oceny i hipotezy**; raport ChatGPT powinien zawierać zakres i kompletność.
 9. Przed scaleniem: testy parserów, idempotentnego importu i zgodności kopii danych (`node --test tests/*.test.cjs`, `python3 scripts/check.py`, `python3 scripts/package.py`), przegląd bezpieczeństwa, test użytkownika na iPhonie.

@@ -1,6 +1,6 @@
 # START TUTAJ — nowy czat projektu „Moje Ogrzewanie”
 
-> **Stan dokumentu: 19 listopada 2026 r.** To publiczny **drogowskaz**, a nie kopia prywatnej historii. Dokument nie daje sam z siebie uprawnień do GitHuba i nie oznacza, że ChatGPT stale obserwuje ogrzewanie. Aktualny stan należy sprawdzać w repozytoriach.
+> **Stan dokumentu: 20 listopada 2026 r.** To publiczny **drogowskaz**, a nie kopia prywatnej historii. Dokument nie daje sam z siebie uprawnień do GitHuba i nie oznacza, że ChatGPT stale obserwuje ogrzewanie. Aktualny stan należy sprawdzać w repozytoriach.
 
 ## Gotowa instrukcja na rozpoczęcie nowego czatu
 
@@ -18,15 +18,23 @@ Dokumenty obowiązkowe, w tej kolejności:
 3. [Jak działa system ogrzewania](JAK-DZIALA-SYSTEM-OGRZEWANIA.md).
 4. [Archiwum analityczne — zasady](ARCHIWUM-ANALITYCZNE-PROJEKT.md).
 5. [README aplikacji](../README.md).
+6. [Prywatna synchronizacja gazomierza — wdrożenie 19/20.11.2026](PRYWATNA-SYNCHRONIZACJA-GAZU.md).
 
 ## 2. Gdzie są dane i jakie są granice dostępu?
 
 - **Publiczne repozytorium** `dszak/moje-ogrzewanie`, gałąź `main`: dokumentacja i kod aplikacji. Gałąź `setti-data` zawiera `pomiary.json` (sześć czujników pokojowych), `glowice.json` (osiem głowic) oraz **zaszyfrowaną** historię HA `ha-historia.enc.json`. Migawki Setti+ mają znaczniki czasu; nie uznawać starych danych za bieżące.
-- **Prywatne repozytorium** `dszak/moje-ogrzewanie-archiwum`: [README](https://github.com/dszak/moje-ogrzewanie-archiwum/blob/main/README.md), `meta/index.json` (indeks i znacznik świeżości), `karta/karta-instalacji.json`, `badania/`, `decyzje/`, `ha/engo/`, `ha/engo-pomiary/`, `ha/temperatury/`, `orlen/`, `snapshot/`. **Zacząć od README i indeksu, a potem odczytywać wskazane pliki.** Nie publikować prywatnej zawartości.
+- **Prywatne repozytorium** `dszak/moje-ogrzewanie-archiwum`: [README](https://github.com/dszak/moje-ogrzewanie-archiwum/blob/main/README.md), `meta/index.json` (indeks i znacznik świeżości), `karta/karta-instalacji.json`, `badania/`, `decyzje/`, `ha/engo/`, `ha/engo-pomiary/`, `ha/temperatury/`, `orlen/`, `snapshot/` oraz **`sync/gazomierz-v1.json`** — aktualny dziennik gazu z iPhone'a. **Zacząć od README i indeksu, a następnie osobno odczytać `sync/gazomierz-v1.json`**, bo indeks HA/iCloud **nie obejmuje** tego pliku. Nie publikować prywatnej zawartości.
 - GitHub jest dostępny w czacie **tylko wtedy, gdy narzędzie/połączenie GitHub jest w tej rozmowie aktywne i odczyt się powiedzie**. Jeśli odczyt się nie uda, powiedzieć to wprost; nie udawać dostępu ani nie odtwarzać „aktualnych” liczb z pamięci.
 - Home Assistant działa w maszynie wirtualnej na MacBooku. Synchronizatory działają nominalnie co około 30 min; powodzenie synchronizacji nie dowodzi świeżości danych, trzeba sprawdzić `source_latest_observed_at`.
-- Aplikacja „Moje Ogrzewanie” na iPhonie przechowuje część danych **lokalnie**; nie wszystko trafia automatycznie na GitHub. Surowe diagnostyczne JSONL części badań głowic pozostają na MacBooku.
+- Aplikacja „Moje Ogrzewanie” na iPhonie przechowuje część danych **lokalnie**. Od 19/20.11.2026 po osobnym potwierdzeniu **ręczne odczyty gazomierza** są dodatkowo zapisywane w prywatnym `sync/gazomierz-v1.json` przez Cloudflare Worker. Inne ustawienia, plany mieszkania, pełne kopie JSON i wiedza nie są tą usługą synchronizowane. Surowe diagnostyczne JSONL części badań głowic pozostają na MacBooku.
 - ChatGPT nie ma ciągłego dostępu na żywo do iPhona, lokalnego MacBooka ani kotła i **nie steruje** ogrzewaniem w tym projekcie.
+
+### Potwierdzony etap: gaz z iPhone'a na TV, 19/20 listopada 2026
+
+- Autoryzowany Cloudflare Worker: brak klucza -> `401`, prawidłowy klucz -> `200`. Klucz `SYNC_WRITE` na iPhonie pozwala na zapis i odczyt, `SYNC_READ` na Sony Bravia / TV Bro tylko na odczyt. **Nigdy nie podawać wartości kluczy**; kod publiczny nie może ich zawierać.
+- Użytkownik utworzył niezależną kopię JSON z iPhone'a przed uruchomieniem wysyłki. Następnie aplikacja zgłosiła **12 zsynchronizowanych zdarzeń i 12 odczytów**. TV pobrał **12 odczytów** i przedstawił **11 interwałów zużycia**. ChatGPT w tej rozmowie odczytał przez połączenie GitHub prywatny plik `sync/gazomierz-v1.json` i potwierdził 12 zdarzeń/odczytów.
+- **Następny test:** 13. rzeczywisty wpis po uruchomieniu synchronizacji, samoczynna dostępność na TV i praca po przerwie sieciowej/restartach. Nie tworzyć sztucznych wpisów bez wyraźnej potrzeby. Brak gwarancji synchronizacji w tle przy zamkniętej PWA.
+- Więcej: [instrukcja prywatnej synchronizacji gazu](PRYWATNA-SYNCHRONIZACJA-GAZU.md). **Nie mylić** tej ścieżki z szyfrowaną historią Home Assistant ani plikiem `orlen/faktury-i-odczyty.json`, który może być statyczną kopią.
 
 ## 3. Co wiemy o instalacji?
 
@@ -58,12 +66,12 @@ Pytanie: **jak współpracują ENGO w sypialni, osiem głowic i kocioł, czy inn
 
 ## 6. Procedura odpowiedzi w każdym nowym czacie
 
-1. **Przeczytaj dokumenty źródłowe**, a nie tylko tę ściągę.
-2. Otwórz **prywatne README**, **`meta/index.json`**, najnowsze **`badania/`**, **`decyzje/`** i **`karta/`**, a przy analizie bieżącej także `setti-data/pomiary.json`, `setti-data/glowice.json` i wskazane partycje HA. Odczytaj rzeczywiste daty najnowszych danych.
+1. **Przeczytaj dokumenty źródłowe**, a nie tylko tę ściągę. Dla analizy gazu szczególnie przeczytaj [aktualny schemat synchronizacji](PRYWATNA-SYNCHRONIZACJA-GAZU.md).
+2. Otwórz **prywatne README**, **`meta/index.json`**, najnowsze **`badania/`**, **`decyzje/`** i **`karta/`**; przy pytaniach o gaz **dodatkowo koniecznie `sync/gazomierz-v1.json`**. Przy analizie bieżącej sprawdź także `setti-data/pomiary.json`, `setti-data/glowice.json` i wskazane partycje HA. Odczytaj rzeczywiste daty najnowszych danych, oddzielnie dla gazu i HA.
 3. Podaj zwięźle: **(a) co potwierdzono, (b) czego nadal nie wiemy, (c) jaka była ostatnia decyzja, (d) co rekomendujesz teraz i dlaczego**. Odsyłaj do konkretnych plików.
 4. Temperatury odczytów, temperatury zadane, korekty kalibracji, sygnały ENGO, fizyczną pracę palnika i wskaźniki DPS trzymaj **oddzielnie**. Temperatur z różnych godzin nie przedstawiaj jako jednoczesnych.
 5. Dla oszczędności uwzględniaj pogodę i jakość danych, c.w.u., przerwy oraz zmianę gazomierza. Nie wyprowadzaj sprawności z samych temperatur ani ENGO ON.
 6. **Bez automatycznych zmian** w urządzeniach, prywatnych plikach, gałęzi `main` lub eksperymentach. Przy propozycji aktualizacji wiedzy pokaż uzasadnienie i uzyskaj zgodę na zapis.
-7. Po istotnym nowym badaniu **zaktualizuj odpowiedni prywatny protokół i ten drogowskaz po zatwierdzeniu**, z datą i odnośnikiem; nigdy nie przepisuj tu prywatnych identyfikatorów, tokenów, dokładnego adresu, rozliczeń ani osobistych notatek.
+7. Po istotnym nowym badaniu **zaktualizuj odpowiedni prywatny protokół i ten drogowskaz po zatwierdzeniu**, z datą i odnośnikiem; nigdy nie przepisuj tu prywatnych identyfikatorów, tokenów, dokładnego adresu, rozliczeń ani osobistych notatek. Liczby dotyczące prywatnego gazomierza podawaj wyłącznie w uprawnionej analizie, nie w dokumentacji publicznej.
 
 **Uwaga:** ten dokument jest punktem startowym, ale **bieżącym źródłem prawdy** są najnowsze dane, protokoły i decyzje w repozytoriach.

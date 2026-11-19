@@ -1,6 +1,6 @@
 # Architektura systemu „Moje Ogrzewanie” — jak to działa
 
-> **Stan opisany na 18 listopada 2026 r.** Dokument przedstawia działające elementy oraz ograniczenia i zadania do sprawdzenia. Nie zawiera adresu mieszkania, prywatnego adresu HA, kluczy, tokenów ani danych pomiarowych. Jest opisem operacyjnym, nie instrukcją zmiany zabezpieczeń kotła.
+> **Stan opisany na 20 listopada 2026 r.** Dokument przedstawia działające elementy oraz ograniczenia i zadania do sprawdzenia. Nie zawiera adresu mieszkania, prywatnego adresu HA, kluczy, tokenów ani danych pomiarowych. Jest opisem operacyjnym, nie instrukcją zmiany zabezpieczeń kotła.
 >
 > **Zasady nadrzędne:** [najważniejsze zasady projektu](NAJWAZNIEJSZE-ZASADY-PROJEKTU.md) · [baza wiedzy technicznej](BAZA-WIEDZY-TECHNICZNEJ.md) · [zasady analitycznego archiwum](ARCHIWUM-ANALITYCZNE-PROJEKT.md).
 >
@@ -54,6 +54,20 @@ Sygnał ENGO **ON/OFF oznacza zapotrzebowanie na ciepło**, a nie potwierdzone w
                               |
                               v
                        ChatGPT: odczyt na żądanie
+
+  ODRĘBNY TOR — TYLKO RĘCZNE ODCZYTY GAZOMIERZA
+  iPhone (PWA, wpis do lokalnego DataStore)
+                |
+                | po osobnym potwierdzeniu, HTTPS + Bearer WRITE
+                v
+  Cloudflare Worker: moje-ogrzewanie-gaz-sync
+                | sekret PAT GitHub tylko na serwerze
+                v
+  PRYWATNY GitHub: sync/gazomierz-v1.json
+                |
+                +----> TV Bro / Sony Bravia: GET + Bearer READ
+                |
+                +----> ChatGPT: odczyt poprzez uprawnione GitHub
 ```
 
 **Uwaga:** pliki `pomiary.json` (sześć czujników) i `glowice.json` (osiem głowic) są także udostępniane w gałęzi `setti-data`. Autorska aplikacja pobiera je bezpośrednio do panelu bieżącego stanu. Dokładną drogę każdego źródła do HA trzeba ustalać na podstawie jego faktycznej konfiguracji — nie zakładać, że wszystkie urządzenia używają tego samego protokołu lub Tuya Developer API.
@@ -71,7 +85,9 @@ Sygnał ENGO **ON/OFF oznacza zapotrzebowanie na ciepło**, a nie potwierdzone w
 | **Tuya Developer Platform** | Projekt programistyczny `Moje Ogrzewanie ENGO`; API/usługi zdarzeń | Krytyczne dla tych integracji, które z niego korzystają, nie dla lokalnego przekaźnika kotła |
 | **Home Assistant w VM na MacBooku** | Kolektor i historia stanów/temperatur | Bezpośrednio nie steruje kotłem w tym projekcie |
 | **GitHub, gałąź `setti-data`** | Publiczne migawki czujników/głowic, **zaszyfrowana** historia HA | Dystrybucja odczytów |
-| **Autorska aplikacja iPhone (PWA)** | Panel, wykresy, gaz, pogoda, decyzje i eksperymenty | Tylko odczyt i dziennik, **nie steruje kotłem** |
+| **Autorska aplikacja iPhone (PWA)** | Panel, wykresy, gaz, pogoda, decyzje i eksperymenty; dobrowolny zapis samych odczytów gazu do prywatnego archiwum | Dziennik i transfer danych, **nie steruje kotłem** |
+| **Cloudflare Worker (gas sync)** | Oddzielna bramka HTTPS dla odczytów gazu, weryfikacja kluczy, zapis do prywatnego GitHuba | Brak sterowania urządzeniami |
+| **Sony Bravia / TV Bro** | Pokazuje gaz i analizę po autoryzowanym odczycie z prywatnego repozytorium | Tylko odczyt archiwum gazu |
 | **Prywatne repozytorium GitHub** | Analizy, historia, karta instalacji, rozliczenia i decyzje | Archiwum danych dla uprawnionego odczytu |
 | **ChatGPT z połączeniem GitHub** | Analiza archiwum na polecenie użytkownika | Nie jest samodzielnym sterownikiem ani monitoringiem alarmowym |
 
@@ -112,13 +128,15 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 - pobiera migawki temperatury/wilgotności i głowic przy otwarciu, co ok. 5 minut oraz na żądanie; po 20 minutach oznacza je jako nieaktualne;
 - pobiera zaszyfrowane archiwum HA, odszyfrowuje je na iPhonie i przedstawia historię ENGO/temperatur;
 - pokazuje pogodę z Open-Meteo i umożliwia ręczne prowadzenie historii gazu, odczytów kotła, decyzji i eksperymentów;
-- **nie steruje kotłem ani głowicami**; nie wysyła wszystkich prywatnych wpisów iPhone'a automatycznie do archiwum na GitHubie;
+- **nie steruje kotłem ani głowicami**; po odrębnym potwierdzeniu **wysyła jedynie odczyty gazomierza** przez Cloudflare Worker do prywatnego repozytorium. Nie wysyła automatycznie wszystkich innych prywatnych danych;
 - miejscowa pamięć aplikacji wymaga własnych kopii bezpieczeństwa JSON, szczególnie przed czyszczeniem danych przeglądarki lub reinstalacją.
 
 **Prywatne repozytorium `dszak/moje-ogrzewanie-archiwum`:**
-- zawiera uporządkowane pliki JSON/JSONL: kartę instalacji, historię i eksperymenty, rozliczenia ORLEN, partycje historii HA, indeks `meta/index.json`;
+- zawiera uporządkowane pliki JSON/JSONL: kartę instalacji, historię i eksperymenty, rozliczenia ORLEN, partycje historii HA, indeks `meta/index.json` **oraz niezależny dziennik gazomierza `sync/gazomierz-v1.json`**; ten dziennik nie jest jeszcze ujęty w indeksie HA/iCloud;
 - **dane w tym repozytorium są jawne dla uprawnionych odbiorców, nie są szyfrowane end-to-end**; repozytorium musi pozostać prywatne, a dostęp powinien być ograniczany i okresowo kontrolowany;
 - ChatGPT może czytać zawartość przez podłączoną usługę GitHub **na żądanie**. Nie ma ciągłego wglądu w system ani automatycznego odczytu w tle.
+
+**Prywatny gazomierz — stan 20.11.2026:** [instrukcja uruchomionej synchronizacji](PRYWATNA-SYNCHRONIZACJA-GAZU.md). iPhone przechowuje zapis lokalnie i przesyła odczyty, gdy aplikacja jest otwarta i ma internet; TV Bro pobiera je kluczem tylko do odczytu. Zapisano i niezależnie zweryfikowano **12 odczytów (12 zdarzeń)**, a na TV obliczono **11 interwałów**. Czytelne porównania nie są dowodem oszczędności gazu bez kontroli pogody i c.w.u. Dostęp ChatGPT przez połączenie GitHub jest **na żądanie**, a nie w tle.
 
 **iCloud Drive** stanowi odrębne miejsce przechowywania oryginałów PDF i prywatnych materiałów źródłowych. Aktualizacja pliku JSON w iCloud może trafić do GitHub podczas kolejnej synchronizacji; dodanie nowej faktury PDF **nie oznacza automatycznego odczytu jej treści**.
 
@@ -130,7 +148,7 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 | MacBook uśpiony | Ogrzewanie nadal sterowane lokalnie | Eksport i synchronizacja czekają na wznowienie |
 | Brak internetu | Lokalny tor ENGO–odbiornik–kocioł pozostaje odrębny | Zdalne API, aplikacje i GitHub mogą nie odświeżać danych |
 | Wygaśnięcie Tuya IoT Core | Nie powinno wyłączać lokalnego sterowania | Ryzyko przerwania funkcji integracyjnych zależnych od Tuya |
-| Błąd prywatnej synchronizacji | Bez wpływu na kocioł | ChatGPT widzi starą wersję archiwum |
+| Błąd prywatnej synchronizacji | Bez wpływu na kocioł | ChatGPT może widzieć starą wersję archiwum; przy błędzie synchronizacji gazu lokalny wpis na iPhonie pozostaje, a przesłanie trzeba ponowić |
 | GitHub niedostępny | Bez wpływu na lokalny regulator | iPhone może nie pobrać świeżych danych; przechowane wcześniej lokalnie dane pozostają |
 
 ## 8. Zasady analizy i bezpieczeństwo
@@ -139,7 +157,7 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 2. Doby obliczać dla `Europe/Warsaw`; partycje historii HA w repozytorium są według dat UTC.
 3. Zużycie gazu na liczniku obejmuje **c.o. i c.w.u.**; odróżniać rachunki, przedpłaty, saldo i rzeczywiste zużycie.
 4. Porównywać eksperymenty z uwzględnieniem pogody, komfortu, przerw w danych i zmiany licznika.
-5. Hasła, PAT GitHub, token HA i hasło szyfrowania pozostają w bezpiecznym magazynie Maca — **nigdy w dokumentacji, repozytorium ani rozmowie**.
+5. Hasła, PAT GitHub, token HA i hasło szyfrowania pozostają w zabezpieczonych magazynach (Mac / Cloudflare / Hasła Apple, zgodnie z rolą) — **nigdy w publicznej dokumentacji, kodzie ani rozmowie**. Klucze iPhone/TV mają różne uprawnienia. Repozytorium z odczytami gazu musi pozostać prywatne.
 6. Nie przypisywać ChatGPT automatycznego sterowania, alertowania ani ciągłego monitoringu. Wnioski wymagają przeczytania aktualnych źródeł i określenia niepewności.
 
 ## 9. Decyzja zakresowa — energia elektryczna a ogrzewanie (18.11.2026)
@@ -156,11 +174,13 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 
 **Potwierdzone 18.11.2026:** dostęp MacBooka do prywatnego repozytorium, jednorazowa synchronizacja 13 plików, powtarzalne wykonanie `launchd` bez błędów, odczyt indeksu i przykładowych plików przez ChatGPT z połączeniem GitHub.
 
+**Potwierdzone 19/20.11.2026:** wdrożony Worker i klucze ról iPhone/TV, odpowiedź bez autoryzacji `401`, odczyt kluczem `200`, przekazanie i odczyt **12 prywatnych odczytów gazu**, prezentacja na Sony Bravia (TV Bro) oraz odczyt pliku gazu przez uprawnione połączenie GitHub. Nie stwierdzono, że działa bez ograniczeń w tle po zamknięciu iOS.
+
 **Do sprawdzenia / poprawienia:**
 - zachowanie Home Assistant i obu agentów po restarcie MacBooka, automatyczne uruchomienie VM i ochrona przed uśpieniem;
 - kontrola świeżości danych `source_latest_observed_at` i powiadamianie o przerwach, nie tylko o błędach polecenia;
 - rzeczywista zależność ścieżek ENGO i Setti+ od IoT Core / API / MQTT przed terminem 16.12.2026;
-- bezpieczna, świadomie zatwierdzana aktualizacja prywatnej historii wpisów z aplikacji iPhone oraz nowych dokumentów ORLEN;
+- przetestowanie **13. rzeczywistego odczytu gazu** i jego automatycznego pojawienia się na TV; praca po restarcie/przerwie offline, przegląd zabezpieczeń Workera i utrzymania wersji backendu; osobno: aktualizacja nowych dokumentów ORLEN i **pozostałych** prywatnych wpisów iPhone'a;
 - obsługa dłuższej historii i limitów eksportu HA.
 
 ## 11. Gdzie szukać danych i dokumentów?
@@ -169,6 +189,7 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 - [Zasady nadrzędne](NAJWAZNIEJSZE-ZASADY-PROJEKTU.md)
 - [Baza wiedzy technicznej](BAZA-WIEDZY-TECHNICZNEJ.md)
 - [Założenia archiwum analitycznego](ARCHIWUM-ANALITYCZNE-PROJEKT.md)
+- [Prywatna synchronizacja gazomierza — instrukcja i potwierdzone testy](PRYWATNA-SYNCHRONIZACJA-GAZU.md)
 - [Repozytorium prywatnego archiwum](https://github.com/dszak/moje-ogrzewanie-archiwum) — wymaga odpowiednich uprawnień
 - [Panel Tuya Developer](https://iot.tuya.com/) — konto programistyczne, dostęp do usług i status przedłużenia
 
