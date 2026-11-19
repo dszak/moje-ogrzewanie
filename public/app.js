@@ -135,7 +135,7 @@ function renderHome(){
  <button class="action ghost" data-action="page" data-page="review">Analiza i decyzje</button></div></section>
  <details class="card" style="margin-top:16px"><summary style="cursor:pointer;font-weight:750">Starszy dziennik i formularze ręczne</summary>
  <p class="hint">Zachowaliśmy wcześniejszy pulpit, wpisy gazu, obserwacje i plan eksperymentów. Rozwiń tylko wtedy, gdy ich potrzebujesz.</p>
- <div style="margin-top:18px">${renderHomeLegacy()}</div></details>\`;
+ <div style="margin-top:18px">${renderHomeLegacy()}</div></details>`;
 }
 
 function dateLocal(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
