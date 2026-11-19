@@ -87,6 +87,19 @@ Nie traktować żadnego uśrednionego wskaźnika oszczędności z internetu jako
 - Nie stosować procentów utraty ciepła typowych dla **całkowicie nieocieplonych dachów** do budynków o innym stanie izolacji.
 - Różnice między pomieszczeniami mogą wynikać z lokalnego docieplenia, wentylacji i zysków ciepła — nie tylko z ustawień grzejników.
 
+## SETTI+ TRV001 — interpretacja historii DPS (uzupełnienie 19.11.2026)
+
+**Źródła:** [dokumentacja Zigbee2MQTT dla wariantu SEA801/SEA802](https://www.zigbee2mqtt.io/devices/SEA801-Zigbee_SEA802-Zigbee.html), [społecznościowa mapa DPS wariantu `_TZE200_9m4kmbfu`](https://gist.github.com/alufers/05a15106d71b78af35dd90c0989dbac9) oraz **osobne wyniki badań własnych** w [SETTI-TRV-DPS-BADANIA.md](SETTI-TRV-DPS-BADANIA.md). Nazwy i znaczenia pól z różnych integracji Zigbee/chmury mogą się różnić; nie przenosić automatycznie mapowania.
+
+- **DPS 119**: 24 wartości 0–100 zakodowane jako kanoniczny Base64; odpowiadają godzinowym słupkom **„Czas ogrzewania (%)”** w aplikacji SETTI+. Prawdopodobne mapowanie indeksów 0–23 do kolejnych zakończonych godzin doby wymaga jeszcze weryfikacji północy i zmiany czasu.
+- Nie udowodniono, czy wartość procentowa oznacza średnią pozycję napędu, udział czasu aktywności, czy inną miarę wewnętrznego algorytmu. **Nie jest to potwierdzony pomiar przepływu, obecnego stanu zaworu ani pracy kotła.** W szczególności **0% nie dowodzi, że grzejnik pozostaje zimny**.
+- **Identyfikacja wariantu:** wszystkie 8 głowic zgłosiło w istniejącej sesji SETTI+ ten sam **Product ID `9m4kmbfu`**. Odpowiada on wariantowi `_TZE200_9m4kmbfu` wskazanemu przez [Blakadder](https://zigbee.blakadder.com/SETTI_TRV001.html) i objętemu [mapowaniem ZHA](https://github.com/zigpy/zha-device-handlers/blob/dev/zhaquirks/tuya/tuya_trv.py). W mapie ZHA **DP 104 = `valve_position` w %, po przeliczeniu ÷10; DP 3 = `running_state`**, a DP 101 = tryb pracy. Jest to **mapowanie Zigbee ZHA**, nie automatyczny opis danych z chmurowej bramki SETTI+.
+- **DPS 104** raportował w dotychczasowym kanale chmurowym wartość stałą także podczas obserwowanego nagrzewania grzejników — **nie stosować jako bieżącego procentu otwarcia** bez nowego dowodu. Podobnie nie interpretować stałych `DPS 3=standy`, `101=true` ani `108=false` jako bieżącego ON/OFF zaworu.
+- Głównego termostatu ENGO, głowic TRV, czujników pokojowych, pracy palnika i przepływu nie łączy prosty odpowiednik liczbowy. Obserwacje z działania regulatora i temperatury powierzchni są potrzebne do oceny korelacji, ale nie zastąpią pomiaru położenia zaworu.
+- **Aktualny stan otwarcia G1–G8 pozostaje nierozstrzygnięty.** Pytanie do producenta SETTI+ o sygnał dostępny przez oryginalną bramkę/Tuya zostało wysłane; nie zmieniać sposobu parowania i nie sterować kotłem na podstawie niezweryfikowanego DPS.
+
+Ten rozdział opisuje **wnioski i ograniczenia**, a nie publikuje historii pomiarów konkretnego gospodarstwa. Szczegółowe znaczniki czasu, zestawienia i wyniki negatywne są przechowywane wyłącznie w prywatnym archiwum.
+
 ## Hierarchia badań — oparta na wiedzy, nie na zgadywaniu
 
 1. **Jakość pomiarów i baza:** rejestrować jednocześnie gaz, pogodę, temperatury pomieszczeń, nastawy i zakłócenia. Wykrywać przerwy danych. Zanim porównamy koszty, ustalić okresy porównywalne.
