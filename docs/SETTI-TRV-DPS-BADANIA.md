@@ -12,6 +12,22 @@ W badaniu fizycznego nagrzewania grzejników zanotowano przypadki, gdy historycz
 
 Sekwencja zmian indeksów wskazuje z dużą pewnością, że **indeks 0 odpowiada przedziałowi 00:00–01:00, indeks 1 — 01:00–02:00 itd., a wartość pojawia się po zakończeniu godziny** w strefie lokalnej. Potrzebne jest jeszcze potwierdzenie na pełnej dobie, po północy i przy zmianie czasu (23/25 godzin). Niezapisane/przyszłe godziny muszą być oznaczane jako **nieznane**, nie jako pewne 0. Nadal nieustalone: algorytm procentów, znaczenie DPS 120–122 i wiarygodny stan zaworu w konkretnej chwili.
 
+## Identyfikacja produktu i weryfikacja kodu ZHA (19.11.2026)
+
+**Potwierdzone lokalnie, tylko do odczytu:** osiem głowic G1–G8 zgłasza ten sam `product_id = 9m4kmbfu`. Odczyt pochodzi z **istniejącej sesji** `session.devices()` mostka SETTI+, bez ponownego parowania i bez zmian nastaw. Nie jest to indywidualny identyfikator urządzenia, lecz identyfikator produktu wspólny dla wszystkich ośmiu głowic. Przy odczycie potwierdzono obecność pól `category`, `dps`, `id`, `local_key`, `product_id`, `uuid`; wartości sekretów i unikalnych identyfikatorów **nie zostały opublikowane**. Lokalny plik `trv-product-ids.json` zawiera wyłącznie produktowe PID, a `trv-device-field-names.json` — nazwy pól.
+
+**Dopasowanie do źródeł:** [Blakadder — SETTI+ TRV001](https://zigbee.blakadder.com/SETTI_TRV001.html) podaje `_TZE200_9m4kmbfu`; kod [ZHA `zhaquirks/tuya/tuya_trv.py`](https://github.com/zigpy/zha-device-handlers/blob/dev/zhaquirks/tuya/tuya_trv.py) ma `.applies_to("_TZE200_9m4kmbfu", "TS0601")` **w tym samym bloku mapowania**, w którym figurują następujące DP:
+
+| DP | Interpretacja ZHA | Zestawienie z dotychczasowym odczytem przez SETTI+/Tuya |
+| --- | --- | --- |
+| 3 | `running_state`; kod ZHA oczekuje wartości logicznej i zamienia ją na `heat/idle` | Chmura zwraca tekst `standy`; brak poprawnego bieżącego stanu w naszych badaniach |
+| 101 | `system_mode` (`heat/off`) | Chmura zwracała stale `true`; nie jest to stan przepływu ani pozycja zaworu |
+| **104** | **`valve_position`, `int16s`, `divisor=10`, jednostka %** | **904 lokalne odczyty chmurowe = 0**, również przy fizycznym nagrzewaniu; nie uznawać za wiarygodny live procent otwarcia |
+| 105 | `battery_low` | Interpretacja możliwa wg ZHA, wymagane osobne sprawdzenie w kanale chmurowym |
+| 102 / 103 | Temperatura głowicy / nastawa | Potwierdzone lokalnie w istniejącym moście |
+
+**Granica wiarygodności:** dopasowanie PID oraz mapy ZHA dotyczy protokołu urządzenia obsługiwanego przez ZHA i **nie dowodzi**, że fabryczna bramka SETTI+ udostępnia przez chmurę identyczne, aktualne i prawidłowo przeliczone stany. `DPS 104 = 0` nie dowodzi fizycznego zamknięcia zaworu. Nie zmieniać bramki ani nie wdrażać sterowania na podstawie tych pól. Odpowiedź producenta na pytanie o bieżący % otwarcia jest nadal oczekiwana.
+
 ## Dokumentacja wariantu Zigbee
 
 Oficjalna dokumentacja [Zigbee2MQTT Saswell SEA801/SEA802](https://www.zigbee2mqtt.io/devices/SEA801-Zigbee_SEA802-Zigbee.html) wymienia **SETTI+ TRV001** jako produkt white-label; w takim wariancie Zigbee2MQTT udostępnia `heating` oraz `climate.running_state` (`idle`/`heat`), `battery_low`, `anti_scaling` itd. **Nie znaczy to, że obecna bramka SETTI+ i mostek chmurowy udostępniają te same pola**; nie ma obecnie danych `zigbee2mqtt/...` w HA. Zmiana koordynatora/parowania nie jest częścią eksperymentu.
