@@ -5,7 +5,7 @@
 const GasSync=(()=>{
  const API='https://moje-ogrzewanie-gaz-sync.ks-stawarz.workers.dev/v1/gas';
  const DB='moje-ogrzewanie-gas-device-v1', STORE='credentials', SLOT='gas';
- const META='moje-ogrzewanie-gas-sync-meta-v1';
+ const META='gas-sync-meta-v1'; // Deliberately avoids DataStore legacy-key migration pattern.
  const ID=/^[a-zA-Z0-9_.:-]{3,100}$/;
  let credential=null, remote=[], remoteAt=null, message='Nie połączono z prywatnym archiwum.';
  let busy=false;
@@ -138,7 +138,7 @@ const GasSync=(()=>{
    const hash=await crypto.subtle.digest('SHA-256',bytes);
    return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
  }
- function pause(){const m=meta();m.active=false;storeMeta(m)}
+ function pause(resetAck=false){const m=meta();m.active=false;if(resetAck)m.acked={};storeMeta(m)}
  async function activate(){
    if(credential?.role!=='write')error('Do wysyłania wymagany jest klucz zapisu iPhone.');
    const m=meta();m.active=true;storeMeta(m);
