@@ -112,7 +112,7 @@ function renderHome(){
      '<span>Nastawa: <strong>'+(h?T(h.target_temperature):'—')+'</strong></span></div>';
  })).join('');
  const recentEngo=(state.engoCycles||[]).slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))[0];
- return \`${sec('Pulpit ogrzewania','Bieżące pomiary automatyczne, bez sterowania urządzeniami.')}"}
+ return `${sec('Pulpit ogrzewania','Bieżące pomiary automatyczne, bez sterowania urządzeniami.')}
  <div class="banner ${sensors.ok&&heads.ok?'info':'warn'}"><span>🌡️</span><span><b>Czujniki: ${esc(sensors.label)}</b> ${sensors.at?'· '+day(sensors.at):''}<br><b>Głowice: ${esc(heads.label)}</b> ${heads.at?'· '+day(heads.at):''}<br><button class="text-link" data-action="refresh-setti">Odśwież czujniki</button> · <button class="text-link" data-action="refresh-heads">Odśwież głowice</button></span></div>
  <div class="grid cols3" style="margin-bottom:20px">
  <div class="stat"><div class="label">Pomieszczenia · aktualne</div><strong>${roomsReady} / 6</strong><small>Pomiar pokojowy Setti+</small></div>
