@@ -53,7 +53,7 @@ function renderHeads(){
    return `<div class="panel-head"><b>${id}</b><span>Przy głowicy: <strong>${h?T(h.temperature):'—'}</strong></span><span>Nastawa: <strong>${h?T(h.target_temperature):'—'}</strong></span>${h?`<small>Kalibracja: ${fmt(h.calibration)}°C · Tryb: ${esc(h.mode_raw)} ${hs.ok?'':'· dane nieaktualne'}</small>`:'<small>Brak odczytu z GitHub</small>'}</div>`;
   }).join('')}</div>`:'<p class="hint">Przedpokój nie ma grzejnika.</p>'}</section>`;
  }).join('');
- return `${sec('Szczegóły czujników i głowic','Dane techniczne sześciu czujników pokojowych i ośmiu głowic. To rozwinięcie pulpitu, nie osobny system.')}
+ return `${sec('Szczegóły czujników i głowic','Panel ogrzewania — dane techniczne sześciu czujników pokojowych i ośmiu głowic. To rozwinięcie pulpitu, nie osobny system.')}
  <div class="banner ${hs.ok&&ss.ok?'info':'warn'}"><span>🌡️</span><span><b>Czujniki: ${esc(ss.label)}</b> · Głowice: ${esc(hs.label)}. <button class="text-link" data-action="refresh-setti">Odśwież czujniki</button> · <button class="text-link" data-action="refresh-heads">Odśwież głowice</button></span></div>${engo}${rooms}
  <p class="hint">Pomiary czujników i głowic pobierane są tylko do odczytu z GitHub. Po 20 minutach od synchronizacji traktujemy je jako nieaktualne. Temperatura przy głowicy nie jest temperaturą całego pokoju. W tym widoku dane ENGO i kotła są zapisami ręcznymi. Automatyczne odczyty ENGO istnieją w Home Assistant, lecz nie są jeszcze dostarczane przez bieżący interfejs tej strony.</p>`;
 }
