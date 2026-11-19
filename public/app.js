@@ -77,7 +77,7 @@ function renderGasHistoryCard(r){
   </details>`:'<div class="gas-history-entry-empty">Brak dołączonych pomiarów Setti+.</div>'}
  </article>`;
 }
-function gasActions(r){return `<div class="gas-actions"><button class="action ghost" data-action="edit-gas" data-kind="${r.kind}" data-index="${r.index}">Edytuj</button><button class="action danger" data-action="delete-gas" data-kind="${r.kind}" data-index="${r.index}">Usuń</button></div>`}
+function gasActions(r){if(r.kind==='history'&&r.index>=state.gasHistory.length)return '<span class="small muted">Archiwum prywatne · tylko odczyt</span>';return `<div class="gas-actions"><button class="action ghost" data-action="edit-gas" data-kind="${r.kind}" data-index="${r.index}">Edytuj</button><button class="action danger" data-action="delete-gas" data-kind="${r.kind}" data-index="${r.index}">Usuń</button></div>`}
 function gasEditor(){
  if(!editingGas)return '';
  const r=(editingGas.kind==='condition'?state.conditions:state.gasHistory)[editingGas.index];
@@ -254,12 +254,78 @@ function renderEngo(){
  return output;
 }
 
+
+function gasViewState(){
+ const remote=GasSync.remoteReadings();
+ if(!remote.length)return state;
+ const ids=new Set((state.gasHistory||[]).map(x=>x.id));
+ for(const [i,c] of (state.conditions||[]).entries()){
+  if(typeof c.gas==='number'){
+   ids.add(c.id||'c-'+Date.parse(c.at).toString(36)+'-'+i);
+  }
+ }
+ const seen=new Set(Insights.readings(state).map(r=>r.meter+'|'+r.at+'|'+r.gas));
+ const extras=remote.filter(r=>{
+  const key=r.meter+'|'+Date.parse(r.at)+'|'+r.gas;
+  if(ids.has(r.id)||seen.has(key))return false;
+  seen.add(key);return true;
+ });
+ return {...state,gasHistory:[...state.gasHistory,...extras]};
+}
+function renderGasSync(){
+ const s=GasSync.status(),n=GasSync.remoteReadings().length;
+ const header='<section class="card" style="margin-bottom:18px"><div class="group-heading"><h3>🔒 Prywatne archiwum gazomierza</h3><span class="pill">'+(s.connected?(s.role==='write'?'iPhone · zapis':'Telewizor · odczyt'):'niepołączone')+'</span></div>';
+ const body='<p class="subtitle">Odczyty pozostają na tym urządzeniu. Po włączeniu synchronizacji trafiają przez Cloudflare wyłącznie do prywatnego GitHuba. Nie są publikowane na GitHub Pages.</p>'+
+ '<p class="small muted" role="status">'+esc(s.message)+'</p>';
+ if(!s.connected){
+  return header+body+
+   '<div class="form-grid"><div><label for="gasSyncRole">Uprawnienia tego urządzenia</label><select id="gasSyncRole"><option value="read">Tylko odczyt (telewizor)</option><option value="write">Zapis (iPhone)</option></select></div>'+
+   '<div class="wide"><label for="gasSyncToken">KLUCZ z aplikacji Hasła Apple</label><input id="gasSyncToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="48 znaków; nie SHA256 i nie token GitHub"></div></div>'+
+   '<div class="actions" style="margin-top:12px"><button class="action" data-action="gas-connect">Połącz prywatne archiwum</button></div>'+
+   '<p class="hint">Klucz zostanie zapamiętany w pamięci tego urządzenia, jeśli przeglądarka obsługuje IndexedDB. Nie przesyłaj go w rozmowie ani na zrzucie ekranu.</p></section>';
+ }
+ let controls='<div class="actions"><button class="action light" data-action="gas-refresh">Pobierz dane z archiwum</button>';
+ if(s.role==='write'){
+  if(!s.active){
+   controls+='<button class="action" data-action="gas-activate">Włącz wysyłanie i archiwizację odczytów</button>';
+  }else{
+   controls+='<button class="action" data-action="gas-sync-now">Synchronizuj teraz</button>';
+  }
+ }
+ controls+='<button class="action ghost" data-action="gas-disconnect">Zapomnij klucz na tym urządzeniu</button></div>';
+ const note=s.role==='write'?
+  (s.active?'Wysyłanie jest włączone. Najpierw zapis lokalny, potem bezpieczne przesłanie. Przy braku internetu wpis zostaje na iPhonie.':
+   'Dotychczasowa historia nie zostanie przesłana, dopóki nie potwierdzisz włączenia archiwizacji.') :
+  'Tryb odczytu: możesz wyświetlać i analizować dane, ale nie możesz ich zmieniać w archiwum.';
+ return header+body+'<p class="hint">Odczyty w archiwum: '+n+(s.remoteAt?' · pobrano '+day(s.remoteAt):'')+'. '+note+'</p>'+controls+'</section>';
+}
+function renderGasWhenIdle(){
+ const a=document.activeElement;
+ if(!a||!['INPUT','TEXTAREA','SELECT'].includes(a.tagName))render();
+}
+function maybeSyncGas(){
+ if(!GasSync.status().connected||GasSync.status().role!=='write'||!GasSync.status().active)return;
+ GasSync.synchronize(state).then(()=>{if(page==='insights')renderGasWhenIdle()})
+   .catch(()=>{if(page==='insights')renderGasWhenIdle()});
+}
+function gasSyncError(error){toast(error.message||'Synchronizacja niedostępna. Odczyty lokalne zachowano.');renderGasWhenIdle()}
+function gasSyncOnLoad(){
+ GasSync.restore().then(async connected=>{
+  if(!connected)return;
+  try{
+   if(GasSync.status().role==='write'&&GasSync.status().active)await GasSync.synchronize(state);
+   else await GasSync.refresh();
+  }catch(_){/* Status shown in Gas and Weather; old data remain intact. */}
+  renderGasWhenIdle();
+ }).catch(()=>{});
+}
+
 function renderInsights(){
- const w=state.weather||{hourly:[],updated:null},records=Insights.readings(state),rows=Insights.intervals(state),daily=Insights.dailyComparisons(state),events=(state.heatingEvents||[]).slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
+ const w=state.weather||{hourly:[],updated:null},view=gasViewState(),records=Insights.readings(view),rows=Insights.intervals(view),daily=Insights.dailyComparisons(view),events=(state.heatingEvents||[]).slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
  const fdate=at=>new Date(at).toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric'});
  const trow=x=>'<tr><td>'+fdate(x.start)+' – '+fdate(x.end)+'</td><td>'+(x.meter==='old'?'Stary':'Nowy')+'</td><td>'+fmt(x.gas,2)+'</td><td>'+fmt(x.days,1)+'</td><td><b>'+fmt(x.perDay,2)+'</b>'+(x.estimated?' (szac.)':'')+'</td><td>'+(x.avg===null?'—':T(x.avg))+'</td><td>'+(x.normalized===null?'—':fmt(x.normalized,3))+'</td></tr>';
  const cardrow=x=>'<article class="gas-record"><div class="gas-record-header"><strong>'+fdate(x.start)+' – '+fdate(x.end)+'</strong><span class="pill">'+(x.meter==='old'?'Stary licznik':'Nowy licznik')+'</span></div><div class="gas-record-grid"><div><span>Zużycie</span><b>'+fmt(x.gas,2)+' m³</b></div><div><span>Średnio na dobę</span><b>'+(fmt(x.perDay,2)+' m³/dobę'+(x.estimated?' · szac.':''))+'</b></div><div><span>Okres</span><b>'+fmt(x.days,2)+' dnia</b></div><div><span>Śr. temp. zewn.</span><b>'+(x.avg===null?'—':T(x.avg))+'</b></div><div><span>m³/stopniodzień</span><b>'+(x.normalized===null?'—':fmt(x.normalized,3))+'</b></div></div></article>';
- return sec('Gaz i pogoda','Automatyczna temperatura dla Katowic, historia gazomierzy i zużycie w odniesieniu do pogody.')+gasEditor()+
+ return sec('Gaz i pogoda','Automatyczna temperatura dla Katowic, historia gazomierzy i zużycie w odniesieniu do pogody.')+renderGasSync()+gasEditor()+
  '<div class="banner info"><span>☁️</span><span><b>'+esc(weatherStatus())+'</b><br>Źródło: Open-Meteo, dane modelowe godzinowe. Aktualizacja po uruchomieniu aplikacji i na żądanie, gdy jest internet. Dane pogodowe zapisują się lokalnie. Nie są to pomiary z Twojego czujnika.</span></div>'+
  '<div class="actions" style="margin-bottom:16px"><button class="action light" data-action="refresh-weather">Odśwież pogodę</button><span class="small muted">Danych godzinowych: '+w.hourly.length+' · aktualizacja: '+(w.updated?day(w.updated):'brak')+'</span></div>'+
  '<div class="grid cols3" style="margin-bottom:18px"><div class="stat"><div class="label">Odczyty gazu</div><strong>'+records.length+'</strong><small>Łącznie z zapisanymi wcześniej obserwacjami</small></div><div class="stat"><div class="label">Interwały zużycia</div><strong>'+rows.length+'</strong><small>Porównania tylko w ramach jednego gazomierza</small></div><div class="stat"><div class="label">Wpisy ENGO</div><strong>'+events.length+'</strong><small>Zmiany historyczne do porównań</small></div></div>'+
@@ -272,7 +338,7 @@ function renderInsights(){
  '<section class="card"><h3>Historia nastaw ENGO</h3><p class="subtitle">Zapisuj także daty wcześniejszych zmian. ENGO nie jest połączony z aplikacją; wpisy są ręczne.</p>'+
  '<div class="form-grid" style="margin-top:15px"><div class="wide"><label for="engoAt">Data zmiany</label><input id="engoAt" type="datetime-local" value="'+dateLocal(Date.now())+'"></div><div><label for="engoHistoryValue">Nowa nastawa (°C)</label><input id="engoHistoryValue" type="number" step="0.5" min="10" max="30" value="'+esc(state.global.engo)+'"></div><div class="wide"><label for="engoHistoryNote">Komentarz</label><input id="engoHistoryNote" maxlength="300" placeholder="np. zmiana z 21,5 na 22°C"></div></div><div class="actions" style="margin-top:12px"><button class="action light" data-action="add-engo-history">Zapisz historyczną zmianę</button></div><div class="hr"></div>'+
  (events.length?events.slice(0,20).map(e=>'<div class="item"><b>'+T(e.engo)+'</b><div class="desc">'+day(e.at)+' · '+esc(e.note)+'</div></div>').join(''):'<p class="hint">Nie dodano jeszcze dat zmian ENGO.</p>')+'</section></div>'+
- '<section class="card" style="margin-top:16px"><h3>Historia odczytów</h3><p class="hint">Źródła: wpis ręczny, ORLEN albo wcześniejsza obserwacja w dzienniku. Wszystkie zachowane w pamięci tego urządzenia.</p>'+
+ '<section class="card" style="margin-top:16px"><h3>Historia odczytów</h3><p class="hint">Źródła: wpis ręczny, ORLEN albo wcześniejsza obserwacja w dzienniku. Wpisy lokalne są zachowane na tym urządzeniu. Odczyty z prywatnego archiwum mogą być dodatkowo wyświetlane.</p>'+
  (records.length?'<div class="table-scroll gas-history-table-wrap"><table class="table gas-history-table"><thead><tr><th>Data</th><th>Gazomierz</th><th>m³</th><th>Źródło</th><th>Setti+ w chwili wpisu</th><th>Poprawki</th></tr></thead><tbody>'+records.slice(-55).reverse().map(r=>'<tr><td>'+day(new Date(r.at).toISOString())+'</td><td>'+(r.meter==='old'?'Stary':'Nowy')+'</td><td>'+fmt(r.gas,3)+'</td><td>'+esc(r.source)+'</td><td>'+renderGasSetti(r.setti)+'</td><td>'+gasActions(r)+'</td></tr>').join('')+'</tbody></table></div><div class="gas-history-mobile">'+records.slice(-55).reverse().map(renderGasHistoryCard).join('')+'</div>':'<div class="empty">Jeszcze nie ma odczytów gazomierza.</div>')+'</section>';
 }
 async function syncWeather(force=false){
@@ -305,7 +371,7 @@ function renderExperiments(){let active=state.experiments.find(x=>x.status==='ac
 function renderHistory(){let ev=state.events.slice(0,historyLimit);return `${sec('Historia zmian','Wszystkie zapisane nastawy i pomiary — żebyś wiedział, co naprawdę zmieniono.') }<div class="actions" style="margin-bottom:17px"><button class="action light" data-action="export-json">Eksportuj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button></div><section class="card"><div class="group-heading"><h3>Dziennik</h3><span class="pill">${state.events.length} wpisów</span></div>${ev.length?`<div class="timeline">${ev.map(x=>`<div class="event"><span class="event-marker"></span><div><strong>${esc(x.label)}</strong><div class="muted small">${esc(x.detail)}</div><small>${day(x.at)}</small></div></div>`).join('')}</div>${state.events.length>historyLimit?'<button class="action ghost" data-action="more-history">Pokaż starsze wpisy</button>':''}`:'<div class="empty">Historia będzie się uzupełniać przy zapisywaniu celów, głowic, drzwi i pomiarów.</div>'}</section>`}
 function renderMap(){return `${sec('Mapa mieszkania','Prywatny plan przechowywany wyłącznie na tym urządzeniu.')}<div class="banner info">Publiczna aplikacja nie zawiera planu, wymiarów ani adresu. Możesz wczytać własną mapę SVG, PNG lub JPEG. Trafi tylko do lokalnego zapisu i Twojej kopii JSON.</div><section class="card">${state.privateMap?`<img class="map" alt="Twoja prywatna mapa" src="${esc(state.privateMap)}">`:'<div class="empty">Nie wczytano prywatnej mapy.</div>'}<div class="actions" style="margin-top:15px"><button class="action ghost" data-action="map-import">Wczytaj prywatną mapę</button>${state.privateMap?'<button class="action ghost" data-action="map-download">Pobierz mapę</button>':''}</div></section>`}
 function renderSettings(){let g=state.global;return `${sec('Ustawienia wspólne','Zadane temperatury kotła i ENGO mają wpływ na całe mieszkanie.')}<div class="grid cols2"><section class="card"><h3>BRÖTJE · kocioł</h3><p class="subtitle" style="margin-bottom:15px">Zadana temperatura wody na zasilaniu. Odczyt bieżący na wyświetlaczu może być inny.</p><label for="boilerSet">Temperatura zadana kotła (°C)</label>${tempInput('boilerSet',g.boiler,25,85,1)}<p class="hint">Wartość początkowa: 55°C. Wpisz faktyczną nastawę.</p><div class="actions" style="margin-top:14px"><button class="action" data-action="set-boiler">Zapisz nastawę kotła</button></div></section><section class="card"><h3>ENGO Smart · sypialnia</h3><p class="subtitle" style="margin-bottom:15px">Termostat wyznacza zapotrzebowanie na ogrzewanie dla całego mieszkania.</p><div class="form-grid"><div><label for="engoSet">Temperatura zadana (°C)</label>${tempInput('engoSet',g.engo,10,30,'.5')}</div><div><label for="engoCurrent">Aktualny odczyt ENGO (°C)</label>${tempInput('engoCurrent',g.engoCurrent,0,45,'.1')}</div><div class="wide"><label for="engoPlace">Położenie termostatu</label><input id="engoPlace" value="${esc(g.engoPlace)}" maxlength="220"></div></div><div class="actions" style="margin-top:14px"><button class="action" data-action="set-engo">Zapisz ustawienia ENGO</button></div><p class="hint">Po przeniesieniu termostatu wpisz nowe miejsce. Aplikacja zachowa zmianę w dzienniku.</p></section></div><section class="card" style="margin-top:16px"><div class="group-heading"><h3>Twoje dane i kopie zapasowe</h3><span class="pill">bez konta</span></div><p class="muted" style="font-size:13px;margin-bottom:17px">Dane są przechowywane lokalnie w tej przeglądarce na tym urządzeniu. Aktualizacja pod tym samym adresem zachowuje dane. Wyczyszczenie Safari, usunięcie aplikacji lub zmiana urządzenia mogą je usunąć. Regularnie zapisuj JSON w Plikach / iCloud. Przenosząc dane ze starej wersji lub między Safari a aplikacją z ekranu początkowego, użyj eksportu i importu JSON.</p><div class="actions filecontrols"><button class="action light" data-action="export-json">Pobierz kopię JSON</button><button class="action ghost" data-action="import-json">Wczytaj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button><button class="action ghost" data-action="recover">Przywróć poprzedni zapis</button><button class="action ghost" data-action="persist">Chroń zapis na urządzeniu</button><button class="action danger" data-action="reset">Wyczyść dane</button></div><div class="hr"></div><p class="footer-note">Aplikacja odczytuje publiczny plik z pomiarami Setti+, ale nie łączy się bezpośrednio z urządzeniami ani nie wysyła poleceń. Gdy pomiary są nieaktualne, możesz je nadal wpisać ręcznie.</p></section>`}
-function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='boiler'?renderBoiler():page==='engo-cycles'?renderEngo():page==='temperatures'?TemperatureView.render(state,tempDay,tempVisible,tempPreview,tempImportDraft):page==='review'?ReviewView.render(state,reviewPeriod,editingDecision,MemoryKit.augment(HeatingReview.build(state,reviewPeriod),state)):page==='memory'?MemoryView.render(state,memoryPreview,memoryImportDraft):page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.9.0 (wersja testowa) · Twoje wpisy tylko na tym urządzeniu</div>`}
+function render(){renderNav();let out=page==='room'?renderRoom():page==='home'?renderHome():page==='heads'?renderHeads():page==='boiler'?renderBoiler():page==='engo-cycles'?renderEngo():page==='temperatures'?TemperatureView.render(state,tempDay,tempVisible,tempPreview,tempImportDraft):page==='review'?ReviewView.render(state,reviewPeriod,editingDecision,MemoryKit.augment(HeatingReview.build(state,reviewPeriod),state)):page==='memory'?MemoryView.render(state,memoryPreview,memoryImportDraft):page==='insights'?renderInsights():page==='experiments'?renderExperiments():page==='history'?renderHistory():page==='map'?renderMap():renderSettings();document.getElementById('view').innerHTML=out+`<div class="footer">Moje Ogrzewanie v1.9.0 (wersja testowa) · ${GasSync.status().active&&GasSync.status().connected?'Gaz: synchronizacja prywatna aktywna':'Wpisy lokalne na tym urządzeniu'}</div>`}
 function numInput(id,min,max,allowEmpty=true){let e=document.getElementById(id);if(!e)return {ok:false};let raw=e.value.trim().replace(',','.');if(raw===''&&allowEmpty)return{ok:true,value:null};let v=Number(raw);if(raw===''||!Number.isFinite(v)||v<min||v>max){toast(`Sprawdź pole: ${id}. Dozwolony zakres ${min}–${max}.`);e.focus();return{ok:false}}return{ok:true,value:v}}
 function changed(a,b){return a!==b}
 function handleClick(e){let btn=e.target.closest('[data-action]');if(!btn)return;let ac=btn.dataset.action;
@@ -577,7 +643,7 @@ if(ac==='delete-gas'){
  const old=list[index];if(!confirm('Usunąć odczyt '+fmt(old.gas,3)+' m³ z '+day(old.at)+'? Nie będzie uwzględniany w analizie.'))return;
  if(kind==='history')list.splice(index,1);else list[index].gas=null; // Weather observation remains.
  changeLog('Usunięto odczyt gazomierza',day(old.at)+' · '+fmt(old.gas,3)+' m³ · '+(kind==='condition'?'obserwacja pogody zachowana':old.meter));
- editingGas=null;save();toast('Usunięto odczyt gazu.');return render();
+ editingGas=null;save();maybeSyncGas();toast('Usunięto odczyt gazu.');return render();
 }
 if(ac==='save-gas-edit'){
  if(!editingGas)return;
@@ -596,7 +662,25 @@ if(ac==='save-gas-edit'){
  if(!confirm('Zatwierdzić poprawkę: '+fmt(old.gas,3)+' m³ → '+fmt(v.value,3)+' m³?'))return;
  const detail=day(old.at)+' · '+fmt(old.gas,3)+' m³ → '+day(d)+' · '+fmt(v.value,3)+' m³';
  list[index]={...old,at:d,gas:v.value,...(limited?{}:{meter,source})};
- changeLog('Poprawiono odczyt gazomierza',detail);editingGas=null;save();toast('Zapisano poprawkę.');return render();
+ changeLog('Poprawiono odczyt gazomierza',detail);editingGas=null;save();maybeSyncGas();toast('Zapisano poprawkę.');return render();
+}
+
+
+if(ac==='gas-connect'){
+ const token=document.getElementById('gasSyncToken')?.value.trim(),role=document.getElementById('gasSyncRole')?.value;
+ if(document.getElementById('gasSyncToken'))document.getElementById('gasSyncToken').value='';
+ GasSync.connect(role,token).then(()=>{render();toast('Połączono z prywatnym archiwum.')}).catch(gasSyncError);
+ return;
+}
+if(ac==='gas-activate'){
+ if(!confirm('Włączyć automatyczną archiwizację wszystkich lokalnych odczytów gazu w prywatnym GitHubie? Historia na iPhonie pozostanie bez zmian.'))return;
+ GasSync.activate().then(()=>{render();maybeSyncGas()}).catch(gasSyncError);return;
+}
+if(ac==='gas-refresh')return GasSync.refresh().then(()=>{render();toast('Pobrano prywatną historię gazu.')}).catch(gasSyncError);
+if(ac==='gas-sync-now')return GasSync.synchronize(state).then(()=>{render();toast('Archiwum zsynchronizowane.')}).catch(gasSyncError);
+if(ac==='gas-disconnect'){
+ if(!confirm('Zapomnieć klucz tego urządzenia? Dane lokalne i prywatne archiwum GitHub zostaną zachowane.'))return;
+ GasSync.disconnect().then(()=>{render();toast('Odłączono klucz. Dane zachowane.')}).catch(gasSyncError);return;
 }
 
 if(ac==='refresh-weather')return syncWeather(true);
@@ -608,7 +692,7 @@ if(ac==='save-radiators'){let rid=btn.dataset.room,updates=[];for(let k of RM[ri
 if(ac==='reading'){let rid=btn.dataset.room,n=numInput('tempReading',-10,45,false),h=numInput('humidityReading',0,100);if(!n.ok||!h.ok)return;let note=document.getElementById('readNote').value.slice(0,200);state.rooms[rid].readings.push({at:now(),temp:n.value,humidity:h.value,note});changeLog('Pomiar: '+RM[rid].name,`${T(n.value)}${h.value===null?'':' · '+fmt(h.value,0)+'%'}${note?' · '+note:''}`);save();toast('Zapisano pomiar Setti+.');return render()}
 if(ac==='set-boiler'){let n=numInput('boilerSet',25,85,false);if(!n.ok)return;let old=state.global.boiler;state.global.boiler=n.value;if(changed(old,n.value))changeLog('Kocioł BRÖTJE',`${fmt(old,0)}°C → ${fmt(n.value,0)}°C`);save();toast('Zapisano nastawę kotła.');return render()}
 if(ac==='set-engo'){let a=numInput('engoSet',10,30,false),b=numInput('engoCurrent',0,45);if(!a.ok||!b.ok)return;let place=document.getElementById('engoPlace').value.trim().slice(0,220);let old=state.global;let details=[];if(changed(old.engo,a.value))details.push(`zadana: ${T(old.engo)} → ${T(a.value)}`);if(changed(old.engoCurrent,b.value))details.push(`odczyt: ${T(old.engoCurrent)} → ${T(b.value)}`);if(changed(old.engoPlace,place))details.push(`położenie: ${old.engoPlace} → ${place}`);if(details.length)changeLog('ENGO Smart',details.join(' · '));state.global={...old,engo:a.value,engoCurrent:b.value,engoPlace:place};save();toast('Zapisano ustawienia ENGO.');return render()}
-if(ac==='record-conditions'){let b=numInput('gas',0,100000000);if(!b.ok)return;const near=Insights.near(state.weather?.hourly,Date.now());const outdoor=near?near.temp:null;const sky=document.getElementById('sky').value;if(b.value===null&&sky==='unknown'){toast('Wpisz stan licznika albo warunki.');return}let record={at:now(),outdoor,gas:b.value,sky,meter:'new'};if(b.value!==null){const snap=Setti.snapshot();if(snap)record.setti=snap;}if(b.value!==null&&!confirm('Zatwierdzić stan gazomierza '+fmt(b.value,3)+' m³?'))return;state.conditions.push(record);changeLog('Warunki zewnętrzne / gaz',`${outdoor===null?'Pogoda: brak danych':T(outdoor)} · ${b.value===null?'Brak stanu licznika':fmt(b.value,3)+' m³'} · ${record.sky}`);save();toast('Zapisano odczyt. Pogoda jest pobierana automatycznie.');return render()}
+if(ac==='record-conditions'){let b=numInput('gas',0,100000000);if(!b.ok)return;const near=Insights.near(state.weather?.hourly,Date.now());const outdoor=near?near.temp:null;const sky=document.getElementById('sky').value;if(b.value===null&&sky==='unknown'){toast('Wpisz stan licznika albo warunki.');return}let record={at:now(),outdoor,gas:b.value,sky,meter:'new'};if(b.value!==null){const snap=Setti.snapshot();if(snap)record.setti=snap;}if(b.value!==null&&!confirm('Zatwierdzić stan gazomierza '+fmt(b.value,3)+' m³?'))return;state.conditions.push(record);changeLog('Warunki zewnętrzne / gaz',`${outdoor===null?'Pogoda: brak danych':T(outdoor)} · ${b.value===null?'Brak stanu licznika':fmt(b.value,3)+' m³'} · ${record.sky}`);save();maybeSyncGas();toast('Zapisano odczyt. Pogoda jest pobierana automatycznie.');return render()}
 if(ac==='add-gas'){
  const d=document.getElementById('gasAt').value,v=numInput('gasValue',0,100000000,false),meter=document.getElementById('gasMeter').value,source=document.getElementById('gasSource').value;
  if(!v.ok)return;const at=new Date(d);if(!Number.isFinite(at.valueOf())||at.valueOf()>Date.now()+86400000)return toast('Wpisz prawidłową datę.');
@@ -617,12 +701,12 @@ if(ac==='add-gas'){
  if(!confirm('Zatwierdzić odczyt '+fmt(v.value,3)+' m³ z '+day(at.toISOString())+'?'))return;
  const snap=source==='manual'&&Math.abs(at.valueOf()-Date.now())<=300000?Setti.snapshot():null;
  state.gasHistory.push({id:'g-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),at:at.toISOString(),gas:v.value,meter,source,...(snap?{setti:snap}:{})});
- changeLog('Odczyt gazomierza',meter+' · '+fmt(v.value,3)+' m³ · '+d);save();toast('Zapisano odczyt.');return render();
+ changeLog('Odczyt gazomierza',meter+' · '+fmt(v.value,3)+' m³ · '+d);save();maybeSyncGas();toast('Zapisano odczyt lokalnie.');return render();
 }
 if(ac==='bulk-gas'){
  const parsed=Insights.importRows(document.getElementById('gasBulk').value,state.gasHistory);
  if(!parsed.added)return toast('Wszystkie odczyty już istnieją.');
- state.gasHistory=parsed.rows;changeLog('Import historii ORLEN','Dodano '+parsed.added+' odczytów gazu.');save();toast('Dodano '+parsed.added+' odczytów bez usuwania starych.');return render();
+ state.gasHistory=parsed.rows;changeLog('Import historii ORLEN','Dodano '+parsed.added+' odczytów gazu.');save();maybeSyncGas();toast('Dodano '+parsed.added+' odczytów bez usuwania starych.');return render();
 }
 if(ac==='add-engo-history'){
  const d=document.getElementById('engoAt').value,v=numInput('engoHistoryValue',10,30,false);
@@ -636,11 +720,11 @@ if(ac==='start-exp'){if(state.experiments.some(x=>x.status==='active'))return to
 if(ac==='finish-exp'){let x=state.experiments.find(x=>x.id===btn.dataset.id&&x.status==='active');if(!x)return;x.end=snapshot();x.ended=now();x.notes=document.getElementById('finishNotes').value.trim().slice(0,3000);x.status='done';changeLog('Zakończono eksperyment',x.title+(x.notes?' · '+x.notes:''));save();toast('Zakończono eksperyment i zapisano migawkę końcową.');return render()}
 if(ac==='more-history'){historyLimit+=120;return render()}
 if(ac==='persist'){navigator.storage?.persist?.().then(ok=>toast(ok?'Przeglądarka przyznała trwały zapis. Nadal twórz kopie JSON.':'Przeglądarka nie przyznała ochrony. Zapisuj kopie JSON.')).catch(()=>toast('Ochrona zapisu niedostępna. Zapisz kopię JSON.'));return}
-if(ac==='recover'){if(confirm('Przywrócić poprzedni lokalny zapis? Bieżące dane zostaną zastąpione.')){state=DataStore.recover();setPage('home');toast('Przywrócono poprzedni zapis.')}return}
+if(ac==='recover'){if(confirm('Przywrócić poprzedni lokalny zapis? Bieżące dane zostaną zastąpione.')){GasSync.pause(true);state=DataStore.recover();setPage('home');toast('Przywrócono poprzedni zapis. Wysyłanie gazu wstrzymane do ponownej decyzji.')}return}
 if(ac==='map-import')return document.getElementById('mapFile').click();
 if(ac==='map-download'){const mime=state.privateMap.split(';')[0].slice(5);const bytes=Uint8Array.from(atob(state.privateMap.split(',')[1]),c=>c.charCodeAt(0));return downloadBlob('moja-prywatna-mapa.'+(mime==='image/svg+xml'?'svg':mime==='image/png'?'png':'jpg'),new Blob([bytes],{type:mime}))}
 if(ac==='export-json')return exportJson();if(ac==='export-csv')return exportCsv();if(ac==='import-json')return document.getElementById('importFile').click();
-if(ac==='reset'){if(confirm('Czy na pewno skasować wszystkie lokalne nastawy, pomiary i eksperymenty? Najpierw pobierz kopię JSON.')){state=seed();save();setPage('home');toast('Wyczyszczono dane lokalne.')}}}
+if(ac==='reset'){if(confirm('Czy na pewno skasować wszystkie lokalne nastawy, pomiary i eksperymenty? Najpierw pobierz kopię JSON.')){GasSync.pause(true);state=seed();save();setPage('home');toast('Wyczyszczono dane lokalne. Prywatne archiwum bez zmian.')}}}
 
 function analysisSources(){
  const st=Setti.status(),hs=Heads.status();
@@ -700,7 +784,7 @@ document.getElementById('engoFile').addEventListener('change',async e=>{
  finally{e.target.value=''}
 });
 
-document.getElementById('importFile').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('Kopia jest za duża (limit 20 MB).');let p=DataStore.validate(JSON.parse(await f.text()));if(confirm('Wczytać kopię i zastąpić bieżące dane? Poprzedni poprawny zapis pozostanie lokalną kopią odzyskiwania.')){DataStore.replace(p);state=p;setPage('home');document.getElementById('storageAlert').hidden=true;toast('Wczytano kopię JSON.')}}catch(ex){alert('Nie udało się wczytać kopii: '+ex.message)}finally{e.target.value=''}});
+document.getElementById('importFile').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('Kopia jest za duża (limit 20 MB).');let p=DataStore.validate(JSON.parse(await f.text()));if(confirm('Wczytać kopię i zastąpić bieżące dane? Poprzedni poprawny zapis pozostanie lokalną kopią odzyskiwania.')){GasSync.pause(true);DataStore.replace(p);state=p;setPage('home');document.getElementById('storageAlert').hidden=true;toast('Wczytano kopię JSON.')}}catch(ex){alert('Nie udało się wczytać kopii: '+ex.message)}finally{e.target.value=''}});
 document.getElementById('mapFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>2*1024*1024)throw Error('Mapa może mieć najwyżej 2 MB.');const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(f)});const next=DataStore.validate({...state,privateMap:data});DataStore.save(next);state=next;render();toast('Prywatna mapa zapisana lokalnie.')}catch(ex){alert('Nie udało się zapisać mapy: '+ex.message)}finally{e.target.value=''}});
 async function syncSetti(force=false){
  const ok=typeof fetch==='function'&&navigator.onLine!==false?await Setti.refresh(fetch):false;
@@ -740,7 +824,7 @@ async function syncHa(force=false,pass=null){
  }
  if(!document.activeElement||!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))render();
 }
-window.addEventListener('load',()=>{syncWeather();syncSetti();syncHeads();syncHa();if(typeof window.setInterval==='function')window.setInterval(()=>{syncSetti();syncHeads();syncHa()},5*60*1000)});
+window.addEventListener('load',()=>{syncWeather();syncSetti();syncHeads();syncHa();gasSyncOnLoad();if(typeof window.setInterval==='function')window.setInterval(()=>{syncSetti();syncHeads();syncHa();if(GasSync.isConnected()){if(GasSync.status().role==='write'&&GasSync.status().active)maybeSyncGas();else GasSync.refresh().then(renderGasWhenIdle).catch(()=>{})}},5*60*1000)});
 window.addEventListener('pageshow',()=>syncWeather());
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncWeather()});
 window.addEventListener('online',()=>syncWeather());
