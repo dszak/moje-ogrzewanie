@@ -1,6 +1,6 @@
 # Projekt prywatnego archiwum analitycznego „Moje Ogrzewanie”
 
-> **Status: dokument założeń projektowych z 18.11.2026.** Od tego dnia uruchomiono już prywatne repozytorium oraz synchronizację na MacBooku. **Aktualny opis działającej instalacji** znajduje się w [Jak działa cały system ogrzewania](JAK-DZIALA-SYSTEM-OGRZEWANIA.md). Treść poniżej opisuje wcześniejszy plan i wymaga czytania jako założenia, nie bieżąca lista wdrożonych funkcji. Dokument publiczny nie zawiera prywatnych pomiarów, faktur, adresów ani tokenów.
+> **Status: historyczne założenia projektowe z 18.11.2026, uzupełnione o rzeczywisty stan na 20.11.2026.** Od tego dnia uruchomiono już prywatne repozytorium oraz synchronizację na MacBooku. **Aktualny opis działającej instalacji** znajduje się w [Jak działa cały system ogrzewania](JAK-DZIALA-SYSTEM-OGRZEWANIA.md). Treść poniżej zawiera historyczne propozycje i nie jest dokładnym schematem produkcyjnego JSON. **Prywatna synchronizacja gazomierza działa od 19/20.11.2026**; jej rzeczywiste pliki, role, ograniczenia i testy opisuje [oddzielna instrukcja](PRYWATNA-SYNCHRONIZACJA-GAZU.md). Dokument publiczny nie zawiera prywatnych pomiarów, faktur, adresów ani tokenów.
 
 ## 1. Cel i zasady nadrzędne
 
@@ -11,6 +11,14 @@ Cele techniczne:
 - Odtwarzalne analizy: źródło, wersja danych, zakres, metoda, luki, niepewność i wynik eksperymentu.
 - Rozdzielenie **źródeł oryginalnych**, **danych ustrukturyzowanych** i **wniosków**.
 - Możliwość uprawnionego odczytu na żądanie, bez umieszczania haseł, faktur lub historii gospodarstwa w publicznym kodzie.
+
+## Zrealizowane elementy po spisaniu pierwotnego planu
+
+- Utworzono i zabezpieczono **prywatne** repozytorium `dszak/moje-ogrzewanie-archiwum`; część HA/iCloud jest synchronizowana z MacBooka, a jej indeks znajduje się w `meta/index.json`.
+- Odrębnie uruchomiono synchronizację **ręcznych odczytów gazomierza** z iPhone'a przez Cloudflare Worker do prywatnego `sync/gazomierz-v1.json`. Na TV Bro odczyt prywatnej historii jest tylko do odczytu. Weryfikacja pierwszego wdrożenia: **12 odczytów i 12 zdarzeń**, w aplikacji TV **11 interwałów**.
+- Dostęp ChatGPT jest możliwy **na żądanie** przez uprawnione połączenie GitHub, o ile działa w danej rozmowie; nie jest to autonomiczny monitoring.
+- Odczyty gazu w prywatnym `sync/gazomierz-v1.json` stanowią **dziennik zdarzeń**, nie schemat przykładowego wiersza `meter_id/value_m3` opisany niżej. `meta/index.json` może nie wymieniać pliku `sync/`; analizując gaz, otwórz go bezpośrednio.
+- **Nadal nieuzyskane:** automatyczne pobieranie faktur ORLEN i synchronizacja wszystkich prywatnych ustawień i wiedzy z iPhone'a.
 
 ## 2. Źródła i granice automatyzacji
 
@@ -48,13 +56,15 @@ Moje Ogrzewanie — prywatna baza/
     rejestr-korekt.jsonl
 ```
 
-**Lokalizacja startowa:** prywatny folder iCloud Drive kontrolowany przez użytkownika (nie publiczne GitHub Pages). Dalsza opcja: osobne repozytorium **private** z ściśle ograniczonym dostępem tylko do niezbędnych danych. Nie zakładać, że takie repozytorium już istnieje ani że ChatGPT ma do niego uprawnienia.
+**Lokalizacja startowa:** prywatny folder iCloud Drive kontrolowany przez użytkownika (nie publiczne GitHub Pages). Dalsza opcja: osobne repozytorium **private** z ściśle ograniczonym dostępem tylko do niezbędnych danych. To **historyczny wariant projektu**. Od 18.11.2026 prywatne repozytorium już istnieje, ale połączenie GitHub musi być weryfikowane w każdej nowej rozmowie.
 
 ## 4. Minimalne kontrakty danych (propozycja)
 
 Wszystkie rekordy: `schema_version`, `source`, `imported_at`, `record_id`, `confidence` i sygnatura czasu `Europe/Warsaw` wraz z jednoznacznym znacznikiem UTC, jeśli występuje.
 
 ### Odczyt gazu
+
+**Uwaga: niżej jest przykładowy kontrakt koncepcyjny z pierwotnego projektu, nie rzeczywisty format produkcyjny.** Wdrożony Worker zapisuje w `sync/gazomierz-v1.json` obiekt `{"schema_version":1,"events":[...]}`, gdzie zdarzenie ma `id`, `record_id`, `op` (`upsert`/`delete`), `at`, a przy `upsert` także `reading: {at,gas,meter,source}`. Pola `meter` rozróżniają `old`/`new`. Nie wrzucać tej prywatnej zawartości do publicznego repo.
 
 ```json
 {"schema_version":1,"record_id":"reading-example","at":"2026-11-18T08:00:00+01:00","meter_id":"meter-b","value_m3":123.456,"read_type":"manual","source":"gas-meter-photo","confidence":"user-confirmed"}
@@ -86,8 +96,8 @@ Nie przypisywać okresom bez zdarzeń wymyślonego stanu. Konieczne są flagi ci
 
 1. **Nigdy nie wgrywać** prywatnych danych do publicznego repozytorium ani publicznego adresu GitHub Pages. Nie kopiować haseł Home Assistant, GitHuba ani hasła archiwum do dokumentów, kodu czy czatu.
 2. Zaszyfrowany plik na GitHubie chroni treść, ale sam z siebie nie daje asystentowi możliwości analizowania: do tego potrzebny jest autoryzowany sposób odszyfrowania/przekazania wyników lub bezpieczna usługa tylko do odczytu.
-3. Wariant początkowy: użytkownik udostępnia konkretne eksporty z iCloud w rozmowie. To **nie jest** automatyczna synchronizacja i nowe wersje plików nie będą automatycznie pobierane.
-4. Wariant docelowy: prywatne repozytorium lub API analityczne z dostępem **read-only**, możliwością ograniczenia zakresu, audytem i cofnięcia uprawnień. Dopiero po rzeczywistym podłączeniu można obiecać dostęp na żądanie.
+3. **Wariant początkowy (historyczny):** użytkownik udostępniał eksporty iCloud w rozmowie. Obecnie część danych synchronizuje MacBook, a gaz z iPhone'a — oddzielny Worker. Nie oznacza to synchronizacji całego iCloud ani lokalnej pamięci PWA.
+4. **Częściowo zrealizowane:** prywatne repozytorium i dostęp na żądanie przez uprawnione połączenie GitHub; TV ma osobny klucz tylko do odczytu. Pozostają: okresowy audyt uprawnień, rotacja/revokacja kluczy, kontrola przyszłych wdrożeń Workera oraz plan retencji i monitorowania błędów.
 5. Nie umieszczać w systemach integracyjnych niepotrzebnych danych osobowych z PDF; oryginały pozostają w osobnej prywatnej lokalizacji.
 
 ## 6. Kontrola jakości i kolejność wdrożenia
