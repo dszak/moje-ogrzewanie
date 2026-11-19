@@ -27,6 +27,9 @@ Szczegóły i interpretacja znajdują się **na samym początku** [docs/NAJWAZNI
 
 ## Zasady bezpieczeństwa danych i publikacji
 
+**Od 19/20.11.2026 działa prywatna synchronizacja ręcznych odczytów gazu.** Przed zmianami dotyczącymi gazomierza przeczytaj [docs/PRYWATNA-SYNCHRONIZACJA-GAZU.md](docs/PRYWATNA-SYNCHRONIZACJA-GAZU.md) oraz rzeczywisty kod `public/gas-sync.js`. Nie zakładaj, że publiczne `setti-data` przechowuje gaz; plik źródłowy `sync/gazomierz-v1.json` znajduje się **wyłącznie w prywatnym repozytorium**. Nie kopiuj odczytów ani sekretów do publicznego repozytorium. Nie zmieniaj równocześnie archiwum HA i gazu bez udokumentowanego powodu. Użytkownik potwierdził 12 odczytów na iPhonie, TV i poprzez połączenie GitHub, ale **test następnego rzeczywistego odczytu po wdrożeniu jeszcze pozostaje**.
+
+
 - Zachowuj prostą koncepcję dziennika ogrzewania oraz wszystkie sześć pomieszczeń, osiem głowic, drzwi, pomiary, cele, ENGO, kocioł, eksperymenty i historię.
 - Nie commituj ani nie publikuj `private/`, kopii JSON użytkownika, oryginalnego ZIP-a, dokładnego adresu, planu ani geometrii mieszkania. Pakuj tylko listę plików z scripts/package.py.
 - Nie zmieniaj klucza DataStore, identyfikatorów pomieszczeń i manifestu ani domeny bez migracji i testu zachowania danych. Nie obcinaj historii.
