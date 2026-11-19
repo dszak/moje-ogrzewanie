@@ -71,3 +71,36 @@ test('HA exporter normalizes only known entities, merges overlapping windows and
  assert.equal(restored.temperatures.length,1);
  assert.throws(()=>combine(again,{engo:[{at:'2024-11-15T17:00:40Z',status:'off'}],temperatures:[]}),/Kolizja/);
 });
+
+test('ENGO climate sample is normalized, encrypted and merged without losing prior history',async()=>{
+ const {ENGO_CLIMATE,parseEngoClimate,combine,encrypt,decrypt}=await import('../scripts/ha-history-export.mjs');
+ const observed='2024-11-15T19:40:00.000Z';
+ const sample=parseEngoClimate({
+  entity_id:ENGO_CLIMATE,
+  attributes:{current_temperature:22,target_temperature:99,temperature:22},
+  last_updated:'2024-11-15T19:39:00Z'
+ },observed);
+ assert.equal(sample.temp,22);assert.equal(sample.target,22);
+ assert.equal(sample.at,observed);
+ const previous={engo:[{at:'2024-11-15T17:00:00Z',status:'on'}],temperatures:[]};
+ const combined=combine(previous,{engo:[],temperatures:[]},sample);
+ assert.equal(combined.engo.length,1);assert.equal(combined.engo_readings.length,1);
+ const repeat=combine(combined,{engo:[],temperatures:[]},sample);
+ assert.equal(repeat.engo_readings.length,1);
+ const env=encrypt(repeat,PASS),restored=decrypt(env,PASS);
+ assert.equal(browser().validate(restored).engoReadings[0].temp,22);
+ assert.doesNotMatch(JSON.stringify(env),/engo_readings|current_temperature/);
+});
+test('old encrypted archive remains compatible and ENGO measurements are validated',async()=>{
+ const b=browser(),old=b.validate(payload());
+ assert.equal(old.engoReadings.length,0);
+ const good={...payload(),engo_readings:[{
+  at:'2024-11-15T19:40:00.000Z',temp:21.9,target:22,
+  source_updated_at:'2024-11-15T19:39:00.000Z'
+ }]};
+ assert.equal(b.validate(good).engoReadings[0].temp,21.9);
+ assert.throws(()=>b.validate({...good,engo_readings:[{...good.engo_readings[0],temp:'21.9'}]}),
+  /termostatu ENGO/);
+ const {parseEngoClimate,ENGO_CLIMATE}=await import('../scripts/ha-history-export.mjs');
+ assert.equal(parseEngoClimate({entity_id:ENGO_CLIMATE,attributes:{current_temperature:'22',temperature:22}}),null);
+});
