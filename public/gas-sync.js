@@ -124,7 +124,7 @@ const GasSync=(()=>{
    return true;
  }
  async function disconnect(){
-   await eraseKey();credential=null;remote=[];remoteAt=null;
+   await eraseKey();pause();credential=null;remote=[];remoteAt=null;
    message='Odłączono prywatne archiwum. Lokalnych wpisów nie zmieniono.';
  }
  async function refresh(){
@@ -138,6 +138,7 @@ const GasSync=(()=>{
    const hash=await crypto.subtle.digest('SHA-256',bytes);
    return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
  }
+ function pause(){const m=meta();m.active=false;storeMeta(m)}
  async function activate(){
    if(credential?.role!=='write')error('Do wysyłania wymagany jest klucz zapisu iPhone.');
    const m=meta();m.active=true;storeMeta(m);
@@ -190,5 +191,5 @@ const GasSync=(()=>{
      count:remote.length,remoteAt,busy,message};
  }
  return {normalize,connect,restore,disconnect,refresh,activate,synchronize,status,
-   remoteReadings:()=>remote.slice(),isConnected:()=>!!credential};
+   remoteReadings:()=>remote.slice(),isConnected:()=>!!credential,pause};
 })();
