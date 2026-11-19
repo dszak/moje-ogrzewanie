@@ -14,6 +14,7 @@ const ROOM_ENTITIES={
  hall:'sensor.setti_ss302_przedpokoj_setti_przedpokoj_temperatura_mqtt'
 };
 const ENGO='binary_sensor.engo_e901wifi_monitoring_zadanie_ogrzewania';
+const ENGO_CLIMATE='climate.wireless_internet_thermostat_wi_fi';
 const FILE_URL='https://api.github.com/repos/'+REPO+'/contents/'+FILE+'?ref='+BRANCH;
 const roomFor=new Map(Object.entries(ROOM_ENTITIES).map(([id,e])=>[e,id]));
 function requireEnv(name){const x=process.env[name];if(!x)throw Error('Brak zmiennej '+name);return x}
@@ -56,7 +57,19 @@ function normalizeHistory(groups){
  }
  return {engo,temperatures};
 }
-function combine(old,next){
+// A read-only HA state snapshot. The timestamp "at" is the moment of our
+// observation; source_updated_at is HA's last update, which may be older.
+function parseEngoClimate(state,at=new Date().toISOString()){
+ if(!state||state.entity_id!==ENGO_CLIMATE)throw Error('Nieoczekiwana encja ENGO');
+ const attr=state.attributes||{},temp=attr.current_temperature,target=attr.temperature;
+ if(typeof temp!=='number'||!Number.isFinite(temp)||temp<0||temp>45)return null;
+ const safeTarget=typeof target==='number'&&Number.isFinite(target)&&target>=5&&target<=35?target:null;
+ const last=state.last_updated;
+ const sourceUpdated=typeof last==='string'&&Number.isFinite(Date.parse(last))?
+  new Date(last).toISOString():null;
+ return {at:new Date(at).toISOString(),temp,target:safeTarget,source_updated_at:sourceUpdated};
+}
+function combine(old,next,climateReading=null){
  const byMinute=new Map(),tempMap=new Map();
  for(const e of [...(old.engo||[]),...next.engo]){
   if(!['on','off'].includes(e.status)||!Number.isFinite(Date.parse(e.at)))throw Error('Błędny stan ENGO');
@@ -72,11 +85,25 @@ function combine(old,next){
   if(tempMap.has(k)&&tempMap.get(k).temp!==e.temp)throw Error('Sprzeczny odczyt tej samej temperatury');
   tempMap.set(k,{room:e.room,at,temp:e.temp});
  }
+ const engoReadingsMap=new Map();
+ for(const e of [...(old.engo_readings||[]),...(next.engo_readings||[]),...(climateReading?[climateReading]:[])]){
+  if(!e||typeof e.at!=='string'||!Number.isFinite(Date.parse(e.at))||
+     typeof e.temp!=='number'||!Number.isFinite(e.temp)||e.temp<0||e.temp>45||
+     !(e.target===null||(typeof e.target==='number'&&Number.isFinite(e.target)&&e.target>=5&&e.target<=35))||
+     !(e.source_updated_at==null||(typeof e.source_updated_at==='string'&&Number.isFinite(Date.parse(e.source_updated_at)))))
+   throw Error('Nieprawidłowy odczyt termostatu ENGO');
+  const at=new Date(e.at).toISOString(),k=at;
+  const reading={at,temp:e.temp,target:e.target,source_updated_at:e.source_updated_at||null};
+  if(engoReadingsMap.has(k)&&JSON.stringify(engoReadingsMap.get(k))!==JSON.stringify(reading))
+   throw Error('Sprzeczny odczyt ENGO w tym samym momencie');
+  engoReadingsMap.set(k,reading);
+ }
+ const engoReadings=[...engoReadingsMap.values()].sort((a,b)=>a.at.localeCompare(b.at));
  const engo=[...byMinute.values()].sort((a,b)=>a.at.localeCompare(b.at));
  const temperatures=[...tempMap.values()].sort((a,b)=>a.at.localeCompare(b.at)||a.room.localeCompare(b.room));
- if(engo.length>40000||temperatures.length>25000)
+ if(engo.length>40000||temperatures.length>25000||engoReadings.length>25000)
   throw Error('Historia osiągnęła limit aplikacji — nie wolno jej po cichu przycinać');
- return {format:'moje-ogrzewanie-ha-historia',version:1,generated_at:new Date().toISOString(),engo,temperatures};
+ return {format:'moje-ogrzewanie-ha-historia',version:1,generated_at:new Date().toISOString(),engo,temperatures,engo_readings:engoReadings};
 }
 async function github(path,token,opts={}){
  const res=await fetch(path,{...opts,headers:{
@@ -102,6 +129,16 @@ async function main(){
  const resp=await fetch(url,{headers:{Authorization:'Bearer '+haToken,'Content-Type':'application/json'}});
  if(!resp.ok)throw Error('Home Assistant HTTP '+resp.status);
  const newData=normalizeHistory(await resp.json());
+ // Optional, read-only sample from the already connected HA/Tuya climate entity.
+ // A failed climate read must not interrupt the established ENGO ON/OFF export.
+ let climateReading=null;
+ try{
+  const climateResp=await fetch(haUrl+'/api/states/'+encodeURIComponent(ENGO_CLIMATE),{
+   headers:{Authorization:'Bearer '+haToken,'Content-Type':'application/json'}});
+  if(climateResp.ok)climateReading=parseEngoClimate(await climateResp.json());
+  else console.error('ENGO climate: brak odpowiedzi (HTTP '+climateResp.status+'); zachowano pozostały eksport.');
+ }catch(_){console.error('ENGO climate: brak pomiaru; zachowano pozostały eksport.')}
+
  if(newData.engo.length===0&&newData.temperatures.length===0)
   throw Error('Brak rozpoznanej historii w HA — przerwano eksport zamiast publikować pusty plik');
  let previous={engo:[],temperatures:[]},sha=null,salt;
@@ -113,7 +150,7 @@ async function main(){
   previous=decrypt(env,pass);
   salt=Buffer.from(env.salt,'base64'); // Keep KDF salt stable for iPhone's remembered CryptoKey.
  }else if(current.status!==404)throw Error('GitHub odczyt: HTTP '+current.status);
- const merged=combine(previous,newData);
+ const merged=combine(previous,newData,climateReading);
  const ciphertext=JSON.stringify(encrypt(merged,pass,salt),null,2)+'\n';
  const encoded=Buffer.from(ciphertext,'utf8').toString('base64');
  await github('https://api.github.com/repos/'+REPO+'/contents/'+FILE,ghToken,{
@@ -126,4 +163,4 @@ async function main(){
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  main().catch(err=>{console.error(err.message);process.exitCode=1});
 }
-export {encrypt,decrypt,normalizeHistory,combine,ROOM_ENTITIES,ENGO};
+export {encrypt,decrypt,normalizeHistory,combine,parseEngoClimate,ROOM_ENTITIES,ENGO,ENGO_CLIMATE};
