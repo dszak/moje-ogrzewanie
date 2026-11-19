@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "last_sync": "2026-11-19T15:00:11+00:00",
+  "last_sync": "2026-11-19T15:10:11+00:00",
   "rooms": {
     "bedroom": {
       "temperature": 22.0,
@@ -24,7 +24,7 @@
     },
     "hall": {
       "temperature": 20.5,
-      "humidity": 57.0
+      "humidity": 56.0
     }
   }
 }
