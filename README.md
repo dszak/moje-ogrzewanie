@@ -4,13 +4,23 @@
 
 Prosty dziennik komfortu i zużycia gazu. Zachowuje sześć pomieszczeń, osiem głowic, drzwi, ENGO Smart, nastawę kotła, cele temperatury, pomiary Setti+, warunki i licznik gazu, eksperymenty oraz historię. Temperatura zewnętrzna dla Katowic jest pobierana automatycznie z Open-Meteo; odczyty gazomierza i nastawy wpisuje się ręcznie, a aktualne pomiary Setti+ aplikacja pobiera z publicznego pliku JSON w gałęzi `setti-data`. Aplikacja nie steruje urządzeniami.
 
+## Status operacyjny — 20.11.2026
+
+**Prywatna synchronizacja odczytów gazomierza została uruchomiona i sprawdzona na rzeczywistych urządzeniach.** iPhone zapisuje odczyty lokalnie i — po osobnym włączeniu archiwizacji — przesyła je przez uwierzytelniony Cloudflare Worker do **prywatnego** repozytorium `dszak/moje-ogrzewanie-archiwum`. Sony Bravia (TV Bro) pobiera te same odczyty kluczem tylko do odczytu; ChatGPT może odczytać archiwum na żądanie przez połączone konto GitHub.
+
+**Potwierdzono 12 odczytów i 12 zdarzeń w prywatnym archiwum, 11 interwałów prezentowanych na TV.** Sprawdzono brak anonimowego dostępu (HTTP 401), dostęp kluczem (HTTP 200), zapis z iPhone'a, pobranie na TV i odczyt przez połączony GitHub. Nadal do przeprowadzenia: test przyszłego 13. rzeczywistego odczytu, ponownego uruchomienia urządzeń i dłuższej przerwy offline. **Tą drogą nie synchronizuje się innych ustawień ani pełnej kopii aplikacji.**
+
+- **[Instrukcja, uprawnienia, bezpieczeństwo i testy prywatnej synchronizacji gazu](docs/PRYWATNA-SYNCHRONIZACJA-GAZU.md)**.
+- Dane gazowe nie są publikowane w publicznym `main`, `setti-data` ani w GitHub Pages. Plik źródłowy to `sync/gazomierz-v1.json` w **prywatnym repozytorium**.
+- Klucze przechowujemy w Hasłach Apple: `SYNC_WRITE` (iPhone), `SYNC_READ` (TV). Serwerowy `GITHUB_TOKEN` pozostaje wyłącznie w sekretach Cloudflare. Nie umieszczać ich wartości w repozytorium ani rozmowie.
+
 ## Jak działa cały system?
 
-**[Architektura „Moje Ogrzewanie” — ENGO, Setti+, Tuya, Home Assistant, MacBook, GitHub, iPhone i ChatGPT](docs/JAK-DZIALA-SYSTEM-OGRZEWANIA.md)** — aktualny schemat przepływu danych, automatyzacji, ograniczeń i postępowania przy awariach (stan 18.11.2026).
+**[Architektura „Moje Ogrzewanie” — ENGO, Setti+, Tuya, Home Assistant, MacBook, GitHub, iPhone i ChatGPT](docs/JAK-DZIALA-SYSTEM-OGRZEWANIA.md)** — aktualny schemat przepływu danych, automatyzacji, ograniczeń i postępowania przy awariach (stan 20.11.2026).
 
 ## Wersja 1.2 · Gaz i pogoda
 
-Zakładka **Gaz i pogoda** pobiera temperaturę godzinową dla Katowic z Open-Meteo (dane modelowe, nie pomiary stacji), po uruchomieniu aplikacji i na żądanie. Archiwum obejmuje do roku wstecz, w miarę dostępności API i internetu. Dane pogodowe i odczyty użytkownika pozostają lokalnie w aplikacji.
+Zakładka **Gaz i pogoda** pobiera temperaturę godzinową dla Katowic z Open-Meteo (dane modelowe, nie pomiary stacji), po uruchomieniu aplikacji i na żądanie. Archiwum obejmuje do roku wstecz, w miarę dostępności API i internetu. Dane pogodowe pozostają lokalne; odczyty użytkownika są zapisywane lokalnie, a po świadomym włączeniu synchronizacji kopia **samych odczytów gazu** trafia także do prywatnego archiwum (szczegóły w aktualizacji z 20.11.2026 powyżej).
 
 - Jednorazowy import historii ORLEN: skopiuj wiersze `RRRR-MM-DD;nowy;100` (lub `stary` dla poprzedniego gazomierza) do pola **Wklej wiele odczytów ORLEN**. Brak dokładnej godziny jest zapisywany jako 12:00 i statystyki takiej doby są orientacyjne. Import dopisuje dane, nie zastępuje poprzednich wpisów.
 - Dwa odczyty z tego samego licznika dają m³ w okresie i m³/dobę; nigdy nie odejmuje się odczytów różnych liczników.
@@ -19,7 +29,7 @@ Zakładka **Gaz i pogoda** pobiera temperaturę godzinową dla Katowic z Open-Me
 - Offline dotychczasowe dane działają dalej. Nowej pogody ani nowych pomiarów Setti+ aplikacja nie pobierze bez internetu.
 - Automatyczne pomiary Setti+ służą tylko do odczytu; po 20 minutach od ostatniej synchronizacji oznaczane są jako nieaktualne. Można nadal wprowadzać własne pomiary ręcznie.
 - Przy nowym bieżącym odczycie gazu (nie przy imporcie ORLEN) aplikacja zapisuje lokalnie także migawkę sześciu pomiarów Setti+, jeśli są aktualne. Czas synchronizacji nie jest gwarantowanym czasem fizycznego pomiaru.
-- Publiczne temperatury i wilgotność są odczytywane z `https://raw.githubusercontent.com/dszak/moje-ogrzewanie/setti-data/pomiary.json` bez jakichkolwiek tokenów w aplikacji. GitHub ani MacBook nie otrzymują historii gazu.
+- Publiczne temperatury i wilgotność są odczytywane z `https://raw.githubusercontent.com/dszak/moje-ogrzewanie/setti-data/pomiary.json` bez jakichkolwiek tokenów w aplikacji. Publiczna gałąź `setti-data` nie otrzymuje historii gazu; od 20.11.2026 **prywatne** repozytorium GitHub otrzymuje zatwierdzone odczyty przez Cloudflare Worker.
 
 ## Wersja 1.3.1 · czytelna historia gazu na telefonie
 
@@ -37,7 +47,7 @@ Zakładka **Panel ogrzewania** łączy w jednym widoku temperaturę i wilgotnoś
 - Zakładka Gaz i pogoda posiada osobne **porównania dobowe**, wyszukujące odczyt najbliższy 24 godzinom wstecz (przyjmowany odstęp: 18–30 godzin), nawet jeśli wystąpiły pomiary pośrednie. Porównanie odbywa się wyłącznie między odczytami tego samego gazomierza. Krótsze niż 18 godzin okresy prezentują przeliczenie m³/dobę z oznaczeniem **szac.**; jest to tempo orientacyjne, nie obserwacja całej doby.
 - Pogoda jest odświeżana po otwarciu aplikacji, po jej przywróceniu na ekran i po ponownym połączeniu z internetem — jeżeli poprzednie pobranie było co najmniej 12 godzin wcześniej. Przycisk ręczny pozostaje jako opcja awaryjna.
 - Tekst i opisy na telefonie zostały powiększone, a panel korzysta z czytelnych kart bez wykresów.
-- Nie zmieniono klucza zapisu `moje-ogrzewanie-data-v1`, struktury lokalnych danych, istniejących pomieszczeń, identyfikatorów ani dotychczasowej historii. GitHub nie otrzymuje prywatnych odczytów gazu.
+- Nie zmieniono klucza zapisu `moje-ogrzewanie-data-v1`, struktury lokalnych danych, istniejących pomieszczeń, identyfikatorów ani dotychczasowej historii. Publiczny GitHub Pages nie otrzymuje prywatnych odczytów; od 20.11.2026 ich kopia jest zapisywana w osobnym prywatnym repozytorium po włączeniu usługi.
 
 ### Zaplanowane oddzielnie na kolejną wersję
 
@@ -119,10 +129,11 @@ Historia jest przechowywana **tylko lokalnie** jako opcjonalne `boilerReadings` 
 
 ## Uruchomienie i publikacja
 
+**Stan faktyczny:** aplikacja jest opublikowana pod [https://dszak.github.io/moje-ogrzewanie/](https://dszak.github.io/moje-ogrzewanie/) i była otwierana na iPhonie oraz w TV Bro; procedura poniżej to instrukcja budowania/utrzymania, nie plan pierwszej publikacji.
+
 Aplikacja nie wymaga instalowania bibliotek. Podgląd: `python3 -m http.server 8765 --directory public`. Otwórz `http://localhost:8765`.
 
-Publikacja wymaga uprzedniej zgody właściciela. Proponowana nazwa repozytorium: `moje-ogrzewanie`.
-Po utworzeniu repozytorium włączyć Settings → Pages → Source: GitHub Actions. Wysłać sprawdzoną wersję na gałąź `main`. Workflow sprawdza testy, przygotowuje wyłącznie dozwolone pliki z `public/` i publikuje Pages. Adres należy odczytać z zakończonego wdrożenia, nie zgadywać.
+Kolejne **zmiany funkcji** wymagają zgody właściciela, przeglądu testów i właściwego wdrożenia przez GitHub Actions. Repozytorium i GitHub Pages już istnieją. Sam commit ani zakończony test nie zastępują weryfikacji działania nowej wersji na urządzeniach.
 
 ## Kolejne aktualizacje
 
@@ -136,7 +147,7 @@ Nigdy nie publikować prywatnych kopii, planu mieszkania ani pierwotnego ZIP-a. 
 
 ## Dane i kopie
 
-Dane są lokalne; GitHub otrzymuje kod, nie wpisy użytkownika. Brak analityki i zewnętrznych bibliotek. Publiczny kod nie zawiera dokładnego adresu, geometrii mieszkania ani planu. Zakładka Mapa pozwala dodać lokalny plik SVG/PNG/JPEG (do 2 MB), zawarty następnie w kopii JSON.
+**Wpisy użytkownika pozostają w lokalnym DataStore**. Wyjątkiem jest świadomie uruchomiona synchronizacja **odczytów gazomierza** do odrębnego, prywatnego repozytorium GitHub. Publiczne repozytorium otrzymuje tylko kod i dokumentację, bez jawnych odczytów. Brak analityki i zewnętrznych bibliotek. Publiczny kod nie zawiera dokładnego adresu, geometrii mieszkania ani planu. Zakładka Mapa pozwala dodać lokalny plik SVG/PNG/JPEG (do 2 MB), zawarty następnie w kopii JSON.
 
 - Ustawienia → Pobierz kopię JSON: zapisz w Plikach / iCloud, najlepiej po każdym eksperymencie. CSV zawiera tylko pomiary, nie pełną kopię.
 - Ustawienia → Wczytaj kopię JSON: po potwierdzeniu zastępuje dane, zachowując poprzedni poprawny zapis jako lokalną kopię odzyskiwania.
@@ -145,13 +156,13 @@ Dane są lokalne; GitHub otrzymuje kod, nie wpisy użytkownika. Brak analityki i
 - Wersja 1.0 jest zgodna z importem. Gdy działała pod innym adresem lub jako plik, wyeksportuj z niej JSON i zaimportuj do nowej aplikacji. Paczka ZIP nie zawiera historii przechowywanej w przeglądarce.
 - Safari i aplikacja z ekranu początkowego mogą korzystać z odrębnego zapisu. W razie potrzeby przenieś dane kopią JSON.
 - Pamięć przeglądarki nie gwarantuje przetrwania czyszczenia danych, utraty telefonu ani usunięcia aplikacji. Przycisk „Chroń zapis na urządzeniu” wysyła prośbę; przeglądarka może odmówić.
-- Nie ma synchronizacji między urządzeniami. Publiczne aplikacje pod tym samym hostem Pages współdzielą pochodzenie przeglądarki; na tym hoście utrzymuj tylko zaufany kod.
+- **Między iPhone'em a TV synchronizowane są wyłącznie odczyty gazu, poprzez prywatne archiwum i dwa różne klucze dostępu.** Pozostałe lokalne ustawienia, pamięć projektu i pełne kopie JSON nie są synchronizowane między urządzeniami. Publiczne aplikacje pod tym samym hostem Pages współdzielą pochodzenie przeglądarki; na tym hoście utrzymuj tylko zaufany kod.
 
 ## iPhone
 
 Po publikacji otwórz HTTPS w Safari → Udostępnij → Do ekranu początkowego (włącz otwieranie jako aplikacja, jeśli widoczne) → Dodaj. Uruchom z nowej ikony, zapisz testowy pomiar i kopię JSON. Zamknij i otwórz ponownie; potem sprawdź tryb samolotowy. Pierwsze otwarcie musi odbyć się online.
 
-Przygotowano manifest, ikony, obszary bezpieczne ekranu, pola 16 px, przyciski dotykowe i pamięć offline. Test na prawdziwym iPhonie i test publicznego wdrożenia pozostają do wykonania po zatwierdzeniu publikacji.
+Przygotowano manifest, ikony, obszary bezpieczne ekranu, pola 16 px, przyciski dotykowe i pamięć offline. **Wykonano test na rzeczywistym iPhonie i Sony Bravia w TV Bro** dla prywatnej synchronizacji gazomierza 19/20.11.2026. Nie zastępuje to pełnego regresyjnego testu wszystkich funkcji ani próby 13. rzeczywistego wpisu.
 
 ## Weryfikacja
 
@@ -161,6 +172,6 @@ Przygotowano manifest, ikony, obszary bezpieczne ekranu, pola 16 px, przyciski d
 
 `python3 scripts/package.py`
 
-Testy obejmują funkcje ogrzewania, zachowanie danych, import starej wersji, uszkodzone kopie, brak miejsca, konflikt kart, odzyskiwanie i historię. Pakiet publikacyjny powstaje w `dist/`; kopie użytkownika są wykluczone.
+Testy obejmują funkcje ogrzewania, zachowanie danych, import starej wersji, uszkodzone kopie, brak miejsca, konflikt kart, odzyskiwanie, historię oraz klienta synchronizacji gazu (idempotentność, korekty, usuwanie, odczyt TV i błędy sieci). Pakiet publikacyjny powstaje w `dist/`; kopie użytkownika są wykluczone.
 
 Dokumentacja: [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [instalacja na iPhonie](https://support.apple.com/en-lamr/guide/iphone/iphea86e5236/ios), [trwałość pamięci WebKit](https://webkit.org/blog/14403/updates-to-storage-policy/).
