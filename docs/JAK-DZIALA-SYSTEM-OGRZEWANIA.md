@@ -1,6 +1,6 @@
 # Architektura systemu „Moje Ogrzewanie” — jak to działa
 
-> **Stan opisany na 18 listopada 2026 r.** Dokument przedstawia działające elementy oraz ograniczenia i zadania do sprawdzenia. Nie zawiera adresu mieszkania, prywatnego adresu HA, kluczy, tokenów ani danych pomiarowych. Jest opisem operacyjnym, nie instrukcją zmiany zabezpieczeń kotła.
+> **Stan bazowy na 18 listopada 2026 r., aktualizacja operacyjna 19 listopada w sekcji 12.** Dokument przedstawia działające elementy oraz ograniczenia i zadania do sprawdzenia. Nie zawiera adresu mieszkania, prywatnego adresu HA, kluczy, tokenów ani danych pomiarowych. Jest opisem operacyjnym, nie instrukcją zmiany zabezpieczeń kotła.
 >
 > **Zasady nadrzędne:** [najważniejsze zasady projektu](NAJWAZNIEJSZE-ZASADY-PROJEKTU.md) · [baza wiedzy technicznej](BAZA-WIEDZY-TECHNICZNEJ.md) · [zasady analitycznego archiwum](ARCHIWUM-ANALITYCZNE-PROJEKT.md).
 >
@@ -173,3 +173,19 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 - [Panel Tuya Developer](https://iot.tuya.com/) — konto programistyczne, dostęp do usług i status przedłużenia
 
 **Zasada aktualizacji:** zmiana architektury (urządzenie, usługa, harmonogram, skrypt, repozytorium, bezpieczeństwo) wymaga aktualizacji tego dokumentu i daty stanu. Samo dodanie nowej dokumentacji nie zmienia działania urządzeń ani automatyzacji.
+
+## 12. Zmiany potwierdzone 19.11.2026 — odczyt ENGO i badania głowic
+
+**Działający odczyt ENGO (MacBook):** do cyklicznego, szyfrowanego eksportu HA dodano okresowe odczyty encji `climate.wireless_internet_thermostat_wi_fi` — `current_temperature` i `temperature`. Po testach i wykonaniu kopii zapasowych potwierdzono faktyczne próbki w `engo_readings` zaszyfrowanego pliku na `setti-data`. Prywatny synchronizator udostępnia je uprawnionym odbiorcom jako `ha/engo-pomiary/YYYY-MM-DD.json`, z polami `at`, `temp`, `target`, `source_updated_at`. Indeks prywatnego repozytorium zawiera licznik `engo_temperature_readings`. **To próbki okresowe, nie nieprzerwany strumień i nie dane o palniku.**
+
+**Stan wydań:** lokalne skrypty produkcyjne na MacBooku zostały zaktualizowane i sprawdzone. Odpowiadające im zmiany w publicznym kodzie aplikacji są nadal propozycją na gałęzi `feat/engo-actual-temperature` (PR #23), **nie są scalone z `main` ani automatycznie wdrożone na iPhonie**. Dokumentacja kodu w PR może nie odzwierciedlać już stanu lokalnych skryptów, dopóki nie zostanie zaktualizowana.
+
+**Działający mostek SETTI+:** istniejąca sesja Tuya z jedynym wywołaniem `devices()` w `one_cycle()` zapisuje lokalnie, prywatnie (nie do publicznej gałęzi):
+- `trv-passive-observations.jsonl` — m.in. DPS 3, 102, 103, 104;
+- `trv-status-obserwacje.jsonl` — m.in. DPS 3, 101, 104, 108 i zdekodowaną tablicę `dps119_24_values`.
+
+Działający mostek **już dekoduje i zbiera DPS 119**; niezależny moduł `scripts/trv_dps_history.py` z PR #22 pozostaje prototypem, którego nie należy wdrażać jako duplikatu drugiego mechanizmu. Dane te **nie trafiają jeszcze automatycznie do prywatnego repozytorium GitHub** — do zdalnej analizy potrzeba osobnego, świadomie zaprojektowanego eksportu lub przekazania wyników.
+
+**Znaczenie DPS 119:** 24 wartości odpowiadają godzinowym słupkom „Czas ogrzewania (%)” SETTI+; aktualizacja kolejnego indeksu następuje najpewniej po zakończeniu godziny. To historyczny wskaźnik aplikacji, **nie pewny stan otwarcia zaworu, czas działania kotła ani pomiar przepływu wody**. Niskie/zerowe wartości nie muszą oznaczać zimnego grzejnika. DPS 3, 101, 104, 108 nie dały dotąd wiarygodnego sygnału bieżącego otwarcia. Szczegóły i ograniczenia: [badania DPS TRV001](SETTI-TRV-DPS-BADANIA.md) (w przygotowaniu na PR #22); pełne dane przypadków wyłącznie w archiwum prywatnym.
+
+**Kwestia otwarta:** użytkownik wysłał do SETTI+ pytanie o udostępnienie aktualnego otwarcia zaworu 0–100% przez oryginalną bramkę i identyfikator DPS. Nie podejmować nowych eksperymentów sterujących ani nie zmieniać bramki bez uzasadnienia i zgody.
