@@ -92,12 +92,51 @@ function gasEditor(){
   <div class="actions" style="margin-top:12px"><button class="action" data-action="save-gas-edit">Zapisz poprawkę</button><button class="action ghost" data-action="cancel-gas-edit">Anuluj</button></div></section>`;
 }
 function roomCard(r){let live=Setti.room(r.id),stale=!live?Setti.lastRoom(r.id):null,rec=live||stale||last(r.id),status=stat(r.id);return `<button class="room-card" data-action="open-room" data-room="${r.id}" aria-label="Otwórz: ${r.name}"><div class="room-top"><span class="room-icon">${r.icon}</span><span class="pill ${status[1]}">${status[0]}</span></div><div class="room-name">${r.name}</div><div class="room-sub">${r.sensor} Setti+ · ${r.rads.length?`${r.rads.length} grzejnik${r.rads.length===1?'':'i'}`:'bez grzejnika'}</div><div class="room-temps"><div><div class="reading">${rec?T(rec.temp):'—'}</div><div class="reading-label">${live?'Setti+ automatycznie':stale?'Setti+ · nieaktualne':'zapis ręczny'}</div></div><div><div class="reading" style="color:#426b5e;font-size:24px">${T(state.rooms[r.id].target)}</div><div class="reading-label">Twój cel</div></div></div><div class="room-foot"><span>${rec?(live?'Synchronizacja: ':stale?'Nieaktualny pomiar z ':'Ręcznie: ')+day(rec.at):'Jeszcze nie wpisano odczytu'}</span><span style="color:var(--teal);font-weight:800">Otwórz →</span></div></button>`}
-function renderHome(){let n=ROOMS.filter(r=>latestReading(r.id)).length, active=state.experiments.find(e=>e.status==='active');
+function renderHomeLegacy(){let n=ROOMS.filter(r=>latestReading(r.id)).length, active=state.experiments.find(e=>e.status==='active');
 return `${sec('Twoje mieszkanie','Wybierz pomieszczenie, sprawdź pomiary i ustaw cele.')}${settiBanner()}<section class="card moral-home" aria-label="Zasada naczelna projektu"><p class="moral-home-label">Zasada naczelna</p><strong>${esc(MemoryKit.ETHICS.principle)}</strong><p>${esc(MemoryKit.ETHICS.purpose)}</p><button class="text-link" data-action="page" data-page="memory">Cztery cnoty kardynalne · Pamięć projektu →</button></section><div class="banner"><span>ℹ️</span><span><b>Integracja pogodowa.</b> Pogoda pobierana automatycznie dla Katowic. Odczyty Setti+ są pobierane z publicznego pliku, a rzeczywiste odczyty ośmiu głowic znajdziesz w Panelu ogrzewania (bez sterowania urządzeniami). Aplikacja nie steruje ogrzewaniem. Twoje wpisy i historia gazu pozostają lokalnie w przeglądarce.</span></div>
 <div class="grid cols3" style="margin-bottom:23px"><div class="stat"><div class="label">Kocioł · temperatura zadana</div><strong>${fmt(state.global.boiler,0)}°C</strong><small>BRÖTJE · wspólna nastawa · <button class="text-link" data-action="page" data-page="boiler">Liczniki kotła →</button></small></div><div class="stat"><div class="label">ENGO · temperatura zadana</div><strong>${T(state.global.engo)}</strong><small>Sypialnia · steruje kotłem</small></div><div class="stat"><div class="label">Pomieszczenia z pomiarem</div><strong>${n} / 6</strong><small>Własne odczyty Setti+ · ${active?'trwa eksperyment':'brak aktywnego eksperymentu'}</small></div></div>
 <div class="group-heading"><h3>Pomieszczenia</h3><span class="small muted">Kliknij, żeby wejść do pokoju</span></div><div class="grid cols3">${ROOMS.map(roomCard).join('')}</div>
 <div class="grid cols2" style="margin-top:18px"><section class="card"><div class="group-heading"><h3>Licznik gazu i pogoda</h3><span class="pill">pogoda automatyczna</span></div><p class="subtitle" style="margin-bottom:16px"><b>${esc(weatherStatus())}</b><br>Temperatura zewnętrzna jest pobierana automatycznie z Open-Meteo. Wpisujesz jedynie stan gazomierza; bez internetu odczyt nadal można zapisać. <button class="text-link" data-action="page" data-page="insights">Analiza zużycia →</button></p><div class="form-grid"><div><label for="gas">Licznik gazu (m³)</label><input id="gas" type="number" step="0.001" min="0" placeholder="stan licznika"></div><div class="wide"><label for="sky">Warunki</label><select id="sky"><option value="unknown">Nie odnotowano</option><option value="sun">Słonecznie</option><option value="clouds">Pochmurno</option><option value="mixed">Zmiennie</option></select></div></div><div class="actions" style="margin-top:14px"><button class="action" data-action="record-conditions">Zapisz obserwację</button></div>${renderLastConditions()}</section>
 <section class="card"><div class="group-heading"><h3>Co robimy teraz?</h3><span class="pill">Plan</span></div><p class="muted" style="font-size:13px;line-height:1.65">Zaplanuj jedną zmianę, np. położenia ENGO. Pozostałe nastawy pozostaw bez zmian. Porównuj temperaturę ENGO z T1 Setti+ oraz odczytem T6.</p><div class="note" style="margin-top:15px"><b>Uwaga przed testem:</b> sprawdź baterię termostatu i czujników przed dłuższym pomiarem.</div><div class="actions" style="margin-top:15px"><button class="action light" data-action="page" data-page="experiments">Przejdź do eksperymentów →</button></div></section></div>`}
+
+
+/* Compact read-only overview: original forms and help remain available in a collapsed legacy section.
+   Never infer live boiler firing, ENGO relay state or valve opening from these data. */
+function renderHome(){
+ const sensors=Setti.status(),heads=Heads.status(),headSnap=Heads.lastSnapshot();
+ const roomsReady=ROOMS.filter(r=>!!Setti.room(r.id)).length;
+ const headRows=ROOMS.flatMap(r=>r.rads.map(id=>{
+   const h=headSnap?.heads[id.toLowerCase()];
+   return '<div class="panel-head"><b>'+esc(id)+' · '+esc(r.name)+'</b>'+
+     '<span>Przy głowicy: <strong>'+(h?T(h.temperature):'—')+'</strong></span>'+
+     '<span>Nastawa: <strong>'+(h?T(h.target_temperature):'—')+'</strong></span></div>';
+ })).join('');
+ const recentEngo=(state.engoCycles||[]).slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))[0];
+ return `${sec('Pulpit ogrzewania','Bieżące pomiary automatyczne, bez sterowania urządzeniami.')}
+ <div class="banner ${sensors.ok&&heads.ok?'info':'warn'}"><span>🌡️</span><span><b>Czujniki: ${esc(sensors.label)}</b> ${sensors.at?'· '+day(sensors.at):''}<br><b>Głowice: ${esc(heads.label)}</b> ${heads.at?'· '+day(heads.at):''}<br><button class="text-link" data-action="refresh-setti">Odśwież czujniki</button> · <button class="text-link" data-action="refresh-heads">Odśwież głowice</button></span></div>
+ <div class="grid cols3" style="margin-bottom:20px">
+ <div class="stat"><div class="label">Pomieszczenia · aktualne</div><strong>${roomsReady} / 6</strong><small>Pomiar pokojowy Setti+</small></div>
+ <div class="stat"><div class="label">ENGO · zapisana nastawa</div><strong>${T(state.global.engo)}</strong><small>Wpis ręczny, nie odczyt na żywo</small></div>
+ <div class="stat"><div class="label">Kocioł · zapisana nastawa</div><strong>${T(state.global.boiler)}</strong><small>Wpis ręczny, nie temperatura rzeczywista</small></div></div>
+ <div class="group-heading"><h3>Temperatury w mieszkaniu</h3><span class="small muted">Kliknij pomieszczenie, by zobaczyć szczegóły</span></div>
+ <div class="grid cols3" style="margin-bottom:20px">${ROOMS.map(roomCard).join('')}</div>
+ <section class="card" style="margin-bottom:16px">
+ <div class="group-heading"><h3>Głowice TRV001</h3><span class="pill ${heads.ok?'ok':'cold'}">${heads.ok?'odczyty aktualne':'odczyty nieaktualne'}</span></div>
+ <p class="subtitle">Temperatura przy głowicy różni się od temperatury pokoju. Nastawa nie oznacza otwarcia zaworu.</p>
+ <div class="panel-heads">${headRows}</div>
+ <div class="actions" style="margin-top:14px"><button class="action light" data-action="page" data-page="heads">Pełne dane głowic i czujników</button></div></section>
+ <section class="card" style="margin-bottom:16px">
+ <div class="group-heading"><h3>Historia i analiza</h3><span class="pill">bez sterowania</span></div>
+ <p class="subtitle">${recentEngo?'Ostatnio zapisane żądanie ENGO: '+(recentEngo.status==='on'?'ON':'OFF')+' · '+day(recentEngo.at)+' (historyczne, nie stan bieżący).':'Nie ma jeszcze lokalnej historii żądań ENGO na tym urządzeniu.'}</p>
+ <div class="actions" style="margin-top:14px">
+ <button class="action light" data-action="page" data-page="engo-cycles">Cykle ENGO</button>
+ <button class="action light" data-action="page" data-page="temperatures">Wykresy temperatur</button>
+ <button class="action light" data-action="page" data-page="insights">Gaz i pogoda</button>
+ <button class="action ghost" data-action="page" data-page="review">Analiza i decyzje</button></div></section>
+ <details class="card" style="margin-top:16px"><summary style="cursor:pointer;font-weight:750">Starszy dziennik i formularze ręczne</summary>
+ <p class="hint">Zachowaliśmy wcześniejszy pulpit, wpisy gazu, obserwacje i plan eksperymentów. Rozwiń tylko wtedy, gdy ich potrzebujesz.</p>
+ <div style="margin-top:18px">${renderHomeLegacy()}</div></details>`;
+}
 
 function dateLocal(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 function weatherStatus(){const w=state.weather||{hourly:[],updated:null},p=Insights.near(w.hourly,Date.now());return p?'Katowice: '+T(p.temp)+' · odczyt modelowy '+day(new Date(p.at*1000).toISOString()):w.hourly.length?'Katowice: brak aktualnej temperatury · ostatnia aktualizacja pogody: '+day(w.updated):'Katowice: oczekiwanie na dane pogodowe — wymagany internet.'}
