@@ -70,6 +70,8 @@ Sygnał ENGO **ON/OFF oznacza zapotrzebowanie na ciepło**, a nie potwierdzone w
                 +----> ChatGPT: odczyt poprzez uprawnione GitHub
 ```
 
+**Nowy tor dostępu do panelu HA na telewizorze (wdrożony i przetestowany 20.11.2026):** Sony Bravia (TV Bro + Tailscale) → prywatne HTTPS Tailscale Serve na MacBooku → lokalny Python proxy `127.0.0.1:8123` → Home Assistant OS we współdzielonej sieci UTM (HTTP, port 80). To **bezpośredni interfejs HA**, nie aplikacja GitHub Pages i nie tor synchronizacji gazomierza. Szczegóły: [wdrożenie Home Assistant na Sony Bravia](HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md). Pełne adresy i instrukcja odtworzenia są wyłącznie w prywatnym archiwum.
+
 **Uwaga:** pliki `pomiary.json` (sześć czujników) i `glowice.json` (osiem głowic) są także udostępniane w gałęzi `setti-data`. Autorska aplikacja pobiera je bezpośrednio do panelu bieżącego stanu. Dokładną drogę każdego źródła do HA trzeba ustalać na podstawie jego faktycznej konfiguracji — nie zakładać, że wszystkie urządzenia używają tego samego protokołu lub Tuya Developer API.
 
 ## 3. Elementy i ich role
@@ -87,7 +89,7 @@ Sygnał ENGO **ON/OFF oznacza zapotrzebowanie na ciepło**, a nie potwierdzone w
 | **GitHub, gałąź `setti-data`** | Publiczne migawki czujników/głowic, **zaszyfrowana** historia HA | Dystrybucja odczytów |
 | **Autorska aplikacja iPhone (PWA)** | Panel, wykresy, gaz, pogoda, decyzje i eksperymenty; dobrowolny zapis samych odczytów gazu do prywatnego archiwum | Dziennik i transfer danych, **nie steruje kotłem** |
 | **Cloudflare Worker (gas sync)** | Oddzielna bramka HTTPS dla odczytów gazu, weryfikacja kluczy, zapis do prywatnego GitHuba | Brak sterowania urządzeniami |
-| **Sony Bravia / TV Bro** | Pokazuje gaz i analizę po autoryzowanym odczycie z prywatnego repozytorium | Tylko odczyt archiwum gazu |
+| **Sony Bravia / TV Bro** | Dwa odrębne widoki: autorska PWA z gazem oraz panel Home Assistant przez Tailscale Serve i HTTPS | PWA tylko prezentuje gaz; konto HA bez administratora nadal może obsługiwać udostępnione encje |
 | **Prywatne repozytorium GitHub** | Analizy, historia, karta instalacji, rozliczenia i decyzje | Archiwum danych dla uprawnionego odczytu |
 | **ChatGPT z połączeniem GitHub** | Analiza archiwum na polecenie użytkownika | Nie jest samodzielnym sterownikiem ani monitoringiem alarmowym |
 
@@ -113,7 +115,7 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 **Ważne ograniczenia:**
 - MacBook musi być włączony, VM/HA uruchomione, a usługi dostępne, aby bieżąca historia była zbierana. **Nie wystarczy tylko włączony ekran ani sama sesja macOS**.
 - Uśpienie, zamknięcie maszyny wirtualnej, brak internetu lub wygaśnięcie uprawnień mogą opóźnić synchronizację albo utworzyć nieodtwarzalne luki.
-- Zaplanowane zadania użytkownika mogą nie działać, gdy użytkownik jest wylogowany; zachowanie po restarcie oraz automatyczne uruchamianie VM **wymagają osobnego testu**.
+- Zaplanowane zadania użytkownika mogą nie działać, gdy użytkownik jest wylogowany. **20.11.2026 przetestowano jeden pełny restart MacBooka:** UTM/HA uruchomiły się automatycznie, a panel HA działał na Sony Bravia przez Tailscale/launchd. **To nie jest jeszcze potwierdzenie**, że oba niezależne zadania eksportu/synchronizacji danych poprawnie wykonały przebieg po restarcie; ich logi i świeżość danych należy sprawdzić osobno.
 - Exporter HA posiada obecnie limit **25 000 zmian temperatur** i **40 000 zdarzeń ENGO**; osiągnięcie limitu ma kończyć eksport błędem zamiast cicho usuwać dane. Potrzebny będzie plan rozszerzenia archiwizacji przed osiągnięciem limitu.
 - Samo zadanie private-analytics **nie pobiera aktualnej historii bezpośrednio z HA**: korzysta z ostatniego opublikowanego zaszyfrowanego eksportu. Jeżeli wcześniejszy eksport przestanie działać, drugie zadanie może nadal poprawnie wykonywać synchronizację **starych danych**. Należy kontrolować znaczniki świeżości.
 
@@ -176,8 +178,10 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 
 **Potwierdzone 19/20.11.2026:** wdrożony Worker i klucze ról iPhone/TV, odpowiedź bez autoryzacji `401`, odczyt kluczem `200`, przekazanie i odczyt **12 prywatnych odczytów gazu**, prezentacja na Sony Bravia (TV Bro) oraz odczyt pliku gazu przez uprawnione połączenie GitHub. Nie stwierdzono, że działa bez ograniczeń w tle po zamknięciu iOS.
 
+**Potwierdzone 20.11.2026 — nowa ścieżka TV/HA:** w UTM działa Home Assistant, a na MacBooku lokalny Python proxy uruchamiany przez użytkownika `launchd` (`pl.mojeogrzewanie.ha-proxy`). Tailscale Serve udostępnia panel w prywatnym HTTPS; na TV działa osobne konto `tv-wsalonie`. Po zaplanowanym wyłączeniu HA i restarcie MacBooka maszyna UTM oraz panel TV wznowiły pracę automatycznie. Rozpoznano błąd `400` po stronie niezaufanego proxy i poprawiono konfigurację HA dla jednego zaufanego IP. Na TV usunięto dopisane parametry autoryzacji z adresu zakładki. Zob. [pełną historię wdrożenia](HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md).
+
 **Do sprawdzenia / poprawienia:**
-- zachowanie Home Assistant i obu agentów po restarcie MacBooka, automatyczne uruchomienie VM i ochrona przed uśpieniem;
+- zachowanie po **uśpieniu** MacBooka i przerwach łączności, odporność UTM/Tailscale/HA na awarie oraz logi i świeżość **obu odrębnych agentów eksportu** po restarcie;
 - kontrola świeżości danych `source_latest_observed_at` i powiadamianie o przerwach, nie tylko o błędach polecenia;
 - rzeczywista zależność ścieżek ENGO i Setti+ od IoT Core / API / MQTT przed terminem 16.12.2026;
 - przetestowanie **13. rzeczywistego odczytu gazu** i jego automatycznego pojawienia się na TV; praca po restarcie/przerwie offline, przegląd zabezpieczeń Workera i utrzymania wersji backendu; osobno: aktualizacja nowych dokumentów ORLEN i **pozostałych** prywatnych wpisów iPhone'a;
@@ -190,6 +194,7 @@ Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchom
 - [Baza wiedzy technicznej](BAZA-WIEDZY-TECHNICZNEJ.md)
 - [Założenia archiwum analitycznego](ARCHIWUM-ANALITYCZNE-PROJEKT.md)
 - [Prywatna synchronizacja gazomierza — instrukcja i potwierdzone testy](PRYWATNA-SYNCHRONIZACJA-GAZU.md)
+- [Home Assistant na Sony Bravia przez Tailscale — wdrożenie, HTTPS i autostart po restarcie](HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md)
 - [Repozytorium prywatnego archiwum](https://github.com/dszak/moje-ogrzewanie-archiwum) — wymaga odpowiednich uprawnień
 - [Panel Tuya Developer](https://iot.tuya.com/) — konto programistyczne, dostęp do usług i status przedłużenia
 
