@@ -20,6 +20,9 @@ Prosty dziennik komfortu i zużycia gazu. Zachowuje sześć pomieszczeń, osiem 
 
 **Nowy etap 20.11.2026:** [Home Assistant na Sony Bravia przez Tailscale HTTPS — krok po kroku, potwierdzone po restarcie](docs/HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md). Panel HA na TV jest **odrębny** od prezentacji odczytów gazu w PWA/TV Bro. UTM, lokalny proxy zarządzany przez `launchd` oraz Tailscale uruchomiły się bez ręcznej obsługi po restarcie MacBooka. Bez publicznego Funnel i bez portów routera. Adresy i procedura odtworzenia są tylko w prywatnym archiwum.
 
+
+**Gotowe widoki Home Assistant — 20.11.2026:** Ukończono analityczny „Cały system” (6 pomieszczeń, 8 głowic, różnice ΔT z kolorami) oraz dodano pierwszy widok „TV — Przegląd ogrzewania” (ENGO ON/OFF, statystyki żądania ciepła, temperatura i wilgotność, 6 kart pokojowych). Potwierdzono oba stany ENGO, działanie na Sony Bravia w TV Bro i układ sprawdzony w Chrome przy 640 × 360 px. [Szczegółowa dokumentacja widoków i ograniczeń testu](docs/WIDOKI-HA-CALY-SYSTEM-I-TV-2026-11-20.md). Zmiany wykonano w **Home Assistant**, bez zmiany kodu PWA, ustawień ogrzewania i synchronizacji gazu.
+
 ## Wersja 1.2 · Gaz i pogoda
 
 Zakładka **Gaz i pogoda** pobiera temperaturę godzinową dla Katowic z Open-Meteo (dane modelowe, nie pomiary stacji), po uruchomieniu aplikacji i na żądanie. Archiwum obejmuje do roku wstecz, w miarę dostępności API i internetu. Dane pogodowe pozostają lokalne; odczyty użytkownika są zapisywane lokalnie, a po świadomym włączeniu synchronizacji kopia **samych odczytów gazu** trafia także do prywatnego archiwum (szczegóły w aktualizacji z 20.11.2026 powyżej).

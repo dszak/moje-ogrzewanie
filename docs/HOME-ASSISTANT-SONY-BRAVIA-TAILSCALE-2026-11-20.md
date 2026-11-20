@@ -84,7 +84,7 @@ Interfejs HA: przegląd, obszary, urządzenia, monitoring ogrzewania
 
 ## 7. Co dalej?
 
-1. Przygotować prosty, czytelny **dashboard HA dla 55-calowego telewizora**: sześć pomieszczeń, temperatury i wilgotność z oddzielnych czujników, osiem głowic, żądanie ENGO, bez mylenia żądania z pracą palnika.
+1. **Wykonano 20.11.2026:** ukończono widoki **„Cały system”** (szczegółowa analiza sześciu pomieszczeń i ośmiu głowic) oraz **„TV — Przegląd ogrzewania”** (temperatury, wilgotności, ENGO i żądanie ON/OFF). Działanie na Sony Bravia zostało potwierdzone przez użytkownika; szczegóły i granice testu: [dokumentacja gotowych widoków](WIDOKI-HA-CALY-SYSTEM-I-TV-2026-11-20.md).
 2. Sprawdzić wpływ **uśpienia MacBooka**, zerwania Wi-Fi, wyłączenia TV oraz ponownych sesji Tailscale; na razie potwierdzono jeden restart MacBooka.
 3. Zweryfikować odporność istniejącego automatu „Uruchom Home Assistant” i aktualizację stanów po rzeczywistych błędach usług.
 4. Utrzymywać odrębne kopie kodu proxy i pliku plist na prywatnym nośniku / w prywatnej dokumentacji; dokument GitHub nie instaluje ich automatycznie na MacBooku.
