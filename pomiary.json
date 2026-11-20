@@ -1,29 +1,29 @@
 {
   "version": 1,
-  "last_sync": "2026-11-20T06:25:00+00:00",
+  "last_sync": "2026-11-20T06:35:00+00:00",
   "rooms": {
     "bedroom": {
-      "temperature": 21.6,
+      "temperature": 21.7,
       "humidity": 52.0
     },
     "salon": {
-      "temperature": 21.8,
+      "temperature": 21.9,
       "humidity": 54.0
     },
     "kitchen": {
-      "temperature": 21.2,
+      "temperature": 21.3,
       "humidity": 56.0
     },
     "bigbath": {
-      "temperature": 21.9,
+      "temperature": 22.0,
       "humidity": 62.0
     },
     "smallbath": {
-      "temperature": 22.7,
-      "humidity": 69.0
+      "temperature": 22.8,
+      "humidity": 66.0
     },
     "hall": {
-      "temperature": 21.0,
+      "temperature": 21.1,
       "humidity": 56.0
     }
   }
