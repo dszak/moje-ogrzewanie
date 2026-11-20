@@ -19,15 +19,24 @@ Dokumenty obowiązkowe, w tej kolejności:
 4. [Archiwum analityczne — zasady](ARCHIWUM-ANALITYCZNE-PROJEKT.md).
 5. [README aplikacji](../README.md).
 6. [Prywatna synchronizacja gazomierza — wdrożenie 19/20.11.2026](PRYWATNA-SYNCHRONIZACJA-GAZU.md).
+7. [Home Assistant na Sony Bravia — Tailscale Serve, HTTPS i autostart po restarcie](HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md).
 
 ## 2. Gdzie są dane i jakie są granice dostępu?
 
 - **Publiczne repozytorium** `dszak/moje-ogrzewanie`, gałąź `main`: dokumentacja i kod aplikacji. Gałąź `setti-data` zawiera `pomiary.json` (sześć czujników pokojowych), `glowice.json` (osiem głowic) oraz **zaszyfrowaną** historię HA `ha-historia.enc.json`. Migawki Setti+ mają znaczniki czasu; nie uznawać starych danych za bieżące.
 - **Prywatne repozytorium** `dszak/moje-ogrzewanie-archiwum`: [README](https://github.com/dszak/moje-ogrzewanie-archiwum/blob/main/README.md), `meta/index.json` (indeks i znacznik świeżości), `karta/karta-instalacji.json`, `badania/`, `decyzje/`, `ha/engo/`, `ha/engo-pomiary/`, `ha/temperatury/`, `orlen/`, `snapshot/` oraz **`sync/gazomierz-v1.json`** — aktualny dziennik gazu z iPhone'a. **Zacząć od README i indeksu, a następnie osobno odczytać `sync/gazomierz-v1.json`**, bo indeks HA/iCloud **nie obejmuje** tego pliku. Nie publikować prywatnej zawartości.
 - GitHub jest dostępny w czacie **tylko wtedy, gdy narzędzie/połączenie GitHub jest w tej rozmowie aktywne i odczyt się powiedzie**. Jeśli odczyt się nie uda, powiedzieć to wprost; nie udawać dostępu ani nie odtwarzać „aktualnych” liczb z pamięci.
-- Home Assistant działa w maszynie wirtualnej na MacBooku. Synchronizatory działają nominalnie co około 30 min; powodzenie synchronizacji nie dowodzi świeżości danych, trzeba sprawdzić `source_latest_observed_at`.
+- Home Assistant działa w maszynie wirtualnej na MacBooku. **Auto-start VM i panelu TV został sprawdzony po restarcie MacBooka 20.11.2026**, niezależnie od testów zadań eksportu danych. Synchronizatory działają nominalnie co około 30 min; powodzenie synchronizacji nie dowodzi świeżości danych, trzeba sprawdzić `source_latest_observed_at`.
 - Aplikacja „Moje Ogrzewanie” na iPhonie przechowuje część danych **lokalnie**. Od 19/20.11.2026 po osobnym potwierdzeniu **ręczne odczyty gazomierza** są dodatkowo zapisywane w prywatnym `sync/gazomierz-v1.json` przez Cloudflare Worker. Inne ustawienia, plany mieszkania, pełne kopie JSON i wiedza nie są tą usługą synchronizowane. Surowe diagnostyczne JSONL części badań głowic pozostają na MacBooku.
 - ChatGPT nie ma ciągłego dostępu na żywo do iPhona, lokalnego MacBooka ani kotła i **nie steruje** ogrzewaniem w tym projekcie.
+
+### Potwierdzony etap: panel Home Assistant na Sony Bravia, 20 listopada 2026
+
+- **Odrębny od aplikacji PWA:** Sony Bravia / TV Bro otwiera bezpośredni panel Home Assistant przez prywatne HTTPS Tailscale Serve na MacBooku. Dalej ruch idzie do lokalnego Python proxy na loopback i VM HA w UTM. Nie włączono publicznego Tailscale Funnel ani portów routera.
+- **Dostęp HA:** osobne, aktywne konto `tv-wsalonie` bez uprawnień administratora (nie jest to gwarantowany tryb tylko do odczytu). Błąd `400` usunięto przez dodanie w HA wyłącznie jednego, potwierdzonego w logach zaufanego proxy. W TV Bro zakładka ma **bazowy** URL HTTPS bez parametrów autoryzacji.
+- **Automatyzacja sprawdzona:** skrypt TCP proxy jest uruchamiany przez `launchd` (`pl.mojeogrzewanie.ha-proxy`); Tailscale dodano do macOS „Otwieraj przy logowaniu”; wcześniej istniejący element „Uruchom Home Assistant” włącza VM. Po kontrolowanym zatrzymaniu HA i **restarcie MacBooka** użytkownik potwierdził automatyczny start VM i działający panel TV bez Terminala.
+- **Ograniczenia:** MacBook musi być włączony i nieuśpiony, a użytkownik zalogowany. Nie testowano zaniku internetu, uśpienia i długotrwałej pracy. Restart nie dowodzi poprawnego wykonania **obu niezależnych synchronizatorów** HA/GitHub — sprawdzić ich świeżość osobno.
+- **Źródła:** [publiczna historia wdrożenia](HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md) i [prywatny protokół techniczny](https://github.com/dszak/moje-ogrzewanie-archiwum/blob/main/badania/WDROZENIE-HA-UTM-TAILSCALE-SONY-2026-11-20.md) (adresy, skrypt Python, launchd i diagnostyka). Nie kopiować prywatnych adresów do publicznej dokumentacji.
 
 ### Potwierdzony etap: gaz z iPhone'a na TV, 19/20 listopada 2026
 

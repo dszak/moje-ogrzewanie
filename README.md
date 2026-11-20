@@ -18,6 +18,8 @@ Prosty dziennik komfortu i zużycia gazu. Zachowuje sześć pomieszczeń, osiem 
 
 **[Architektura „Moje Ogrzewanie” — ENGO, Setti+, Tuya, Home Assistant, MacBook, GitHub, iPhone i ChatGPT](docs/JAK-DZIALA-SYSTEM-OGRZEWANIA.md)** — aktualny schemat przepływu danych, automatyzacji, ograniczeń i postępowania przy awariach (stan 20.11.2026).
 
+**Nowy etap 20.11.2026:** [Home Assistant na Sony Bravia przez Tailscale HTTPS — krok po kroku, potwierdzone po restarcie](docs/HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md). Panel HA na TV jest **odrębny** od prezentacji odczytów gazu w PWA/TV Bro. UTM, lokalny proxy zarządzany przez `launchd` oraz Tailscale uruchomiły się bez ręcznej obsługi po restarcie MacBooka. Bez publicznego Funnel i bez portów routera. Adresy i procedura odtworzenia są tylko w prywatnym archiwum.
+
 ## Wersja 1.2 · Gaz i pogoda
 
 Zakładka **Gaz i pogoda** pobiera temperaturę godzinową dla Katowic z Open-Meteo (dane modelowe, nie pomiary stacji), po uruchomieniu aplikacji i na żądanie. Archiwum obejmuje do roku wstecz, w miarę dostępności API i internetu. Dane pogodowe pozostają lokalne; odczyty użytkownika są zapisywane lokalnie, a po świadomym włączeniu synchronizacji kopia **samych odczytów gazu** trafia także do prywatnego archiwum (szczegóły w aktualizacji z 20.11.2026 powyżej).
