@@ -14,6 +14,7 @@ from heating_capture import DATA_PATH, HEAD_ROOMS, ROOMS, WARSAW, WEATHER, encod
 
 HDD_BASE = 21.5  # Same reference as public/insights.js.
 WEATHER_BINS = (0, 5, 10, 15, 20)
+CO_CONFIRMATIONS = "analityka/v1/potwierdzenia-co.json"
 ROOM_NAMES = ("Sypialnia", "Salon", "Kuchnia", "Duża łazienka", "Mała łazienka", "Przedpokój")
 HOUR = 3600
 
@@ -228,6 +229,22 @@ class Archive:
         gas = context / "sync/gazomierz-v1.json"
         if gas.is_file():
             self.gas = sorted(gas_intervals(read_json(gas)))
+        self.co_confirmed = []
+        confirmations = context / CO_CONFIRMATIONS
+        if confirmations.is_file():
+            saved = read_json(confirmations)
+            if saved["version"] != 1:
+                raise ValueError("Nieobsługiwana wersja potwierdzeń nastawy CO")
+            for row in saved["confirmations"]:
+                start, confirmed = stamp(row["valid_from"]), stamp(row["confirmed_at"])
+                value = row["value_c"]
+                if (not start < confirmed or type(value) not in (int, float)
+                        or not 0 < value <= 100 or row["source"] != "owner_confirmation"):
+                    raise ValueError("Nieprawidłowe potwierdzenie nastawy CO")
+                self.co_confirmed.append((start, confirmed, (value, row["source"], row["confirmed_at"])))
+            self.co_confirmed.sort()
+            if any(a[1] > b[0] for a, b in zip(self.co_confirmed, self.co_confirmed[1:])):
+                raise ValueError("Nakładające się potwierdzenia nastawy CO")
         targets = root / "analityka/v1/cele-pokojowe.json"
         self.room_targets = defaultdict(list)
         if targets.is_file():
@@ -329,6 +346,15 @@ def timeline(series, start, end):
             for a, b, value in squash(clip(series, start, end))]
 
 
+def boiler_timeline(archive, start, end):
+    recorded = [(a, b, (value, "home_assistant_declaration", utc(a)))
+                for a, b, value in archive.series["boiler.co"]]
+    series = prefer(recorded, archive.co_confirmed)
+    return [{"start": utc(a), "end": utc(b), "seconds": b - a, "value": value,
+             "source": source, "recorded_at": recorded_at}
+            for a, b, (value, source, recorded_at) in clip(series, start, end)]
+
+
 def weather(series, start, end, hourly=False):
     values = clip(series, start, end)
     stats = statistics(values, end - start)
@@ -397,7 +423,7 @@ def period(archive, start, end):
             "engo": demand_statistics(series["engo.demand"], start, end),
             "engo_temperature": statistics(clip(series["engo.temp"], start, end), duration),
             "engo_target": timeline(series["engo.target"], start, end),
-            "boiler_co_declared": timeline(series["boiler.co"], start, end),
+            "boiler_co_declared": boiler_timeline(archive, start, end),
             "boiler_dhw_verified": None,
             "rooms": rooms, "heads": heads,
             "apartment_equal": statistics(apartment_series(indoor, dict.fromkeys(ROOMS, 1)), duration),
@@ -465,7 +491,9 @@ def format_settings(values):
         if start == end:
             start, end = (datetime.fromtimestamp(stamp(row[key]), WARSAW).strftime("%H:%M:%S")
                           for key in ("start", "end"))
-        labels.append(f"{num(row['value'])}°C ({start}–{end})")
+        source = {"owner_confirmation": " · potwierdzenie właściciela",
+                  "home_assistant_declaration": " · deklaracja w HA"}.get(row.get("source"), "")
+        labels.append(f"{num(row['value'])}°C ({start}–{end}{source})")
     return "; ".join(labels) or "—"
 
 
@@ -521,7 +549,7 @@ def markdown(report):
     lines.extend(["", "## Jakość porównania", "",
                   "- Pogoda to godzinowy model Open-Meteo ICON-EU. Stopniodni to suma nadwyżek bazy 21,5°C nad temperaturą na zewnątrz za obserwowane godziny, podzielona przez 24.",
                   "- ON to żądanie ciepła ENGO. Czas po restarcie przed wiarygodnym odczytem wchodzi do braków. Pełne odcinki ON i OFF muszą mieć oba przełączenia w obserwacji.",
-                  "- Nastawa CO jest deklaracją użytkownika z własną datą zapisu. Brakuje potwierdzonej historii temperatury wody, nastawy CWU i pracy palnika.",
+                  "- Historia nastawy CO rozróżnia potwierdzenie właściciela i deklarację zapisaną w HA. Zmiana źródła przy tej samej wartości nie jest zmianą nastawy. Brakuje potwierdzonej historii temperatury wody, nastawy CWU i pracy palnika.",
                   "- Szczegółowy raport JSON zawiera przerwy, udział ON/OFF, średnie długości pełnych odcinków, historię każdej głowicy, temperaturę mierzoną przez ENGO i pokrycie każdej serii.",
                   "- Cele z migawki są odniesieniem do opisu komfortu. Potwierdzone czasy obowiązywania celów są ujęte osobno.",
                   f"- Liczba par dni o podobnej pogodzie spełniających przyjęte kryteria wynosi {len(report['matched_days'])}. Ocena wpływu nastaw wymaga też udokumentowanego komfortu, zmian, porównywalnych okien gazu i uwzględnienia CWU.", ""])
