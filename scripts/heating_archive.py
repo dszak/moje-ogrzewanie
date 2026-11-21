@@ -18,7 +18,7 @@ from heating_capture import (
     DATA_PATH, HA_SERIES, HEAD_ROOMS, UTC, WARSAW, WEATHER, collect,
     encode, keychain, midnight, read_json, request_json, stamp, utc,
 )
-from heating_report import Archive, report
+from heating_report import CO_CONFIRMATIONS, Archive, report
 
 BRANCH = "codex/historical-heating-data"
 API = "https://api.github.com/repos/"
@@ -28,7 +28,7 @@ CONTEXT_FILES = ("sync/gazomierz-v1.json", "karta/karta-instalacji.json")
 SERIES = HA_SERIES | {WEATHER} | {f"trv_poll.{head}.{field}"
                                  for head in HEAD_ROOMS for field in ("temp", "target", "mode")}
 REPORT_PATH = "analityka/v1/raporty"
-REPORT_FILE = re.compile(r"\d{4}-\d{2}-\d{2}(?:--\d{2})?/raport\.(?:md|json)")
+REPORT_FILE = re.compile(r"\d{4}-\d{2}-\d{2}(?:--\d{2})?/(?:rewizja-\d{4}-\d{2}-\d{2}/)?raport\.(?:md|json)")
 README = "analityka/v1/README.md"
 
 
@@ -56,7 +56,7 @@ def git_blob(text):
 
 def allowed_path(path):
     folder, _, filename = path.rpartition("/")
-    if path == README or (path.startswith(REPORT_PATH + "/")
+    if path in (README, CO_CONFIRMATIONS) or (path.startswith(REPORT_PATH + "/")
                           and REPORT_FILE.fullmatch(path[len(REPORT_PATH) + 1:])):
         return True
     return (
@@ -167,8 +167,13 @@ class PrivateArchive:
         self.preflight()
         revisions = {}
         ref = self.ref("heads/main")
-        for name in (*CONTEXT_FILES, snapshot):
-            data = self.api(f"/contents/{name}?ref={ref}")
+        for name in (*CONTEXT_FILES, snapshot, CO_CONFIRMATIONS):
+            try:
+                data = self.api(f"/contents/{name}?ref={ref}")
+            except HTTPError as error:
+                if name == CO_CONFIRMATIONS and error.code == 404:
+                    continue
+                raise
             if data["encoding"] != "base64":
                 raise ValueError("Nieobsługiwany format prywatnych danych kontekstowych")
             text = base64.b64decode(data["content"]).decode("utf-8")
@@ -186,10 +191,13 @@ def publish_existing(repo, root, include_report):
                for path in sorted((root / DATA_PATH).glob("*.json"))}
     if include_report:
         entries[README] = (root / README).read_text(encoding="utf-8")
-        for path in sorted((root / REPORT_PATH).glob("*/raport.*")):
+        for path in sorted((root / REPORT_PATH).rglob("raport.*")):
             name = path.relative_to(root).as_posix()
             if allowed_path(name):
                 entries[name] = path.read_text(encoding="utf-8")
+        confirmations = root / CO_CONFIRMATIONS
+        if confirmations.is_file():
+            entries[CO_CONFIRMATIONS] = confirmations.read_text(encoding="utf-8")
     return repo.publish(entries)
 
 
