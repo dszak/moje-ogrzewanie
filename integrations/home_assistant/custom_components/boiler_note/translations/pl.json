@@ -1,0 +1,12 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ręczna nastawa CO",
+        "data": {"key_hash": "Skrót SHA-256 klucza synchronizacji"}
+      }
+    },
+    "error": {"invalid_auth": "Podaj 64 znaki szesnastkowe."},
+    "abort": {"single_instance_allowed": "Synchronizacja jest już skonfigurowana."}
+  }
+}
