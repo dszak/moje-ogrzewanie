@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from heating_archive import API, BRANCH, PrivateArchive, check_batch, git_blob, record_once
 from heating_capture import DATA_PATH, ROOMS, WEATHER, encode, midnight, utc, write_batch
-from heating_report import (Archive, apartment_series, apportion_exact, compare, demand_statistics, gas_intervals,
+from heating_report import (CO_CONFIRMATIONS, Archive, apartment_series, apportion_exact, compare, demand_statistics, gas_intervals,
                             report, statistics, steps, timeline, weather)
 
 
@@ -134,6 +134,32 @@ class HistoryTest(unittest.TestCase):
         self.assertIsNone(apportion_exact(result, 10, 30))
         conflict = event("r7", "extra", 20, 101)
         self.assertEqual(list(gas_intervals({"events": [*events, conflict]})), [])
+
+    def test_owner_boiler_confirmation_preserves_recorded_declarations(self):
+        start = midnight("2026-01-01")
+        end = start + 86400
+        first_declaration = start + 3600
+        next_declaration = start + 7200
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            write_batch(root, {
+                "version": 1, "since": utc(start), "until": utc(end), "recorder_runs": [],
+                "events": {"boiler.co": [[utc(first_declaration + 0.2), 52, utc(first_declaration)],
+                                          [utc(next_declaration + 0.2), 57, utc(next_declaration)]]},
+            })
+            path = root / CO_CONFIRMATIONS
+            path.write_text(encode({"version": 1, "confirmations": [{
+                "valid_from": utc(start + 600), "confirmed_at": utc(end), "value_c": 52,
+                "source": "owner_confirmation",
+            }]}))
+            settings = report(Archive(root), "2026-01-01", "2026-01-02")["period"]["boiler_co_declared"]
+            self.assertEqual([(row["value"], row["source"]) for row in settings],
+                             [(52, "owner_confirmation"),
+                              (52, "home_assistant_declaration"), (57, "home_assistant_declaration")])
+            self.assertEqual(settings[0]["start"], utc(start + 600))
+            self.assertEqual(settings[0]["recorded_at"], utc(end))
+            self.assertEqual(settings[1]["recorded_at"], utc(first_declaration))
+            self.assertEqual(settings[-1]["start"], utc(next_declaration))
 
     def test_weather_similarity_requires_distribution_and_coverage(self):
         def sample(i, bins, weather_seconds=86400):
