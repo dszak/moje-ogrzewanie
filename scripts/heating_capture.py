@@ -5,6 +5,7 @@ import getpass
 import hashlib
 import ipaddress
 import json
+import math
 import os
 import re
 import subprocess
@@ -29,6 +30,16 @@ HA_SERIES |= {f"{prefix}.{room}.{field}" for prefix in ("room", "room_rest")
               for room in ROOMS for field in ("temp", "rh")}
 HA_SERIES |= {f"trv.{head}.{field}" for head in HEAD_ROOMS
               for field in ("temp", "target", "offset", "mode")}
+BATH_SWITCHES = {
+    "bath.convector.enabled", "bath.convector.element", "bath.dehumidifier.relay",
+    "bath.convector.available", "bath.dehumidifier.available",
+}
+BATH_METERS = {f"bath.{device}.{field}" for device in ("convector", "dehumidifier")
+               for field in ("power_w", "energy_day_kwh", "energy_total_kwh")}
+BATH_SERIES = BATH_SWITCHES | BATH_METERS | {
+    "bath.convector.temp", "bath.convector.target", "bath.convector.mode",
+}
+HA_SERIES |= BATH_SERIES
 
 SQL_RUNS = """
 SELECT run_id, start AS started, end AS ended, closed_incorrect
@@ -114,6 +125,17 @@ def numeric(value, lo, hi):
     return result if lo <= result <= hi else None
 
 
+def meter_value(series, value, unit):
+    if series.endswith(".power_w"):
+        factors = {"W": 1, "kW": 1000}
+    else:
+        factors = {"Wh": 0.001, "kWh": 1}
+    valid = numeric(value, 0, math.inf)
+    if valid is None or not math.isfinite(valid) or unit not in factors:
+        return None
+    return valid * factors[unit]
+
+
 def normalise(series, row, demand_sources):
     value, attrs = row["state"], row.get("attributes", {})
     result = [row["last_updated"], None]
@@ -130,6 +152,13 @@ def normalise(series, row, demand_sources):
     elif series == "room.poll":
         if value not in ("unknown", "unavailable"):
             result[1] = utc(stamp(value))
+    elif series in BATH_SWITCHES:
+        result[1] = value if value in ("on", "off") else None
+    elif series in BATH_METERS:
+        result[1] = meter_value(series, value, attrs.get("unit_of_measurement"))
+    elif series in ("bath.convector.temp", "bath.convector.target"):
+        if attrs.get("unit_of_measurement") == "°C":
+            result[1] = numeric(value, -40, 100)
     elif series.endswith(".mode"):
         if isinstance(value, str) and value not in ("unknown", "unavailable") and SAFE_WORD.fullmatch(value):
             result[1] = value
