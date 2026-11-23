@@ -4,6 +4,7 @@
 import {randomBytes,pbkdf2Sync,createCipheriv,createDecipheriv} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {readFile} from 'node:fs/promises';
+import {readBathrooms} from './bathroom-telemetry.mjs';
 
 const REPO='dszak/moje-ogrzewanie',BRANCH='setti-data',FILE='ha-historia.enc.json';
 const ROOM_ENTITIES={
@@ -206,7 +207,8 @@ async function main(){
  const days=Number(process.env.HA_DAYS||'3');
  if(!Number.isInteger(days)||days<1||days>14)throw Error('HA_DAYS musi być między 1 a 14');
  const configPath=process.env.HA_TELEMETRY_CONFIG;
- const config=configPath?dashboardConfig(JSON.parse(await readFile(configPath,'utf8'))):null;
+ const privateConfig=configPath?JSON.parse(await readFile(configPath,'utf8')):null;
+ const config=privateConfig?dashboardConfig(privateConfig):null;
  const mapping=config?.mapping||(process.env.HA_DASHBOARD_ENTITIES?dashboardMapping(process.env.HA_DASHBOARD_ENTITIES):null);
  const to=new Date(),from=new Date(to.getTime()-days*86400000);
  const entities=[...Object.values(ROOM_ENTITIES),ENGO];
@@ -243,10 +245,19 @@ async function main(){
  }catch(_){console.error('Nie pobrano próbki historii temperatury ENGO.');}
  const merged=combine(previous,newData,climateReading);
  if(newData.dashboard)merged.dashboard=newData.dashboard;
+ if(previous.bathrooms)merged.bathrooms=previous.bathrooms;
+ if(privateConfig){
+   try{
+     const bathrooms=await readBathrooms(haUrl,haToken,privateConfig,previous.bathrooms,from,to);
+     if(bathrooms)merged.bathrooms=bathrooms;
+   }catch(_){console.error('Odczyt łazienek niedostępny. Zachowano poprzedni eksport łazienek.');}
+ }
  if(process.env.HA_EXPORT_VERIFY_ONLY==='1'){
   console.log(JSON.stringify({verifyOnly:true,demandBefore:previous.engo.length,demandAfter:merged.engo.length,
     climateBefore:(previous.engo_readings||[]).length,climateAfter:merged.engo_readings.length,
     roomBefore:previous.temperatures.length,roomAfter:merged.temperatures.length,
+    bathroomFields:Object.fromEntries(Object.entries(merged.bathrooms||{}).map(([room,entry])=>
+      [room,Object.fromEntries(Object.entries(entry.history).map(([field,rows])=>[field,rows.length]))])),
     dashboardFields:merged.dashboard?Object.keys(merged.dashboard.bath||{}).sort():[],
     engoFields:merged.dashboard?.engo?['target','measured','demand'].filter(key=>merged.dashboard.engo[key]!==null):[]}));
   return;

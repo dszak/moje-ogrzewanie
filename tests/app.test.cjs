@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/research.js','utf8')+'\n'+fs.readFileSync('public/memory.js','utf8')+'\n'+fs.readFileSync('public/memory-view.js','utf8')+'\n'+fs.readFileSync('public/review.js','utf8')+'\n'+fs.readFileSync('public/review-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/ha-sync.js','utf8')+'\n'+fs.readFileSync('public/gas-sync.js','utf8')+'\n'+fs.readFileSync('public/boiler-sync.js','utf8')+'\n'+fs.readFileSync('public/heating-board.js','utf8')+'\n'+fs.readFileSync('public/heating-views.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/research.js','utf8')+'\n'+fs.readFileSync('public/memory.js','utf8')+'\n'+fs.readFileSync('public/memory-view.js','utf8')+'\n'+fs.readFileSync('public/review.js','utf8')+'\n'+fs.readFileSync('public/review-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/dehumidifiers.js','utf8')+'\n'+fs.readFileSync('public/ha-sync.js','utf8')+'\n'+fs.readFileSync('public/gas-sync.js','utf8')+'\n'+fs.readFileSync('public/boiler-sync.js','utf8')+'\n'+fs.readFileSync('public/heating-board.js','utf8')+'\n'+fs.readFileSync('public/heating-views.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false,allowConfirm=true;
@@ -772,4 +772,62 @@ test('HA device extension preserves the history if optional data fail validation
   const invalid=HaSync.validate(payload);
   return parsed.dashboard.bath.power.value===152.3&&invalid.dashboardError&&invalid.engo.length===1;
  })()`),true);
+});
+
+test('Equation cards appear in the proper rooms and analysis exposes verified totals and gaps',()=>{
+ const b=boot();
+ b.run(`{
+  const at=new Date().toISOString();
+  haBathrooms={
+   smallbath:{latest:{humidity:{at,value:52},temperature:{at,value:21.6},relay:{at,value:'off'},power:{at,value:0}},history:{}},
+   bigbath:{latest:{humidity:{at,value:68},temperature:{at,value:22.2},relay:{at,value:'on'},power:{at,value:120}},history:{}}
+  };
+ }`);
+ b.run("setPage('room','smallbath')");
+ assert.match(b.element('view').innerHTML,/OL12-BD031M/);
+ assert.match(b.element('view').innerHTML,/Konwektor SCH700/);
+ assert.doesNotMatch(b.element('view').innerHTML,/D015B-12L/);
+ b.run("setPage('room','bigbath')");
+ assert.match(b.element('view').innerHTML,/D015B-12L/);
+ assert.match(b.element('view').innerHTML,/120,0 W/);
+ assert.doesNotMatch(b.element('view').innerHTML,/OL12-BD031M/);
+ b.run("setPage('dehumidifiers')");
+ assert.match(b.element('view').innerHTML,/Wilgotność przed i po włączeniu/);
+ assert.match(b.element('view').innerHTML,/Brak porównywalnej pary/);
+ b.listeners.change({target:{dataset:{change:'dehumidifier-days'},value:'14'}});
+ assert.equal(b.run("bathDays"),14);
+});
+
+test('dehumidifier estimates use bounded samples, never bridge missing states, and prefer a verified meter',()=>{
+ const b=boot();
+ const result=JSON.parse(b.run(`JSON.stringify((()=>{
+   const end=Date.parse('2024-11-15T17:00:00.000Z');
+   const rows=(points)=>points.map(([minutes,value])=>({at:new Date(end+minutes*60000).toISOString(),value}));
+   const power=rows([[-40,100],[-30,100],[-15,100],[-11,null],[-10,100],[0,100]]);
+   const relay=rows([[-40,'off'],[-30,'on'],[-20,'on'],[-10,null],[0,'off']]);
+   const partial=Dehumidifiers.analyze({power,relay},1,end);
+   const measured=Dehumidifiers.analyze({power,energy:rows([[-10,1.2],[0,1.3]])},1,end);
+   return {on:partial.onMs,known:partial.knownMs,estimate:partial.energy,meter:measured.energy};
+ })())`));
+ assert.equal(result.on,10*60000);
+ assert.equal(result.known,10*60000);
+ assert.equal(result.estimate.estimated,true);
+ assert.equal(result.estimate.ms,20*60000);
+ assert.ok(Math.abs(result.estimate.value-1/30)<1e-8);
+ assert.equal(result.meter.estimated,false);
+ assert.ok(Math.abs(result.meter.value-0.1)<1e-8);
+});
+
+test('a humidity comparison requires a pre-switch reading and uninterrupted observed supply',()=>{
+ const b=boot();
+ const results=b.run(`(()=>{
+  const end=Date.parse('2024-11-15T17:00:00Z');
+  const rows=(points)=>points.map(([minutes,value])=>({at:new Date(end+minutes*60000).toISOString(),value}));
+  const relay=rows([[-61,'off'],[-51,'on'],[-41,'on'],[-31,'on'],[-21,'on'],[-11,'on']]);
+  const humidity=rows([[-65,75],[-55,78],[-19,60]]);
+  const yes=Dehumidifiers.analyze({relay,humidity},1,end);
+  const no=Dehumidifiers.analyze({relay:relay.filter((_,i)=>i!==3),humidity},1,end);
+  return yes.drops.length===1 && yes.drops[0].before.value===75 && yes.drops[0].change===-15 && no.drops.length===0;
+ })()`);
+ assert.equal(results,true);
 });

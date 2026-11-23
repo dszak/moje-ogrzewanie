@@ -150,6 +150,10 @@ const HaSync=(()=>{
       try{result.dashboard=dashboard(data.dashboard);}
       catch(_){result.dashboardError=true;}
     }
+    if(data.bathrooms!==undefined){
+      try{result.bathrooms=Dehumidifiers.validate(data.bathrooms,timestamp);}
+      catch(_){result.bathroomError=true;}
+    }
     return result;
   }
   function merge(data,oldEngo=[],oldTemps=[]){
