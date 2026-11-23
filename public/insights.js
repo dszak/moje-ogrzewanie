@@ -31,7 +31,7 @@ const Insights=(()=>{
   // Both consecutive and daily comparisons use the same gas-meter and weather rules.
   function usage(state,b,e,meter){
     const days=(e.at-b.at)/86400000,gas=e.gas-b.gas;
-    if(days<=0.03||gas<0)return null;
+    if(days<=0||gas<0)return null;
     const hourly=(state.weather?.hourly||[]).filter(h=>h.at*1000>=b.at&&h.at*1000<e.at);
     const coverage=Math.min(1,hourly.length/(days*24)),have=coverage>=.75&&hourly.length>0;
     const avg=have?hourly.reduce((s,h)=>s+h.temp,0)/hourly.length:null;
@@ -39,35 +39,45 @@ const Insights=(()=>{
     return {meter,start:b.at,end:e.at,gas,days,perDay:gas/days,estimated:days<.75,
       avg,dd,normalized:days>=.75&&dd>0?gas/dd:null,coverage,from:b.source,to:e.source};
   }
+  function meterReadings(state) {
+    const meters={old:[],new:[]};
+    for(const row of readings(state)){
+      const list=meters[row.meter];
+      if(!list)continue;
+      const previous=list.at(-1);
+      if(previous?.at===row.at){
+        if(previous.gas!==row.gas)previous.conflict=true;
+      }else list.push({...row,conflict:false});
+    }
+    return meters;
+  }
   function intervals(state){
-    const list=readings(state), groups={old:[],new:[]};
-    for(const r of list)groups[r.meter]?.push(r);
     const rows=[];
-    for(const meter of ['old','new']){
-      const a=groups[meter].sort((x,y)=>x.at-y.at||x.gas-y.gas);
-      for(let i=1;i<a.length;i++){
-        const result=usage(state,a[i-1],a[i],meter);
-        if(result)rows.push(result);
+    for(const [meter,list] of Object.entries(meterReadings(state))){
+      for(let i=1;i<list.length;i++){
+        const [start,end]=[list[i-1],list[i]];
+        if(!start.conflict&&!end.conflict){
+          const result=usage(state,start,end,meter);
+          if(result)rows.push(result);
+        }
       }
     }
     return rows.sort((a,b)=>b.end-a.end);
   }
   function dailyComparisons(state){
-    const groups={old:[],new:[]},rows=[];
-    for(const r of readings(state))groups[r.meter]?.push(r);
-    for(const meter of ['old','new']){
-      const a=groups[meter];
-      for(let i=1;i<a.length;i++){
-        const end=a[i];
-        // Pick the earlier reading closest to 24 hours ago, even across intermediate entries.
-        // Only reasonably complete cycles (18–30 h) qualify as a daily comparison.
-        const candidates=a.slice(0,i).filter(b=>{
-          const hours=(end.at-b.at)/3600000;
-          return hours>=18&&hours<=30&&end.gas>=b.gas;
-        }).sort((x,y)=>Math.abs(end.at-x.at-86400000)-Math.abs(end.at-y.at-86400000));
-        if(!candidates.length)continue;
-        const result=usage(state,candidates[0],end,meter);
-        if(result)rows.push(result);
+    const rows=[];
+    for(const [meter,list] of Object.entries(meterReadings(state))){
+      let segmentStart=0;
+      for(let i=1;i<list.length;i++){
+        const end=list[i], previous=list[i-1];
+        if(end.conflict||previous.conflict||end.gas<previous.gas){segmentStart=i;continue;}
+        let best=null;
+        for(let j=i-1;j>=segmentStart;j--){
+          const earlier=list[j], hours=(end.at-earlier.at)/3600000;
+          if(hours>30)break;
+          if(hours>=18&&(!best||Math.abs(hours-24)<Math.abs((end.at-best.at)/3600000-24)))best=earlier;
+        }
+        if(best)rows.push(usage(state,best,end,meter));
       }
     }
     return rows.sort((a,b)=>b.end-a.end);
@@ -81,7 +91,8 @@ const Insights=(()=>{
       if(part.length!==3)throw Error('Wiersz '+(i+1)+': wpisz data;licznik;stan, np. 2026-04-01;nowy;100');
       const [d,m,g]=part;
       if(!/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2})?$/.test(d))throw Error('Wiersz '+(i+1)+': nieprawidłowa data.');
-      const date=new Date(d.replace(' ','T').length===10?d+'T12:00:00':d.replace(' ','T')+':00');
+      const stamp=d.length===10?d+'T12:00:00':d.replace(' ','T')+':00';
+      const date=new Date(typeof HeatingBoard==='undefined'?stamp:HeatingBoard.parseLocal(stamp));
       if(!Number.isFinite(date.valueOf())||dateAt(date.valueOf())!==d.slice(0,10))throw Error('Wiersz '+(i+1)+': nieprawidłowa data kalendarzowa.');
       const meter={'nowy':'new','new':'new','stary':'old','old':'old'}[m.toLowerCase()];
       const value=Number(g.replace(',','.'));

@@ -78,6 +78,66 @@ function combine(old,next){
   throw Error('Historia osiągnęła limit aplikacji — nie wolno jej po cichu przycinać');
  return {format:'moje-ogrzewanie-ha-historia',version:1,generated_at:new Date().toISOString(),engo,temperatures};
 }
+// The optional allowlist is operator-supplied. Entity IDs and credentials are
+// never serialized. Only the scoped, encrypted snapshot can reach the PWA.
+const dashboardKeys={climate:'climate',demand:'binary_sensor',enabled:'binary_sensor',relay:'binary_sensor',
+  target:'sensor',measured:'sensor',mode:'sensor',power:'sensor'};
+function dashboardMapping(raw){
+ const input=JSON.parse(raw);
+ if(!input||Array.isArray(input)||typeof input!=='object')throw Error('Nieprawidłowa mapa tablicy HA');
+ for(const [field,entity] of Object.entries(input)){
+   if(!Object.hasOwn(dashboardKeys,field)||typeof entity!=='string'||
+      !new RegExp('^'+dashboardKeys[field]+'\\.[a-z0-9_]+$').test(entity))
+      throw Error('Nieprawidłowe pole lub domena mapy tablicy HA');
+ }
+ if(new Set(Object.values(input)).size!==Object.keys(input).length)
+   throw Error('W mapie tablicy HA powtórzono encję');
+ return input;
+}
+function dashboardSnapshot(states,mapping){
+ const bath={},result={bath};
+ const get=field=>states[field];
+ const at=(row,preferObserved=false)=>{
+   const timestamp=preferObserved?(row?.attributes?.observed_at||row?.last_updated):row?.last_updated;
+   return typeof timestamp==='string'&&Number.isFinite(Date.parse(timestamp))?new Date(timestamp).toISOString():null;
+ };
+ const valid=(x,min,max)=>(typeof x==='number'||typeof x==='string'&&x.trim()!=='')&&
+   Number.isFinite(Number(x))&&Number(x)>=min&&Number(x)<=max?Number(x):null;
+ const toggle=x=>['on','off'].includes(x)?x:null;
+ if(mapping.climate||mapping.demand){
+   const climate=get('climate'),demand=get('demand');
+   const attrs=climate&& !['unknown','unavailable'].includes(climate.state)?climate.attributes||{}:{};
+   const eventTime=valid(demand?.attributes?.event_ts_ms,1,Date.now()+60000);
+   // Recorder timestamps can change on restore. The upstream event is timestamped
+   // separately and required for the optional ENGO snapshot.
+   const demandAt=eventTime===null?null:new Date(eventTime).toISOString();
+   const observedAt=at(climate);
+   result.engo={target:observedAt?valid(attrs.temperature,0,50):null,
+    measured:observedAt?valid(attrs.current_temperature,-10,50):null,
+    observedAt,demand:demandAt?toggle(demand.state):null,demandAt};
+ }
+ for(const field of ['enabled','relay','mode','target','measured','power']){
+   const row=get(field), ts=at(row,true);
+   if(!ts)continue;
+   const unit=row.attributes?.unit_of_measurement;
+   const value=field==='enabled'||field==='relay'?toggle(row.state):
+     field==='mode'?(typeof row.state==='string'&&/^[a-zA-Z0-9_-]{1,30}$/.test(row.state)&&!['unavailable','unknown'].includes(row.state)?row.state:null):
+     field==='power'?(unit==='W'?valid(row.state,0,8000):null):
+     (unit==='°C'?valid(row.state,-30,70):null);
+   bath[field]={value,at:ts};
+ }
+ return result;
+}
+async function fetchDashboard(base,token,mapping){
+ const pairs=await Promise.all(Object.entries(mapping).map(async ([field,entity])=>{
+   const res=await fetch(new URL('/api/states/'+encodeURIComponent(entity),base),{
+     headers:{Authorization:'Bearer '+token},redirect:'error'});
+   if(res.status===404)return [field,null];
+   if(!res.ok)throw Error('Odczyt tablicy z HA zwrócił HTTP '+res.status);
+   return [field,await res.json()];
+ }));
+ return dashboardSnapshot(Object.fromEntries(pairs),mapping);
+}
 async function github(path,token,opts={}){
  const res=await fetch(path,{...opts,headers:{
   'Accept':'application/vnd.github+json','Authorization':'Bearer '+token,
@@ -114,6 +174,10 @@ async function main(){
   salt=Buffer.from(env.salt,'base64'); // Keep KDF salt stable for iPhone's remembered CryptoKey.
  }else if(current.status!==404)throw Error('GitHub odczyt: HTTP '+current.status);
  const merged=combine(previous,newData);
+ if(process.env.HA_DASHBOARD_ENTITIES){
+  try{merged.dashboard=await fetchDashboard(haUrl,haToken,dashboardMapping(process.env.HA_DASHBOARD_ENTITIES));}
+  catch(_){console.error('Migawka tablicy jest niedostępna. Eksportuję dotychczasową historię bez migawki.');}
+ }
  const ciphertext=JSON.stringify(encrypt(merged,pass,salt),null,2)+'\n';
  const encoded=Buffer.from(ciphertext,'utf8').toString('base64');
  await github('https://api.github.com/repos/'+REPO+'/contents/'+FILE,ghToken,{
@@ -126,4 +190,4 @@ async function main(){
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  main().catch(err=>{console.error(err.message);process.exitCode=1});
 }
-export {encrypt,decrypt,normalizeHistory,combine,ROOM_ENTITIES,ENGO};
+export {encrypt,decrypt,normalizeHistory,combine,ROOM_ENTITIES,ENGO,dashboardMapping,dashboardSnapshot};

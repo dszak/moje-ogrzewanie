@@ -71,3 +71,26 @@ test('HA exporter normalizes only known entities, merges overlapping windows and
  assert.equal(restored.temperatures.length,1);
  assert.throws(()=>combine(again,{engo:[{at:'2024-11-15T17:00:40Z',status:'off'}],temperatures:[]}),/Kolizja/);
 });
+
+test('optional exporter emits source timestamps and suppresses restored or mismatched telemetry',async()=>{
+ const {dashboardMapping,dashboardSnapshot}=await import('../scripts/ha-history-export.mjs');
+ const mapping=dashboardMapping(JSON.stringify({
+   demand:'binary_sensor.test',climate:'climate.test',power:'sensor.test_power'
+ }));
+ const last_updated='2026-11-23T12:00:00.000Z';
+ const states={
+   demand:{state:'on',last_updated,attributes:{event_ts_ms:Date.parse(last_updated)-3600000}},
+   climate:{state:'heat',last_updated,attributes:{temperature:22,current_temperature:21.4}},
+   power:{state:'152.3',last_updated,attributes:{unit_of_measurement:'W'}}
+ };
+ const snapshot=dashboardSnapshot(states,mapping);
+ assert.equal(snapshot.engo.demandAt,'2026-11-23T11:00:00.000Z');
+ assert.equal(snapshot.engo.measured,21.4);
+ assert.equal(snapshot.bath.power.value,152.3);
+ delete states.demand.attributes.event_ts_ms;
+ states.power.attributes.unit_of_measurement='kWh';
+ const incomplete=dashboardSnapshot(states,mapping);
+ assert.equal(incomplete.engo.demand,null);
+ assert.equal(incomplete.bath.power.value,null);
+ assert.throws(()=>dashboardMapping('{"power":"switch.test"}'));
+});

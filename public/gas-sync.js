@@ -190,6 +190,15 @@ const GasSync=(()=>{
    return {connected:!!credential,role:credential?.role||null,active,
      count:remote.length,remoteAt,busy,message};
  }
- return {normalize,connect,restore,disconnect,refresh,activate,synchronize,status,
+ function tracksLocal(id){
+   try{return Object.hasOwn(meta().acked,id)}catch(_){return false}
+ }
+ function confirmed(id,state){
+   try{
+     const reading=normalize(state).find(r=>r.id===id);
+     return !!reading&&meta().acked[id]?.fingerprint===fingerprint(reading);
+   }catch(_){return false}
+ }
+ return {normalize,connect,restore,disconnect,refresh,activate,synchronize,status,tracksLocal,confirmed,
    remoteReadings:()=>remote.slice(),isConnected:()=>!!credential,pause};
 })();
