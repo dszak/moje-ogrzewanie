@@ -1011,13 +1011,13 @@ async function syncHa(force=false,pass=null){
    haUnlocked=false;haSyncLabel='Oczekuje na hasło archiwum. Historia lokalna jest bezpieczna.';
    if(force)toast('Najpierw wpisz hasło prywatnego archiwum.');
   }else{
+   haUnlocked=true;
+   if(payload.dashboard)haSnapshot=payload.dashboard;
    const merged=HaSync.merge(payload,state.engoCycles||[],state.temperatureHistory||[]);
    if(merged.addedEngo||merged.addedTemps){
     const next=DataStore.validate({...state,engoCycles:merged.engos,temperatureHistory:merged.temps});
     DataStore.save(next);state=next;
    }
-   haSnapshot=payload.dashboard||null;
-   haUnlocked=true;
    haSyncLabel=(payload.dashboardError?'Migawka urządzeń jest nieprawidłowa. ':'')+'Odczyt HA z '+day(payload.generatedAt)+' · nowe ENGO: '+merged.addedEngo+
     ', temperatury: '+merged.addedTemps+'. Wszystkie dane zachowane lokalnie.';
    if(force)toast('Synchronizacja zakończona. Nowe ENGO: '+merged.addedEngo+', temperatury: '+merged.addedTemps+'.');
@@ -1032,7 +1032,7 @@ window.addEventListener('load',()=>{
  if(typeof HeatingPreview!=='undefined'){HeatingPreview.start();return;}
  syncWeather();syncSetti();syncHeads();syncHa();gasSyncOnLoad();refreshBoiler();if(typeof window.setInterval==='function')window.setInterval(()=>{refreshBoiler();syncSetti();syncHeads();syncHa();if(GasSync.isConnected()){if(GasSync.status().role==='write'&&GasSync.status().active)maybeSyncGas();else GasSync.refresh().then(renderGasWhenIdle).catch(()=>{})}},5*60*1000)});
 window.addEventListener('pageshow',()=>{if(typeof HeatingPreview==='undefined')syncWeather();});
-document.addEventListener('visibilitychange',()=>{if(typeof HeatingPreview==='undefined'&&document.visibilityState==='visible'){syncWeather();refreshBoiler();}});
+document.addEventListener('visibilitychange',()=>{if(typeof HeatingPreview==='undefined'&&document.visibilityState==='visible'){syncWeather();refreshBoiler();syncHa();}});
 if(typeof window.setInterval==='function')window.setInterval(()=>{
  const active=(state.ventilation||[]).find(row=>!row.ended);
  if(active)document.querySelectorAll('[data-air-clock]').forEach(node=>{node.textContent=HeatingBoard.elapsed(Date.now()-Date.parse(active.started));});

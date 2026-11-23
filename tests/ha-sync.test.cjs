@@ -94,3 +94,22 @@ test('optional exporter emits source timestamps and suppresses restored or misma
  assert.equal(incomplete.bath.power.value,null);
  assert.throws(()=>dashboardMapping('{"power":"switch.test"}'));
 });
+
+test('a restored old ENGO state cannot collide with a new source event',async()=>{
+ const {normalizeHistory,combine,ENGO}=await import('../scripts/ha-history-export.mjs');
+ const event=(recorded,state,source)=>({
+   entity_id:ENGO,last_changed:recorded,state,attributes:{
+     source:'approved',event_ts_ms:Date.parse(source)
+   }
+ });
+ const a='2024-11-15T17:00:20.000Z',b='2024-11-15T17:00:42.000Z';
+ const fresh='2024-11-15T17:00:40.000Z',stale='2024-11-15T16:46:00.000Z';
+ const input=[[event(a,'off',stale),event(b,'on',fresh)]];
+ const result=normalizeHistory(input,{demandSources:new Set(['approved'])});
+ assert.deepEqual(result.engo,[{at:b,status:'on'}]);
+ const prior={engo:[{at:stale,status:'off'}],temperatures:[],
+  engo_readings:[{at:stale,temp:20.1,target:22,source_updated_at:stale}]};
+ const combined=combine(prior,result);
+ assert.equal(combined.engo.length,2);
+ assert.deepEqual(combined.engo_readings,prior.engo_readings);
+});
