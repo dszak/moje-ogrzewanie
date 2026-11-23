@@ -122,7 +122,8 @@ function boardModel(){
   return {id:room.id,name:room.id==='hall'?'Korytarz':room.name,temp:live?.temp??null,
    display:live||stale||last(room.id),label:live?'Setti+ automatycznie':stale?'Setti+ · nieaktualne · Nieaktualny pomiar z':last(room.id)?'Wpis ręczny':'Brak pomiaru'};
  });
- return HeatingBoard.model(state,gasViewState(),{rooms,roomsAt:status.at,snapshot:haSnapshot,
+ const snapshot=haSnapshot||(typeof HeatingPreview!=='undefined'?HeatingPreview.devicePlaceholder:null);
+ return HeatingBoard.model(state,gasViewState(),{rooms,roomsAt:status.at,snapshot,
   weather:Insights.near(state.weather?.hourly,Date.now())});
 }
 function renderHome(full=false){
@@ -453,9 +454,11 @@ function render(){
  };
  const preview=typeof HeatingPreview!=='undefined';
  const container=document.getElementById('view');
- container.innerHTML=(preview?'<p class="preview-label">WERSJA TESTOWA · DANE FIKCYJNE</p>':'')+
+ container.innerHTML=(preview?'<p class="preview-label">'+esc(HeatingPreview.label||'WERSJA TESTOWA · DANE FIKCYJNE')+
+  '</p>'+(HeatingPreview.status||''):'')+
   (screens[page]||screens.home)()+
   `<div class="footer">Moje Ogrzewanie v1.9.0 · ${GasSync.status().active&&GasSync.status().connected?'Gaz: synchronizacja prywatna aktywna':'Wpisy lokalne na tym urządzeniu'}</div>`;
+ if(preview)HeatingPreview.updateStatus?.();
  if(page==='insights'||page==='gas-quick')updateGasPreview();
  if(page==='boiler'||page==='boiler-quick')updateCounterPreview();
 }

@@ -36,3 +36,11 @@ Wietrzenie jest obecnie zapisywane na urządzeniu i w kopii JSON. Docelowo osobn
 3. Rozpocznij wietrzenie zestawem G3 + G5 + G6, zamknij aplikację i otwórz ponownie. Zakończ i sprawdź historię oraz korektę pełnej daty i czasu.
 4. Zapisz notatkę CO i zmień tylko jeden licznik. Porównaj oba wyniki z historią. W małej łazience sprawdź sześć pól urządzeń i zapisz ocenę komfortu.
 5. Pobierz testową kopię JSON. Po ponownym otwarciu w tej samej przeglądarce powinna pozostać cała historia. Układ na fizycznym iPhonie i telewizorze wymaga osobnego odbioru.
+
+## Prywatny test z rzeczywistymi odczytami
+
+Podgląd przez HTTPS w Tailscale korzysta z osobnej konfiguracji i osobnego portu. Przeglądarka wywołuje tylko `GET /api/telemetry` na adresie podglądu. Proces na Macu odczytuje encje z istniejącej mapy prywatnego eksportera. Zwraca wyłącznie trzy pola ENGO i sześć pól małej łazienki z ich czasami. Konto właściciela weryfikuje nagłówek tożsamości dodany przez Tailscale Serve. Serwer nasłuchuje wyłącznie lokalnie i odrzuca metody zapisu. Klucz HA i identyfikatory encji pozostają na Macu.
+
+W tym wariancie właściwe czasy odczytu pochodzą z HA. ENGO pokazuje czas źródłowego zdarzenia żądania. Dla urządzeń Setti+ używany jest czas ich obserwacji, gdy jest dostępny. Podgląd odświeża odczyty co 30 sekund i po powrocie do aplikacji. Jeśli odczyt się nie powiedzie, jest widoczny komunikat z czasem ostatniego połączenia. Gaz, pogoda, odczyty pokojowe i wpisy w tym środowisku pozostają danymi przykładowymi. Podgląd nie korzysta z produkcyjnego zapisu gazu ani publikacji GitHub Pages.
+
+`scripts/package.py` przygotowuje zwykły pakiet. `scripts/package-heating-preview.py` tworzy z niego osobny pakiet testowy. `scripts/heating-preview-server.mjs` przyjmuje katalog testowego pakietu, ścieżkę do lokalnej konfiguracji istniejącego eksportera, plik z loginem właściciela tailnetu i port lokalny. Integracji testowej nie należy umieszczać w pakiecie produkcyjnym.

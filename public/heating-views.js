@@ -88,6 +88,7 @@ const HeatingViews = (() => {
        <div class="board-grid">${engo(model,full)}${temperatures(model)}${gasSummary(model,full)}${boiler(model,full)}</div>
        <h3>Pomieszczenia</h3><div class="board-room-list featured-rooms">${featured}</div>
        <div class="board-room-list">${other}</div>
+       ${full?'<h3>Mała łazienka · urządzenia dodatkowe</h3><div class="board-grid">'+bath(model.snapshot,model.now)+'</div>':''}
        <p class="small muted"><strong>Dobrze gospodarować powierzonym mi dobrem.</strong> ${button('Pamięć projektu','memory')}</p>`;
   }
 
