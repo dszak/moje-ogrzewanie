@@ -115,6 +115,10 @@ const HeatingReview=(()=>{
           ac005_heating_counter_raw:boilerBefore.ac005,ac006_hot_water_counter_raw:boilerBefore.ac006
         }:null},
       manual_temperature_readings:manualTemperature,engo_setpoint_history:settingsChanges,experiments,
+      recorded_ventilation:(state.ventilation||[]).filter(row=>
+        Date.parse(row.started)<=end&&(row.ended===null||Date.parse(row.ended)>=start)),
+      room_comfort_ratings:(state.comfort||[]).filter(row=>inWindow(Date.parse(row.at),start,end)),
+      boiler_co_notes:(state.coHistory||[]).filter(row=>inWindow(Date.parse(row.at),start,end)),
       prior_decisions_in_period:decisions,
       latest_live_status:{setti:setti?{data:setti.data||null,fresh:!!setti.fresh,at:setti.at||null}:null,
         radiator_heads:heads?{data:heads.data||null,fresh:!!heads.fresh,at:heads.at||null}:null,

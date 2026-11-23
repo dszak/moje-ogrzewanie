@@ -108,6 +108,29 @@ const HaSync=(()=>{
     if(!Number.isFinite(ms)||ms>Date.now()+86400000)fail('Archiwum zawiera nieprawidłowy czas.');
     return new Date(ms).toISOString();
   }
+  function dashboard(data){
+    const num=(value,min,max)=>value===null||(typeof value==='number'&&Number.isFinite(value)&&value>=min&&value<=max);
+    if(!data||typeof data!=='object'||Array.isArray(data))fail('Nieprawidłowa migawka urządzeń.');
+    const result={bath:{}};
+    if(data.engo!==undefined){
+      const source=data.engo;
+      if(!source||!num(source.target,0,50)||!num(source.measured,-10,50)||
+         ![null,'on','off'].includes(source.demand))fail('Nieprawidłowa migawka ENGO.');
+      result.engo={target:source.target,measured:source.measured,demand:source.demand,
+        observedAt:source.observedAt===null?null:timestamp(source.observedAt),
+        demandAt:source.demand===null?null:timestamp(source.demandAt)};
+    }
+    for(const [key,row] of Object.entries(data.bath||{})){
+      const v=row?.value;
+      const valid=key==='enabled'||key==='relay'?[null,'on','off'].includes(v):
+        key==='target'||key==='measured'?num(v,-30,70):
+        key==='power'?num(v,0,8000):
+        key==='mode'?(v===null||typeof v==='string'&&/^[a-zA-Z0-9_-]{1,30}$/.test(v)):false;
+      if(!row||!valid)fail('Nieprawidłowa migawka małej łazienki.');
+      result.bath[key]={value:v,at:timestamp(row.at)};
+    }
+    return result;
+  }
   function validate(data){
     if(!data||data.format!=='moje-ogrzewanie-ha-historia'||data.version!==1||
        !Array.isArray(data.engo)||!Array.isArray(data.temperatures)||
@@ -122,7 +145,12 @@ const HaSync=(()=>{
          x.temp< -10||x.temp>45)fail('Nieprawidłowa temperatura HA.');
       return {at:timestamp(x.at),room:x.room,temp:x.temp};
     });
-    return {engo:engos,temperatures,generatedAt:timestamp(data.generated_at)};
+    const result={engo:engos,temperatures,generatedAt:timestamp(data.generated_at)};
+    if(data.dashboard!==undefined){
+      try{result.dashboard=dashboard(data.dashboard);}
+      catch(_){result.dashboardError=true;}
+    }
+    return result;
   }
   function merge(data,oldEngo=[],oldTemps=[]){
     const engos=[...oldEngo],temps=[...oldTemps];

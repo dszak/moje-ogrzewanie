@@ -48,16 +48,6 @@ const MemoryView=(()=>{
    out+='<section class="card" style="margin-bottom:16px"><div class="group-heading"><h3>2. Rejestr zdobytej wiedzy</h3><span class="pill">'+current.length+' aktualnych</span></div>'+
       '<p>Oddzielamy <b>obserwacje</b>, <b>hipotezy</b>, <b>wyniki eksperymentów</b> i <b>sprawdzone konfiguracje</b>.'+
       ' Gromadzimy także wnioski negatywne i nierozstrzygnięte. Sama deklaracja „sprawdzona” nie zastępuje pomiarów.</p>'+
-      '<div class="form-grid" style="margin-top:16px">'+
-      '<div><label for="memoryKind">Typ</label>'+select('memoryKind',MemoryKit.KINDS,'observation')+'</div>'+
-      '<div><label for="memoryConfidence">Pewność oceny (subiektywna)</label>'+select('memoryConfidence',MemoryKit.CONFIDENCE,'low')+'</div>'+
-      '<div><label for="memoryOutcome">Wynik próby</label>'+select('memoryOutcome',MemoryKit.OUTCOMES,'none')+'</div>'+
-      '<div><label for="memoryExperiment">Powiązany eksperyment</label>'+select('memoryExperiment',{none:'Brak',...Object.fromEntries(state.experiments.map(e=>[e.id,e.title]))},'none')+'</div>'+
-      '<div class="wide"><label for="memoryTitle">Tytuł ustalenia</label><input id="memoryTitle" maxlength="120" placeholder="np. Stabilność temperatury sypialni"></div>'+
-      '<div class="wide"><label for="memoryConclusion">Co dokładnie ustaliliśmy?</label><textarea id="memoryConclusion" rows="3" maxlength="1800"></textarea></div>'+
-      '<div class="wide"><label for="memoryEvidence">Na jakiej podstawie? (dowody, daty, pliki)</label><textarea id="memoryEvidence" rows="3" maxlength="1800"></textarea></div>'+
-      '<div class="wide"><label for="memoryConditions">W jakich warunkach wniosek ma zastosowanie?</label><textarea id="memoryConditions" rows="2" maxlength="800"></textarea></div></div>'+
-      '<div class="actions" style="margin-top:12px"><button class="action" data-action="memory-add">Zapisz nowy wniosek</button></div>'+
       '<div class="hr"></div><h4>Wiedza, z której korzystamy w kolejnych analizach</h4>'+
       (entries.length?entries.map(entry=>
          '<article class="review-entry"><div class="group-heading"><strong>'+esc(entry.title)+'</strong><span class="pill">'+esc(MemoryKit.KINDS[entry.kind])+'</span></div>'+
@@ -72,6 +62,17 @@ const MemoryView=(()=>{
          (entry.status==='current'?'<div class="actions"><button class="action ghost" data-action="memory-supersede" data-id="'+esc(entry.id)+'">Oznacz jako zastąpiony</button></div>':'')+
          '</article>').join(''):
         '<div class="empty">Nie ma jeszcze zapisanych wniosków. Warto zacząć od pierwszej analizy z 15 listopada.</div>')+
+      '<details><summary>Ręczne dopisanie ustalenia</summary>'+      '<div class="form-grid" style="margin-top:16px">'+
+      '<div><label for="memoryKind">Typ</label>'+select('memoryKind',MemoryKit.KINDS,'observation')+'</div>'+
+      '<div><label for="memoryConfidence">Pewność oceny (subiektywna)</label>'+select('memoryConfidence',MemoryKit.CONFIDENCE,'low')+'</div>'+
+      '<div><label for="memoryOutcome">Wynik próby</label>'+select('memoryOutcome',MemoryKit.OUTCOMES,'none')+'</div>'+
+      '<div><label for="memoryExperiment">Powiązany eksperyment</label>'+select('memoryExperiment',{none:'Brak',...Object.fromEntries(state.experiments.map(e=>[e.id,e.title]))},'none')+'</div>'+
+      '<div class="wide"><label for="memoryTitle">Tytuł ustalenia</label><input id="memoryTitle" maxlength="120" placeholder="np. Stabilność temperatury sypialni"></div>'+
+      '<div class="wide"><label for="memoryConclusion">Co dokładnie ustaliliśmy?</label><textarea id="memoryConclusion" rows="3" maxlength="1800"></textarea></div>'+
+      '<div class="wide"><label for="memoryEvidence">Na jakiej podstawie? (dowody, daty, pliki)</label><textarea id="memoryEvidence" rows="3" maxlength="1800"></textarea></div>'+
+      '<div class="wide"><label for="memoryConditions">W jakich warunkach wniosek ma zastosowanie?</label><textarea id="memoryConditions" rows="2" maxlength="800"></textarea></div></div>'+
+      '<div class="actions" style="margin-top:12px"><button class="action" data-action="memory-add">Zapisz nowy wniosek</button></div>'+
+      '</details>'+
       '</section>';
    out+='<section class="card" style="margin-bottom:16px"><h3>3. Przenieś wiedzę z ChatGPT do aplikacji</h3>'+
      '<p>Po każdej analizie poproś ChatGPT o propozycje zapisów. Wklej JSON lub wybierz plik, obejrzyj podgląd, a dopiero potem zatwierdź. <b>Nic nie zostaje dopisane automatycznie.</b></p>'+

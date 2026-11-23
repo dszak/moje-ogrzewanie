@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/research.js','utf8')+'\n'+fs.readFileSync('public/memory.js','utf8')+'\n'+fs.readFileSync('public/memory-view.js','utf8')+'\n'+fs.readFileSync('public/review.js','utf8')+'\n'+fs.readFileSync('public/review-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/ha-sync.js','utf8')+'\n'+fs.readFileSync('public/gas-sync.js','utf8')+'\n'+fs.readFileSync('public/boiler-sync.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
+const source=fs.readFileSync('public/storage.js','utf8')+'\n'+fs.readFileSync('public/insights.js','utf8')+'\n'+fs.readFileSync('public/engo.js','utf8')+'\n'+fs.readFileSync('public/temperatures.js','utf8')+'\n'+fs.readFileSync('public/temperature-view.js','utf8')+'\n'+fs.readFileSync('public/research.js','utf8')+'\n'+fs.readFileSync('public/memory.js','utf8')+'\n'+fs.readFileSync('public/memory-view.js','utf8')+'\n'+fs.readFileSync('public/review.js','utf8')+'\n'+fs.readFileSync('public/review-view.js','utf8')+'\n'+fs.readFileSync('public/setti.js','utf8')+'\n'+fs.readFileSync('public/heads.js','utf8')+'\n'+fs.readFileSync('public/ha-sync.js','utf8')+'\n'+fs.readFileSync('public/gas-sync.js','utf8')+'\n'+fs.readFileSync('public/boiler-sync.js','utf8')+'\n'+fs.readFileSync('public/heating-board.js','utf8')+'\n'+fs.readFileSync('public/heating-views.js','utf8')+'\n'+fs.readFileSync('public/app.js','utf8');
 function boot(initial={}){
  const data=new Map(Object.entries(initial)),elements=new Map(),listeners={};
  let quota=false,allowConfirm=true;
@@ -674,4 +674,102 @@ test('v1.8.1: ethics is in exported report without changing existing five knowle
  const c=boot(Object.fromEntries(b.data));
  assert.equal(c.run('state.knowledgeLog.length'),5);
  assert.equal(c.run('state.projectMemory.overview'),'Already stored private text');
+});
+
+test('dashboard computes litres and rolling coverage from confirmed intervals of the current meter',()=>{
+ const b=boot();
+ const result=JSON.parse(b.run(`JSON.stringify((()=>{
+   const end=Date.parse('2026-11-23T12:00:00Z'),h=3600000;
+   const entries=[[-54,0,'new'],[-36,2.4,'new'],[-18,4.8,'new'],[0,7.2,'new'],[-1,100,'old']];
+   const s={...state,gasHistory:entries.map(([offset,gas,meter],i)=>({
+     id:'test'+i,at:new Date(end+offset*h).toISOString(),meter,gas,source:'manual'}))};
+   return HeatingBoard.gas(s,end+6*h);
+ })())`));
+ assert.equal(Math.round(result.last.gas*1000),2400);
+ assert.equal(Math.round(result.last.perDay*1000),3200);
+ assert.equal(result.rolling[0].covered,2.25);
+ assert.equal(result.rolling[1].covered,2.25);
+ assert.equal(Math.round(result.rolling[0].perDay*1000),3200);
+ assert.equal(Math.round(result.comparison.percent),0);
+ assert.equal(result.comparison.weather,false);
+});
+
+test('meter replacement, competing readings and reset do not fabricate a last gas interval',()=>{
+ const b=boot();
+ for(const [values,meters,offsets] of [
+  [[10,1],['old','new'],[-48,0]],
+  [[10,11,12],['new','new','new'],[-48,0,0]],
+  [[10,9],['new','new'],[-48,0]]
+ ]){
+  const data=JSON.stringify(values.map((gas,i)=>({gas,meter:meters[i],offset:offsets[i],id:'test'+i,source:'manual'})));
+  assert.equal(b.run(`(()=>{
+   const end=Date.parse('2026-11-23T12:00:00Z');
+   const gasHistory=${data}.map(r=>({...r,at:new Date(end+r.offset*3600000).toISOString()}));
+   return HeatingBoard.gas({...state,gasHistory},end).last;
+  })()`),null);
+ }
+});
+
+test('partial boiler read uses a separate last real reading for each counter',()=>{
+ const b=boot();
+ const click=action=>b.listeners.click({target:{closest:()=>({dataset:{action}})}});
+ b.element('boilerAt').value='2026-11-01T12:00';
+ b.element('boilerAc001').value='100';
+ b.element('boilerAc005').value='200';
+ b.element('boilerAc006').value='300';
+ click('save-boiler');
+ b.element('boilerAt').value='2026-11-02T12:00';
+ b.element('boilerAc001').value='';
+ b.element('boilerAc005').value='203';
+ b.element('boilerAc006').value='';
+ click('save-boiler');
+ const copy=boot(Object.fromEntries(b.data));
+ assert.equal(copy.run('state.boilerReadings.length'),2);
+ assert.equal(copy.run('state.boilerReadings[1].ac001'),null);
+ assert.equal(copy.run('HeatingBoard.counters(state.boilerReadings)[0].latest'),100);
+ assert.equal(copy.run('HeatingBoard.counters(state.boilerReadings)[1].gain'),3);
+ assert.equal(copy.run('HeatingBoard.counters(state.boilerReadings)[2].latest'),300);
+ assert.equal(copy.run('HeatingBoard.counters([...state.boilerReadings,{id:"reset",at:"2026-11-03T12:00:00Z",ac005:0}])[1].gain'),null);
+});
+
+test('Warsaw local times distinguish the two repeated fall clock times',()=>{
+ const b=boot();
+ assert.equal(b.run('HeatingBoard.parseLocal("2026-03-29T02:30")'),NaN);
+ assert.equal(b.run('HeatingBoard.parseLocal("2026-10-25T02:30")'),NaN);
+ assert.equal(b.run('HeatingBoard.parseLocal("2026-10-25T02:30","+01:00")-HeatingBoard.parseLocal("2026-10-25T02:30","+02:00")'),3600000);
+});
+
+test('dated airing corrections cross midnight and survive repeat loads',()=>{
+ const first=boot();
+ const click=(b,action,extra={})=>b.listeners.click({target:{closest:()=>({dataset:{action,...extra}})}});
+ first.run('setPage("air")');
+ click(first,'air-preset',{set:'G3 G5'});
+ click(first,'air-start');
+ click(first,'air-start');
+ assert.equal(first.run('state.ventilation.length'),1);
+ first.run('state.ventilation[0].started="2026-11-04T22:50:00.000Z";save()');
+ const second=boot(Object.fromEntries(first.data));
+ assert.equal(second.run('boardModel().air.windows.join(",")'),'G3,G5');
+ const id=second.run('state.ventilation[0].id');
+ click(second,'air-edit',{id});
+ second.element('airEnd').value='2026-11-05T00:10';
+ click(second,'air-correct');
+ const third=boot(Object.fromEntries(second.data));
+ assert.equal(third.run('state.ventilation[0].ended'),'2026-11-04T23:10:00.000Z');
+ assert.equal(third.run('state.ventilation[0].corrections.length'),1);
+ assert.equal(third.run('boardModel().air'),undefined);
+});
+
+test('HA device extension preserves the history if optional data fail validation',()=>{
+ const b=boot();
+ assert.equal(b.run(`(()=>{
+  const at='2026-11-23T12:00:00Z';
+  const payload={format:'moje-ogrzewanie-ha-historia',version:1,generated_at:at,
+   engo:[{at,status:'off'}],temperatures:[],
+   dashboard:{engo:{target:22,measured:21.7,demand:'on',observedAt:at,demandAt:at},bath:{power:{value:152.3,at}}}};
+  const parsed=HaSync.validate(payload);
+  payload.dashboard.bath.power.value=-1;
+  const invalid=HaSync.validate(payload);
+  return parsed.dashboard.bath.power.value===152.3&&invalid.dashboardError&&invalid.engo.length===1;
+ })()`),true);
 });

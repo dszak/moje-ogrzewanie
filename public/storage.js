@@ -33,10 +33,42 @@ const DataStore = (() => {
     arr(p.boilerReadings).forEach(r=>{
       obj(r);str(r.id,100);date(r.at);
       for(const key of ['ac001','ac005','ac006']){
-        number(r[key],0,100000000,false);
-        if(!Number.isSafeInteger(r[key]))fail();
+        if(r[key]===undefined)r[key]=null;
+        number(r[key],0,100000000);
+        if(r[key]!==null&&!Number.isSafeInteger(r[key]))fail();
       }
+      if([r.ac001,r.ac005,r.ac006].every(x=>x===null))fail();
       str(r.note,200);
+    });
+    // These additions are optional in every v1 backup.
+    if(p.coHistory===undefined)p.coHistory=[];
+    arr(p.coHistory).forEach(row=>{
+      obj(row);str(row.id,100);date(row.at);number(row.value,25,85,false);
+      if(!Number.isInteger(row.value)||!['manual','ha'].includes(row.source))fail();
+    });
+    if(p.ventilation===undefined)p.ventilation=[];
+    const airIds=new Set();
+    let airing=0;
+    arr(p.ventilation).forEach(e=>{
+      obj(e);str(e.id,100);date(e.started);
+      if(airIds.has(e.id))fail();airIds.add(e.id);
+      if(e.ended===null)airing++;
+      else {date(e.ended);if(Date.parse(e.ended)<Date.parse(e.started))fail();}
+      if(!['','Lekkie uchylenie','Uchylone','Otwarte szeroko'].includes(e.opening))fail();
+      arr(e.windows);
+      if(!e.windows.length||new Set(e.windows).size!==e.windows.length||e.windows.some(w=>!radIds.includes(w)))fail();
+      arr(e.corrections).forEach(change=>{
+        obj(change);date(change.at);if(change.previous!==null)date(change.previous);
+        date(change.ended);if(Date.parse(change.ended)<Date.parse(e.started))fail();
+      });
+    });
+    if(airing>1)fail();
+    if(p.comfort===undefined)p.comfort=[];
+    const comfortIds=new Set();
+    arr(p.comfort).forEach(e=>{
+      obj(e);str(e.id,100);date(e.at);str(e.note,200);
+      if(comfortIds.has(e.id)||!roomIds.includes(e.room)||!Number.isInteger(e.score)||e.score<1||e.score>5)fail();
+      comfortIds.add(e.id);
     });
     // Optional ENGO on/off events. Keep temperature-setpoint changes separate.
     if(p.engoCycles===undefined)p.engoCycles=[];

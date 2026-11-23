@@ -55,3 +55,9 @@ Przycisk **Zapomnij klucz na tym urządzeniu** usuwa dostęp do przyszłych szyf
 - Historia temperatur w bieżącym lokalnym schemacie jest ograniczona do 25 000 zmian. Po dojściu do limitu należy wykonać kopię i zaplanować rozszerzenie modelu; **żadna historia nie jest kasowana automatycznie**.
 - Publiczna gałąź `setti-data` **nie otrzymuje jawnych danych gazu**, liczników kotła ani prywatnej pamięci projektu. **Osobne prywatne repozytorium** otrzymuje od 19/20.11.2026 odczyty gazu przez Cloudflare Worker, a nie przez eksporter HA.
 - Wypchnięcie poprawki w gałęzi nie oznacza publikacji na Pages. Przed **kolejną zmianą funkcjonalną** uruchomić `node --test tests/*.test.cjs`, `python3 scripts/check.py`, `python3 scripts/package.py`, przetestować dotknięte funkcje na urządzeniach i uzyskać zgodę na wdrożenie.
+
+## Migawka tablicy ogrzewania
+
+Eksporter może użyć `HA_TELEMETRY_CONFIG`, która wskazuje na prywatny plik konfiguracji historycznej na Macu. Z pola `entities` wybiera tylko klimat i żądanie ENGO oraz sześć odczytów konwektora i gniazdka osuszacza. Używa listy `demand_sources` do weryfikowania zdarzeń ENGO. Powrót encji po restarcie z wcześniejszym znacznikiem źródłowym nie tworzy nowego przełączenia. Żądanie z ostatniego źródłowego zdarzenia jest prezentowane osobno od temperatur i pracy palnika.
+
+Migawka trafia do tej samej zaszyfrowanej koperty. Dotychczasowe historie, próbki temperatur ENGO i sól klucza pozostają zachowane. Opcjonalne pole `dashboard` zawiera wartości, jednostki są ustalone w schemacie, a czasy odczytów pochodzą z Home Assistanta. Odczyty w publicznej aplikacji są widoczne po odblokowaniu archiwum na urządzeniu. Eksport działa według harmonogramu co ok. 30 minut, a otwarta aplikacja sprawdza aktualizacje co 5 minut i po powrocie na ekran. UI pokazuje czasy odczytów i oznacza stare dane. `HA_EXPORT_VERIFY_ONLY=1` sprawdza zgodność i liczbę danych z rzeczywistych źródeł bez zapisu w GitHubie.
