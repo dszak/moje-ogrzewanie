@@ -101,6 +101,7 @@ test('Worker isolates permissions, retries GitHub CAS for unrelated writes and r
   JOURNAL_READ_TOKEN_SHA256:await digest(read),JOURNAL_WRITE_TOKEN_SHA256:await digest(write)};
  let archive=model.append(model.empty(),fixture()).archive,privateRepo=true,writes=0,sha='1'.repeat(40),race=true;
  const transport=async(url,options)=>{
+  assert.equal(options.redirect,'manual');
   if(url.endsWith('archiwum'))return Response.json({full_name:'dszak/moje-ogrzewanie-archiwum',
    private:privateRepo,visibility:privateRepo?'private':'public',archived:false});
   if(options.method!=='PUT')return Response.json({sha,type:'file',encoding:'base64',content:Buffer.from(JSON.stringify(archive)).toString('base64')});

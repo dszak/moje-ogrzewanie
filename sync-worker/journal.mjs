@@ -30,7 +30,8 @@ function github(token,branch,transport){
  const api='https://api.github.com/repos/'+repoName;
  const headers={Authorization:'Bearer '+token,Accept:'application/vnd.github+json',
   'User-Agent':'moje-ogrzewanie-journal','X-GitHub-Api-Version':'2022-11-28'};
- const request=(url,settings={})=>transport(url,{cache:'no-store',redirect:'error',
+ // Workers supports manual redirects. Callers reject every non-success status.
+ const request=(url,settings={})=>transport(url,{cache:'no-store',redirect:'manual',
   ...settings,headers:{...headers,...settings.headers}});
  return {
   async load(){
