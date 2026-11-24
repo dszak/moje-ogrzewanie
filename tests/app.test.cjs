@@ -676,7 +676,7 @@ test('v1.8.1: ethics is in exported report without changing existing five knowle
  assert.equal(c.run('state.projectMemory.overview'),'Already stored private text');
 });
 
-test('dashboard computes litres and rolling coverage from confirmed intervals of the current meter',()=>{
+test('dashboard computes cubic meters and rolling coverage from confirmed intervals of the current meter',()=>{
  const b=boot();
  const result=JSON.parse(b.run(`JSON.stringify((()=>{
    const end=Date.parse('2026-11-23T12:00:00Z'),h=3600000;
@@ -692,6 +692,43 @@ test('dashboard computes litres and rolling coverage from confirmed intervals of
  assert.equal(Math.round(result.rolling[0].perDay*1000),3200);
  assert.equal(Math.round(result.comparison.percent),0);
  assert.equal(result.comparison.weather,false);
+});
+
+test('gas presentation uses cubic meters with Polish rounding across the dashboard and analysis',()=>{
+ const b=boot();
+ for(const [value,unit,text] of [
+  [17.348,'m³','17,348 m³'],
+  [12.803,'m³/dobę','12,80 m³/dobę'],
+  [9.494,'m³/dobę','9,49 m³/dobę'],
+  [9.806,'m³/dobę','9,81 m³/dobę'],
+  [0.0002,'m³','< 0,001 m³'],
+  [0.004,'m³/dobę','< 0,01 m³/dobę'],
+  [0,'m³','0,000 m³'],
+  [null,'m³','—']
+ ])assert.equal(b.run('HeatingViews.formatGas('+JSON.stringify(value)+','+JSON.stringify(unit)+')'),text);
+ b.run(`{
+  const end=Date.now()-3600000, minutes=35*60+25;
+  state.gasHistory=[
+   {id:'gas-synthetic-start',at:new Date(end-minutes*60000).toISOString(),gas:120.111,meter:'new',source:'manual'},
+   {id:'gas-synthetic-end',at:new Date(end).toISOString(),gas:137.459,meter:'new',source:'manual'}
+  ];
+  save();
+ }`);
+ const stored=b.data.get(KEY);
+ b.run('setPage("home")');
+ let html=b.element('view').innerHTML;
+ assert.match(html,/Ostatni przedział<\/span><strong>17,348 m³/);
+ assert.match(html,/35 godz\. 25 min/);
+ assert.match(html,/Tempo zużycia<\/span><strong>11,76 m³\/dobę/);
+ assert.match(html,/ostatniego przedziału/);
+ assert.doesNotMatch(html,/l\/dobę/);
+ b.run('setPage("insights")');
+ html=b.element('view').innerHTML;
+ assert.match(html,/gas-table[\s\S]*17,348 m³[\s\S]*11,76 m³\/dobę/);
+ assert.match(html,/gas-record-grid[\s\S]*17,348 m³[\s\S]*11,76 m³\/dobę/);
+ assert.match(html,/gas-history-entry-value">137,459 m³/);
+ assert.equal(b.run('state.gasHistory[1].gas'),137.459);
+ assert.equal(b.data.get(KEY),stored);
 });
 
 test('meter replacement, competing readings and reset do not fabricate a last gas interval',()=>{

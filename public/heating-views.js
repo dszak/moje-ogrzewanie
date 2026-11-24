@@ -3,8 +3,17 @@
 const HeatingViews = (() => {
   const button=(label,page)=>`<button class="action light" data-action="page" data-page="${page}">${label}</button>`;
   const back=(label,page='home')=>`<button class="back" data-action="page" data-page="${page}">${label}</button>`;
-  const formatGas=value=>fmt(value,3)+' m³';
-  const litres=m3=>count(Math.round(m3*1000));
+  const gasFormats=Object.fromEntries([2,3].map(digits=>[digits,new Intl.NumberFormat('pl-PL',{
+    minimumFractionDigits:digits,maximumFractionDigits:digits
+  })]));
+  function formatGas(value,unit='m³') {
+    if(!Number.isFinite(value))return '—';
+    const digits=unit==='m³/dobę'?2:3;
+    const {format}=gasFormats[digits];
+    const rounded=format(value);
+    const display=value>0&&rounded===format(0)?'< '+format(10**-digits):rounded;
+    return display+' '+unit;
+  }
   const timestamp=at=>HeatingBoard.when(at);
   const interval=x=>timestamp(x.start)+' – '+timestamp(x.end);
   const source=(text,at)=>`<p class="hint">${esc(text)}${at?' · '+timestamp(at):''}</p>`;
@@ -18,14 +27,14 @@ const HeatingViews = (() => {
       ' · '+(comparison.percent===0?'tempo bez zmian':fmt(Math.abs(comparison.percent),1)+'% '+(comparison.percent<0?'mniej':'więcej'))+'.</p>':'';
     return `<section class="card board-gas" aria-label="Zużycie gazu"><div class="group-heading"><h3>Gaz</h3>
       <span class="small muted">${latest?(latest.meter==='old'?'Stary':'Obecny')+' gazomierz':'Brak odczytów'}</span></div>
-      ${latest?`<p class="hint">Ostatni odczyt <strong>${formatGas(latest.gas)}</strong> · ${timestamp(latest.at)}</p>`:''}
-      ${last?`<div class="board-metrics">${metric('Zużycie w ostatnim przedziale',litres(last.gas)+' l',formatGas(last.gas))}
-      ${metric('Tempo w tym przedziale',litres(last.perDay)+' l/dobę',HeatingBoard.elapsed(last.end-last.start)+' między odczytami')}</div><p class="hint">${period}</p>`
+      ${latest?`<p class="hint">Ostatni odczyt <strong>${esc(formatGas(latest.gas))}</strong> · ${timestamp(latest.at)}</p>`:''}
+      ${last?`<div class="board-metrics">${metric('Ostatni przedział',esc(formatGas(last.gas)),esc(HeatingBoard.elapsed(last.end-last.start).replace(' h ',' godz. ')))}
+      ${metric('Tempo zużycia',esc(formatGas(last.perDay,'m³/dobę')),'Średnia z ostatniego przedziału.')}</div><p class="hint">${period}</p>`
       :'<p>Brak danych o zużyciu między ostatnimi odczytami.</p>'}
-      <div class="board-metrics">${rolling.map(w=>metric('Ostatnie '+w.days+' dni',w.perDay===null?'Brak danych':litres(w.perDay)+' l/dobę',
+      <div class="board-metrics">${rolling.map(w=>metric('Ostatnie '+w.days+' dni',w.perDay===null?'Brak danych':esc(formatGas(w.perDay,'m³/dobę')),
       'Pokrycie '+fmt(w.covered,1)+' z '+w.days+' dni'+(w.covered&&w.covered<w.days?' · średnia z pokrytych przedziałów':''))).join('')}</div>
       ${text}${full&&!comparison?'<p class="hint">Brak poprzedniego bezpośredniego przedziału o podobnej długości, spełniającego warunki porównania.</p>':''}
-      ${full?'<p class="hint">Pokrycie wyliczamy z pełnych przedziałów ostatniego gazomierza mieszczących się w oknie. Nie interpolujemy jego granic. Tempo w l/dobę opisuje przedział, a nie chwilowe spalanie.</p>'+button('Historia i analizy gazu','insights'):''}
+      ${full?'<p class="hint">Pokrycie wyliczamy z pełnych przedziałów ostatniego gazomierza mieszczących się w oknie. Nie interpolujemy jego granic. Tempo dobowe jest średnią z przedziału.</p>'+button('Historia i analizy gazu','insights'):''}
       </section>`;
   }
 
@@ -325,5 +334,5 @@ const HeatingViews = (() => {
       '<div class="grid cols2">'+reports.join('')+'</div>';
   }
 
-  return {dashboard,rooms,analysis,more,gasForm,gasSummary,boilerForm,coForm,air,comfort,bath,dehumidifier,dehumidifierAnalysis,counterValue,gainLabel};
+  return {formatGas,dashboard,rooms,analysis,more,gasForm,gasSummary,boilerForm,coForm,air,comfort,bath,dehumidifier,dehumidifierAnalysis,counterValue,gainLabel};
 })();

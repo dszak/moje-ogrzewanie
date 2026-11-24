@@ -31,6 +31,7 @@ function load(){return DataStore.load(seed)}
 function save(){state=DataStore.save(state);const el=document.getElementById('storageAlert');el.hidden=!DataStore.warning;if(DataStore.warning)el.textContent=DataStore.warning}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function fmt(x,prec=1){return x===null||x===undefined||x===''?'—':Number(x).toFixed(prec).replace('.',',')}
+const formatGas=HeatingViews.formatGas;
 function T(x){return x===null||x===undefined?'—':`${fmt(x)}°C`}
 function now(){return new Date().toISOString()}
 function day(s){return s?HeatingBoard.when(s):'—'}
@@ -81,7 +82,7 @@ function renderGasHistoryCard(r){
  const snap=r.setti;
  return `<article class="gas-history-entry">
   <div class="gas-history-entry-header"><strong>${day(new Date(r.at).toISOString())}</strong><span class="pill">${meter}</span></div>
-  <div class="gas-history-entry-value">${fmt(r.gas,3)} <span>m³</span></div>
+  <div class="gas-history-entry-value">${esc(formatGas(r.gas))}</div>
   <div class="gas-history-entry-source">Źródło: ${source}</div>
   ${gasActions(r)}
   ${snap?`<details class="gas-history-entry-setti">
@@ -315,15 +316,29 @@ function gasSyncOnLoad(){
 function renderInsights(){
  const w=state.weather||{hourly:[],updated:null},view=gasViewState(),records=Insights.readings(view),rows=Insights.intervals(view),daily=Insights.dailyComparisons(view),events=(state.heatingEvents||[]).slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
  const fdate=at=>new Date(at).toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric'});
- const trow=x=>'<tr><td>'+fdate(x.start)+' – '+fdate(x.end)+'</td><td>'+(x.meter==='old'?'Stary':'Nowy')+'</td><td>'+fmt(x.gas,2)+'</td><td>'+fmt(x.days,1)+'</td><td><b>'+fmt(x.perDay,2)+'</b>'+(x.estimated?' (szac.)':'')+'</td><td>'+(x.avg===null?'—':T(x.avg))+'</td><td>'+(x.normalized===null?'—':fmt(x.normalized,3))+'</td></tr>';
- const cardrow=x=>'<article class="gas-record"><div class="gas-record-header"><strong>'+fdate(x.start)+' – '+fdate(x.end)+'</strong><span class="pill">'+(x.meter==='old'?'Stary licznik':'Nowy licznik')+'</span></div><div class="gas-record-grid"><div><span>Zużycie</span><b>'+fmt(x.gas,2)+' m³</b></div><div><span>Średnio na dobę</span><b>'+(fmt(x.perDay,2)+' m³/dobę'+(x.estimated?' · szac.':''))+'</b></div><div><span>Okres</span><b>'+fmt(x.days,2)+' dnia</b></div><div><span>Śr. temp. zewn.</span><b>'+(x.avg===null?'—':T(x.avg))+'</b></div><div><span>m³/stopniodzień</span><b>'+(x.normalized===null?'—':fmt(x.normalized,3))+'</b></div></div></article>';
+ const trow=x=>`<tr>
+ <td>${fdate(x.start)} – ${fdate(x.end)}</td>
+ <td>${x.meter==='old'?'Stary':'Nowy'}</td>
+ <td>${esc(formatGas(x.gas))}</td><td>${fmt(x.days,1)}</td>
+ <td><b>${esc(formatGas(x.perDay,'m³/dobę'))}</b>${x.estimated?' (szac.)':''}</td>
+ <td>${T(x.avg)}</td><td>${esc(formatGas(x.normalized,'m³/stopniodzień'))}</td></tr>`;
+ const cardrow=x=>`<article class="gas-record">
+ <div class="gas-record-header"><strong>${fdate(x.start)} – ${fdate(x.end)}</strong>
+ <span class="pill">${x.meter==='old'?'Stary licznik':'Nowy licznik'}</span></div>
+ <div class="gas-record-grid">
+ <div><span>Zużycie</span><b>${esc(formatGas(x.gas))}</b></div>
+ <div><span>Średnio na dobę</span><b>${esc(formatGas(x.perDay,'m³/dobę'))}${x.estimated?' · szac.':''}</b></div>
+ <div><span>Okres</span><b>${fmt(x.days,2)} dnia</b></div>
+ <div><span>Śr. temp. zewn.</span><b>${T(x.avg)}</b></div>
+ <div><span>Wskaźnik pogodowy</span><b>${esc(formatGas(x.normalized,'m³/stopniodzień'))}</b></div>
+ </div></article>`;
  return sec('Gaz i pogoda','Automatyczna temperatura dla Katowic, historia gazomierzy i zużycie w odniesieniu do pogody.')+HeatingViews.gasSummary(boardModel(),false)+gasEditor()+
  '<div class="banner info"><span>☁️</span><span><b>'+esc(weatherStatus())+'</b><br>Źródło: Open-Meteo, dane modelowe godzinowe. Aktualizacja po uruchomieniu aplikacji i na żądanie, gdy jest internet. Dane pogodowe zapisują się lokalnie. Nie są to pomiary z Twojego czujnika.</span></div>'+
  '<div class="actions" style="margin-bottom:16px"><button class="action light" data-action="refresh-weather">Odśwież pogodę</button><span class="small muted">Danych godzinowych: '+w.hourly.length+' · aktualizacja: '+(w.updated?day(w.updated):'brak')+'</span></div>'+
  '<div class="grid cols3" style="margin-bottom:18px"><div class="stat"><div class="label">Odczyty gazu</div><strong>'+records.length+'</strong><small>Łącznie z zapisanymi wcześniej obserwacjami</small></div><div class="stat"><div class="label">Interwały zużycia</div><strong>'+rows.length+'</strong><small>Porównania tylko w ramach jednego gazomierza</small></div><div class="stat"><div class="label">Wpisy ENGO</div><strong>'+events.length+'</strong><small>Zmiany historyczne do porównań</small></div></div>'+
- '<section class="card" style="margin-bottom:16px"><h3>Porównania dobowe</h3><p class="subtitle">Wyszukujemy odczyt najbliższy 24 godzinom przed końcem okresu, nawet jeśli pomiędzy nimi są inne wpisy. Odstęp 18–30 godzin.</p>'+(daily.length?daily.slice(0,20).map(x=>'<div class="item"><b>'+fmt(x.perDay,2)+' m³/dobę</b><div class="desc">'+day(new Date(x.start).toISOString())+' → '+day(new Date(x.end).toISOString())+' · '+fmt(x.gas,3)+' m³ / '+fmt(x.days*24,1)+' h · '+(x.meter==='old'?'stary':'nowy')+' gazomierz</div></div>').join(''):'<div class="empty">Brak porównań dobowych. Potrzebne są dwa odczyty tego samego gazomierza odległe o około dobę.</div>')+'</section>'+
+ '<section class="card" style="margin-bottom:16px"><h3>Porównania dobowe</h3><p class="subtitle">Wyszukujemy odczyt najbliższy 24 godzinom przed końcem okresu, nawet jeśli pomiędzy nimi są inne wpisy. Odstęp 18–30 godzin.</p>'+(daily.length?daily.slice(0,20).map(x=>'<div class="item"><b>'+esc(formatGas(x.perDay,'m³/dobę'))+'</b><div class="desc">'+day(new Date(x.start).toISOString())+' → '+day(new Date(x.end).toISOString())+' · '+esc(formatGas(x.gas))+' / '+fmt(x.days*24,1)+' h · '+(x.meter==='old'?'stary':'nowy')+' gazomierz</div></div>').join(''):'<div class="empty">Brak porównań dobowych. Potrzebne są dwa odczyty tego samego gazomierza odległe o około dobę.</div>')+'</section>'+
  '<section class="card" style="margin-bottom:16px"><h3>Zużycie gazu między odczytami</h3><p class="subtitle" style="margin-bottom:14px">Rzeczywiste odczyty gazomierza. Współczynnik pogodowy: m³ na stopniodzień przy stałej temperaturze odniesienia 21,5°C, nie rzeczywista sprawność kotła. Odczyty ORLEN bez godziny są liczone orientacyjnie od południa; nie obejmuje to osobno ciepłej wody.</p>'+
- (rows.length?'<div class="table-scroll gas-table-wrap"><table class="table gas-table"><thead><tr><th>Okres</th><th>Gazomierz</th><th>m³</th><th>Dni</th><th>m³/dobę</th><th>Temp. zewn.</th><th>m³/stopniodzień</th></tr></thead><tbody>'+rows.slice(0,45).map(trow).join('')+'</tbody></table></div><div class="gas-mobile">'+rows.slice(0,45).map(cardrow).join('')+'</div><p class="hint">Średnia pogody i współczynnik pojawiają się tylko przy dostępności co najmniej 75% godzin w okresie. Dla krótszych niż 18 godzin odstępów m³/dobę jest orientacyjnym przeliczeniem, a nie pomiarem całej doby. Wskaźnika m³/stopniodzień nie liczymy dla takich okresów. Zmiana nastawy ENGO może wpływać na wynik.</p>':'<div class="empty">Dodaj dwa odczyty z tego samego gazomierza, aby obliczyć zużycie.</div>')+'</section>'+
+ (rows.length?'<div class="table-scroll gas-table-wrap"><table class="table gas-table"><thead><tr><th>Okres</th><th>Gazomierz</th><th>Zużycie</th><th>Dni</th><th>Tempo dobowe</th><th>Temp. zewn.</th><th>Wskaźnik pogodowy</th></tr></thead><tbody>'+rows.slice(0,45).map(trow).join('')+'</tbody></table></div><div class="gas-mobile">'+rows.slice(0,45).map(cardrow).join('')+'</div><p class="hint">Średnia pogody i współczynnik pojawiają się tylko przy dostępności co najmniej 75% godzin w okresie. Dla krótszych niż 18 godzin odstępów m³/dobę jest orientacyjnym przeliczeniem, a nie pomiarem całej doby. Wskaźnika m³/stopniodzień nie liczymy dla takich okresów. Zmiana nastawy ENGO może wpływać na wynik.</p>':'<div class="empty">Dodaj dwa odczyty z tego samego gazomierza, aby obliczyć zużycie.</div>')+'</section>'+
  HeatingViews.gasForm()+
  '<div class="grid cols2"><section class="card">'+
  '<h3>Wklej wiele odczytów ORLEN</h3><p class="hint">Po jednym w wierszu: data;licznik;stan. Przykład: 2026-04-01;nowy;100. Licznik: nowy albo stary. Brak godziny oznacza przyjęcie 12:00. Import dodaje dane bez usuwania istniejących wpisów.</p><textarea id="gasBulk" rows="5" placeholder="RRRR-MM-DD;nowy;stan"></textarea><div class="actions" style="margin-top:10px"><button class="action ghost" data-action="bulk-gas">Dodaj wklejoną historię</button></div></section>'+
@@ -331,7 +346,7 @@ function renderInsights(){
  '<div class="form-grid" style="margin-top:15px"><div class="wide"><label for="engoAt">Data zmiany</label><input id="engoAt" type="datetime-local" value="'+dateLocal(Date.now())+'"></div><div><label for="engoHistoryValue">Nowa nastawa (°C)</label><input id="engoHistoryValue" type="number" step="0.5" min="10" max="30" value="'+esc(state.global.engo)+'"></div><div class="wide"><label for="engoHistoryNote">Komentarz</label><input id="engoHistoryNote" maxlength="300" placeholder="np. zmiana z 21,5 na 22°C"></div></div><div class="actions" style="margin-top:12px"><button class="action light" data-action="add-engo-history">Zapisz historyczną zmianę</button></div><div class="hr"></div>'+
  (events.length?events.slice(0,20).map(e=>'<div class="item"><b>'+T(e.engo)+'</b><div class="desc">'+day(e.at)+' · '+esc(e.note)+'</div></div>').join(''):'<p class="hint">Nie dodano jeszcze dat zmian ENGO.</p>')+'</section></div>'+
  '<section class="card" style="margin-top:16px"><h3>Historia odczytów</h3><p class="hint">Źródła: wpis ręczny, ORLEN albo wcześniejsza obserwacja w dzienniku. Wpisy lokalne są zachowane na tym urządzeniu. Odczyty z prywatnego archiwum mogą być dodatkowo wyświetlane.</p>'+
- (records.length?'<div class="table-scroll gas-history-table-wrap"><table class="table gas-history-table"><thead><tr><th>Data</th><th>Gazomierz</th><th>m³</th><th>Źródło</th><th>Setti+ w chwili wpisu</th><th>Poprawki</th></tr></thead><tbody>'+records.slice(-55).reverse().map(r=>'<tr><td>'+day(new Date(r.at).toISOString())+'</td><td>'+(r.meter==='old'?'Stary':'Nowy')+'</td><td>'+fmt(r.gas,3)+'</td><td>'+esc(r.source)+'</td><td>'+renderGasSetti(r.setti)+'</td><td>'+gasActions(r)+'</td></tr>').join('')+'</tbody></table></div><div class="gas-history-mobile">'+records.slice(-55).reverse().map(renderGasHistoryCard).join('')+'</div>':'<div class="empty">Jeszcze nie ma odczytów gazomierza.</div>')+'</section>';
+ (records.length?'<div class="table-scroll gas-history-table-wrap"><table class="table gas-history-table"><thead><tr><th>Data</th><th>Gazomierz</th><th>Wskazanie</th><th>Źródło</th><th>Setti+ w chwili wpisu</th><th>Poprawki</th></tr></thead><tbody>'+records.slice(-55).reverse().map(r=>'<tr><td>'+day(new Date(r.at).toISOString())+'</td><td>'+(r.meter==='old'?'Stary':'Nowy')+'</td><td>'+esc(formatGas(r.gas))+'</td><td>'+esc(r.source)+'</td><td>'+renderGasSetti(r.setti)+'</td><td>'+gasActions(r)+'</td></tr>').join('')+'</tbody></table></div><div class="gas-history-mobile">'+records.slice(-55).reverse().map(renderGasHistoryCard).join('')+'</div>':'<div class="empty">Jeszcze nie ma odczytów gazomierza.</div>')+'</section>';
 }
 async function syncWeather(force=false){
  if(typeof fetch!=='function'||navigator.onLine===false)return;
@@ -345,7 +360,7 @@ async function syncWeather(force=false){
  }catch(e){if(force)toast(e.message||'Nie udało się pobrać pogody.');}
 }
 
-function renderLastConditions(){let cs=state.conditions;if(!cs.length)return '<p class="hint">Brak dotychczasowych obserwacji.</p>';let x=cs.at(-1);let g=cs.filter(a=>a.gas!==null);let d=g.length>=2?g.at(-1).gas-g.at(-2).gas:null;return `<div class="hr"></div><div class="small muted">Ostatnia obserwacja: ${day(x.at)}. Na zewnątrz ${T(x.outdoor)}, licznik ${x.gas===null?'—':fmt(x.gas,3)+' m³'}. ${d!==null&&d>=0?'Przyrost między dwoma ostatnimi odczytami: '+fmt(d,3)+' m³.':''}</div>`}
+function renderLastConditions(){let cs=state.conditions;if(!cs.length)return '<p class="hint">Brak dotychczasowych obserwacji.</p>';let x=cs.at(-1);let g=cs.filter(a=>a.gas!==null);let d=g.length>=2?g.at(-1).gas-g.at(-2).gas:null;return `<div class="hr"></div><div class="small muted">Ostatnia obserwacja: ${day(x.at)}. Na zewnątrz ${T(x.outdoor)}, licznik ${esc(formatGas(x.gas))}. ${d!==null&&d>=0?'Przyrost między dwoma ostatnimi odczytami: '+esc(formatGas(d))+'.':''}</div>`}
 function diag(r){if(!Setti.room(r.id)&&Setti.lastRoom(r.id))return ['Ostatni pomiar czujnika jest nieaktualny. Nie oceniaj na jego podstawie, czy pokój osiągnął temperaturę docelową.',''];let d=delta(r.id);if(d===null)return ['Ustal temperaturę docelową i wpisz odczyt Setti+ — dopiero wtedy można ocenić różnicę.',''];if(d<-.4){let en=state.global.engoCurrent;let tail=en!==null&&en>=state.global.engo-.1?' ENGO pokazuje temperaturę bliską zadanej, więc sprawdź, czy ogrzewanie nie kończy pracy, zanim ten pokój się nagrzeje.':' Sprawdź, czy ENGO aktualnie żąda ogrzewania, i czy grzejniki dostają ciepłą wodę.';return [`Temperatura jest o ${fmt(Math.abs(d))}°C poniżej celu. Najpierw sprawdź nastawy głowic, ich rzeczywiste otwarcie i położenie drzwi.${tail} Nie podnoś od razu nastawy kotła.`, 'cold']}if(d>.5)return [`Temperatura przekracza cel o ${fmt(d)}°C. Może to wynikać m.in. z nasłonecznienia albo zbyt dużego dopływu ciepła. Sprawdź trend i położenie drzwi przed zmianą głowic.`,'warn'];return ['Pomiar znajduje się blisko wybranego celu. Obserwuj stabilność i nie zmieniaj nastaw bez powodu.','']}
 function tempInput(id,value,min=5,max=35,step='.5'){return `<input id="${id}" type="number" inputmode="decimal" min="${min}" max="${max}" step="${step}" value="${value===null||value===undefined?'':esc(value)}" placeholder="—">`}
 function renderRoom(){let r=RM[currentRoom], st=state.rooms[r.id],rd=latestReading(r.id),diagx=diag(r);
@@ -485,11 +500,13 @@ function updateGasPreview(){
  if(!previous||!difference||!meter||!at||!input)return;
  const time=HeatingBoard.parseLocal(at.value),label=meter.value==='old'?'Stary gazomierz':'Obecny gazomierz';
  const row=HeatingBoard.precedingGas(gasViewState(),meter.value,Number.isFinite(time)?time:Date.now());
- previous.textContent=label+' · '+(row?fmt(row.gas,3)+' m³ · '+day(row.at):'Brak wcześniejszego odczytu');
+ previous.textContent=label+' · '+(row?formatGas(row.gas)+' · '+day(row.at):'Brak wcześniejszego odczytu');
  const value=input.value.trim();
  const numeric=Number(value.replace(',','.'));
  const diff=row&&value&&Number.isFinite(numeric)?numeric-row.gas:null;
- difference.textContent=diff===null?'':diff<0?'Spadek wskazania · sprawdź gazomierz lub datę.':'Różnica od poprzedniego odczytu · +'+fmt(diff,3)+' m³';
+ const increment=formatGas(diff);
+ difference.textContent=diff===null?'':diff<0?'Spadek wskazania · sprawdź gazomierz lub datę.':
+  'Różnica od poprzedniego odczytu · '+(increment.startsWith('<')?'':'+')+increment;
 }
 function updateCounterPreview(){
  const selected=document.getElementById('boilerAt');
@@ -819,7 +836,7 @@ if(ac==='cancel-gas-edit'){editingGas=null;return render()}
 if(ac==='delete-gas'){
  const kind=btn.dataset.kind,index=Number(btn.dataset.index),list=kind==='condition'?state.conditions:kind==='history'?state.gasHistory:null;
  if(!list||!Number.isSafeInteger(index)||index<0||!list[index])return;
- const old=list[index];if(!confirm('Usunąć odczyt '+fmt(old.gas,3)+' m³ z '+day(old.at)+'? Nie będzie uwzględniany w analizie.'))return;
+ const old=list[index];if(!confirm('Usunąć odczyt '+formatGas(old.gas)+' z '+day(old.at)+'? Nie będzie uwzględniany w analizie.'))return;
  if(kind==='history')list.splice(index,1);else list[index].gas=null; // Weather observation remains.
  changeLog('Usunięto odczyt gazomierza',day(old.at)+' · '+fmt(old.gas,3)+' m³ · '+(kind==='condition'?'obserwacja pogody zachowana':old.meter));
  editingGas=null;save();lastGasId=null;boardMessage='Usunięto odczyt i przeliczono zużycie gazu.';
@@ -839,7 +856,7 @@ if(ac==='save-gas-edit'){
  if(!['new','old'].includes(meter)||(!limited&&!['manual','orlen'].includes(source)))return toast('Nieprawidłowe źródło.');
  if(Insights.readings(state).some(r=>!(r.kind===kind&&r.index===index)&&r.meter===meter&&Math.abs(r.at-millis)<30000&&Math.abs(r.gas-v.value)<.00001))return toast('Taki odczyt już istnieje.');
  if(old.gas===v.value&&old.at===d&&(limited||(old.meter===meter&&old.source===source))){editingGas=null;return render()}
- if(!confirm('Zatwierdzić poprawkę: '+fmt(old.gas,3)+' m³ → '+fmt(v.value,3)+' m³?'))return;
+ if(!confirm('Zatwierdzić poprawkę: '+formatGas(old.gas)+' → '+formatGas(v.value)+'?'))return;
  const detail=day(old.at)+' · '+fmt(old.gas,3)+' m³ → '+day(d)+' · '+fmt(v.value,3)+' m³';
  list[index]={...old,at:d,gas:v.value,...(limited?{}:{meter,source})};
  changeLog('Poprawiono odczyt gazomierza',detail);editingGas=null;save();lastGasId=null;
@@ -898,14 +915,14 @@ if(ac==='boiler-send-local'){
  return;
 }
 if(ac==='set-engo'){let a=numInput('engoSet',10,30,false),b=numInput('engoCurrent',0,45);if(!a.ok||!b.ok)return;let place=document.getElementById('engoPlace').value.trim().slice(0,220);let old=state.global;let details=[];if(changed(old.engo,a.value))details.push(`zadana: ${T(old.engo)} → ${T(a.value)}`);if(changed(old.engoCurrent,b.value))details.push(`odczyt: ${T(old.engoCurrent)} → ${T(b.value)}`);if(changed(old.engoPlace,place))details.push(`położenie: ${old.engoPlace} → ${place}`);if(details.length)changeLog('ENGO Smart',details.join(' · '));state.global={...old,engo:a.value,engoCurrent:b.value,engoPlace:place};save();toast('Zapisano ustawienia ENGO.');return render()}
-if(ac==='record-conditions'){let b=numInput('gas',0,100000000);if(!b.ok)return;const near=Insights.near(state.weather?.hourly,Date.now());const outdoor=near?near.temp:null;const sky=document.getElementById('sky').value;if(b.value===null&&sky==='unknown'){toast('Wpisz stan licznika albo warunki.');return}let record={at:now(),outdoor,gas:b.value,sky,meter:'new'};if(b.value!==null){const snap=Setti.snapshot();if(snap)record.setti=snap;}if(b.value!==null&&!confirm('Zatwierdzić stan gazomierza '+fmt(b.value,3)+' m³?'))return;state.conditions.push(record);changeLog('Warunki zewnętrzne / gaz',`${outdoor===null?'Pogoda: brak danych':T(outdoor)} · ${b.value===null?'Brak stanu licznika':fmt(b.value,3)+' m³'} · ${record.sky}`);save();maybeSyncGas();toast('Zapisano odczyt. Pogoda jest pobierana automatycznie.');return render()}
+if(ac==='record-conditions'){let b=numInput('gas',0,100000000);if(!b.ok)return;const near=Insights.near(state.weather?.hourly,Date.now());const outdoor=near?near.temp:null;const sky=document.getElementById('sky').value;if(b.value===null&&sky==='unknown'){toast('Wpisz stan licznika albo warunki.');return}let record={at:now(),outdoor,gas:b.value,sky,meter:'new'};if(b.value!==null){const snap=Setti.snapshot();if(snap)record.setti=snap;}if(b.value!==null&&!confirm('Zatwierdzić stan gazomierza '+formatGas(b.value)+'?'))return;state.conditions.push(record);changeLog('Warunki zewnętrzne / gaz',`${outdoor===null?'Pogoda: brak danych':T(outdoor)} · ${b.value===null?'Brak stanu licznika':fmt(b.value,3)+' m³'} · ${record.sky}`);save();maybeSyncGas();toast('Zapisano odczyt. Pogoda jest pobierana automatycznie.');return render()}
 if(ac==='add-gas'){
  const d=document.getElementById('gasAt').value,v=numInput('gasValue',0,100000000,false),meter=document.getElementById('gasMeter').value,source=document.getElementById('gasSource').value;
  if(!v.ok)return;const at=new Date(HeatingBoard.parseLocal(d));if(!Number.isFinite(at.valueOf())||at.valueOf()>Date.now()+86400000)return toast('Wpisz prawidłową datę.');
  if(!['old','new'].includes(meter)||!['manual','orlen'].includes(source))return toast('Sprawdź gazomierz i źródło.');
  const dup=Insights.readings(gasViewState()).some(r=>r.meter===meter&&Math.abs(r.at-at.valueOf())<30000&&Math.abs(r.gas-v.value)<.00001);
  if(dup)return toast('Ten odczyt już istnieje.');
- if(!confirm('Zatwierdzić odczyt '+fmt(v.value,3)+' m³ z '+day(at.toISOString())+'?'))return;
+ if(!confirm('Zatwierdzić odczyt '+formatGas(v.value)+' z '+day(at.toISOString())+'?'))return;
  const snap=source==='manual'&&Math.abs(at.valueOf()-Date.now())<=300000?Setti.snapshot():null;
  const row={id:recordId('g'),at:at.toISOString(),gas:v.value,meter,source,...(snap?{setti:snap}:{})};
  state.gasHistory.push(row);

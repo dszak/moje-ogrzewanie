@@ -8,7 +8,6 @@ const JournalView=(()=>{
  });
  const when=value=>value?fullDate.format(new Date(value)):'—';
  const temp=value=>Number.isFinite(value)?value.toLocaleString('pl-PL')+'°C':'—';
- const num=value=>value.toLocaleString('pl-PL',{maximumFractionDigits:3});
  const button=(label,action,id='',style='ghost')=>
   '<button type="button" class="action '+style+'" data-action="'+action+'" data-id="'+escape(id)+'">'+label+'</button>';
  const sources={iphone:'Aplikacja',chatgpt:'ChatGPT',migration:'Migracja'};
@@ -103,8 +102,8 @@ const JournalView=(()=>{
   const attrs=[
    ['Hipoteza',row.hypothesis],['Zmiana',row.change&&row.change.parameter+' · '+(row.change.before??'—')+' → '+(row.change.after??'—')],
    ['Bez zmian',row.constants],['Mierzone wskaźniki',row.metrics],['Pogoda',row.weather&&temp(row.weather.c)+' · '+date(row.weather.at)],
-   ['Odniesienie',row.reference],['Gaz na początku',row.gasStart&&num(row.gasStart.m3)+' m³ · '+date(row.gasStart.at)],
-   ['Gaz na końcu',row.gasEnd&&num(row.gasEnd.m3)+' m³ · '+date(row.gasEnd.at)],
+   ['Odniesienie',row.reference],['Gaz na początku',row.gasStart&&HeatingViews.formatGas(row.gasStart.m3)+' · '+date(row.gasStart.at)],
+   ['Gaz na końcu',row.gasEnd&&HeatingViews.formatGas(row.gasEnd.m3)+' · '+date(row.gasEnd.at)],
    ['Wyniki',row.results],['Wnioski',row.conclusion],['Decyzja',row.decision]
   ];
   return '<article class="item"><h4>'+escape(row.title)+'</h4>'+

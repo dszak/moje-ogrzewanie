@@ -8,6 +8,7 @@ import math
 import os
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 from heating_capture import DATA_PATH, HEAD_ROOMS, ROOMS, WARSAW, WEATHER, encode, midnight, read_json, stamp, utc
@@ -535,6 +536,17 @@ def hours(value):
     return f"{h} h {m:02d} min"
 
 
+def format_gas(value, unit="m³"):
+    if value is None:
+        return "—"
+    precision = 2 if unit == "m³/dobę" else 3
+    step = Decimal(1).scaleb(-precision)
+    rounded = Decimal(str(value)).quantize(step, rounding=ROUND_HALF_UP)
+    if value > 0 and rounded == 0:
+        return f"< {num(step, precision)} {unit}"
+    return f"{num(rounded, precision)} {unit}"
+
+
 def format_settings(values):
     labels = []
     for row in values:
@@ -566,7 +578,7 @@ def markdown(report):
                      f"{hours(e['off']['seconds']) if e['observed_s'] else '—'} | {hours(e['missing_s'])} | "
                      f"{e['on']['complete_intervals']}/{e['off']['complete_intervals']} | "
                      f"{format_settings(day['boiler_co_declared'])} | {format_settings(day['engo_target'])} | "
-                     f"{num(exact_gas['m3'], 3) + ' m³' if exact_gas else '—'} |")
+                     f"{format_gas(exact_gas['m3']) if exact_gas else '—'} |")
     lines.extend(["", "## Pomiary w pokojach", "",
                   "W każdej komórce średnia temperatura w °C, średnia wilgotność w % i pokrycie obserwacji temperatury. Średnia mieszkania obejmuje wspólne przedziały pomiarów wszystkich sześciu pokoi.", "",
                   "| Dzień | " + " | ".join(ROOM_NAMES) + " | Mieszkanie równa / ważona |",
@@ -579,12 +591,12 @@ def markdown(report):
                      f"{num(day['apartment_equal']['mean'])} / {num(day['apartment_area_weighted']['mean'])}"]) + " |")
     lines.extend(["", "## Gaz między rzeczywistymi odczytami", "",
                   "Gaz obejmuje CO i CWU. Pokazano całe przedziały, których końcowy odczyt przypada w zakresie raportu.", "",
-                  "| Początek | Koniec | Długość | m³ | m³/24 h | Pogoda °C | m³/stopniodzień |",
+                  "| Początek | Koniec | Długość | Zużycie | Tempo dobowe | Pogoda °C | Wskaźnik pogodowy |",
                   "|---|---|---:|---:|---:|---:|---:|"])
     for row in report["gas_intervals"]:
         lines.append(f"| {local(row['start'], True)} | {local(row['end'], True)} | {hours(row['seconds'])} | "
-                     f"{num(row['m3'], 3)} | {num(row['m3_24h'], 3)} | {num(row['weather']['mean'])} | "
-                     f"{num(row['m3_per_hdd'], 3)} |")
+                     f"{format_gas(row['m3'])} | {format_gas(row['m3_24h'], 'm³/dobę')} | {num(row['weather']['mean'])} | "
+                     f"{format_gas(row['m3_per_hdd'], 'm³/stopniodzień')} |")
     whole = report["period"]
     audit = report["weather_provenance"]
     lines.extend(["", "## Pochodzenie modelu pogody", "",
