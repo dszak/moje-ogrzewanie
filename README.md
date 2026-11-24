@@ -4,6 +4,22 @@
 
 Prosty dziennik komfortu i zużycia gazu. Zachowuje sześć pomieszczeń, osiem głowic, drzwi, ENGO Smart, nastawę kotła, cele temperatury, pomiary Setti+, warunki i licznik gazu, eksperymenty oraz historię. Temperatura zewnętrzna dla Katowic jest pobierana automatycznie z Open-Meteo; odczyty gazomierza i nastawy wpisuje się ręcznie, a aktualne pomiary Setti+ aplikacja pobiera z publicznego pliku JSON w gałęzi `setti-data`. Aplikacja nie steruje urządzeniami.
 
+## Podsumowanie zmian z 24 listopada 2026
+
+### Prywatny dziennik eksperymentów i decyzji
+
+Wdrożono wspólny dziennik dla aplikacji na iPhonie, prywatnego archiwum GitHub i zatwierdzonych wpisów z ChatGPT. Każda korekta tworzy nową rewizję. Aplikacja zachowuje zapisy przy utracie internetu i pokazuje obie wersje w razie konfliktu. Nowa trasa działa w istniejącym Workerze Cloudflare. Odczyt i zapis mają osobne uprawnienia. [Dokumentacja dziennika](docs/PRYWATNY-DZIENNIK-EKSPERYMENTOW.md) · [PR #40](https://github.com/dszak/moje-ogrzewanie/pull/40) · [Publikacja Pages](https://github.com/dszak/moje-ogrzewanie/actions/runs/45479334759)
+
+### Test synchronizacji z iPhone’em
+
+Przeniesiono dwie próby z kopii JSON do prywatnego dziennika. Każda jest zapisana raz. Fizyczny iPhone pobrał wpis z archiwum i odesłał jego kolejną rewizję z tą samą treścią. Rewizję potwierdzono w prywatnym repozytorium i ponownie odczytano przez produkcyjną usługę. Test potwierdził synchronizację w obu kierunkach.
+
+### Zużycie gazu w metrach sześciennych
+
+Start, historia gazomierza, porównania, dziennik prób i raporty pokazują zużycie i wskazania w **m³** z trzema miejscami po przecinku, a tempo w **m³/dobę** z dwoma. Poprawka zachowała zapisane odczyty, algorytmy obliczeń, historię i synchronizację gazomierza. [PR #41](https://github.com/dszak/moje-ogrzewanie/pull/41) · [Publikacja Pages](https://github.com/dszak/moje-ogrzewanie/actions/runs/45487606512)
+
+Przeszło **113 testów Node i 35 testów Pythona**, w tym testy synchronizacji gazomierza. Po publikacji sprawdzono jednostki i czytelność wartości w emulacji ekranów iPhone’a i Sony Bravia. Nastawy ogrzewania pozostały bez zmian.
+
 ## Status operacyjny — 20.11.2026
 
 **Prywatna synchronizacja odczytów gazomierza została uruchomiona i sprawdzona na rzeczywistych urządzeniach.** iPhone zapisuje odczyty lokalnie i — po osobnym włączeniu archiwizacji — przesyła je przez uwierzytelniony Cloudflare Worker do **prywatnego** repozytorium `dszak/moje-ogrzewanie-archiwum`. Sony Bravia (TV Bro) pobiera te same odczyty kluczem tylko do odczytu; ChatGPT może odczytać archiwum na żądanie przez połączone konto GitHub.
