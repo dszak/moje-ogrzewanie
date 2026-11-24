@@ -12,7 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from heating_archive import API, BRANCH, PrivateArchive, check_batch, git_blob, record_once
 from heating_capture import DATA_PATH, ROOMS, WEATHER, encode, midnight, utc, write_batch
-from heating_report import (CO_CONFIRMATIONS, Archive, apartment_series, apportion_exact, compare, demand_statistics, gas_intervals,
+from heating_report import (CO_CONFIRMATIONS, Archive, apartment_series, apportion_exact, compare, demand_statistics,
+                            format_gas, gas_intervals,
                             report, statistics, steps, timeline, weather)
 
 
@@ -26,6 +27,15 @@ def demand(at, value, event=None):
 
 
 class HistoryTest(unittest.TestCase):
+    def test_report_gas_format_keeps_units_and_precision(self):
+        self.assertEqual(format_gas(17.348), "17,348 m³")
+        self.assertEqual(format_gas(12.803, "m³/dobę"), "12,80 m³/dobę")
+        self.assertEqual(format_gas(9.495, "m³/dobę"), "9,50 m³/dobę")
+        self.assertEqual(format_gas(0.0002), "< 0,001 m³")
+        self.assertEqual(format_gas(0.004, "m³/dobę"), "< 0,01 m³/dobę")
+        self.assertEqual(format_gas(0), "0,000 m³")
+        self.assertEqual(format_gas(None), "—")
+
     def test_restart_requires_fresh_observation(self):
         rows = [demand(110, "on"), demand(162, "on", 110), demand(170, "off"),
                 demand(195, "on")]
