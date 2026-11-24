@@ -105,8 +105,7 @@ const MemoryKit=(()=>{
         choice:d.choice,assessment:d.assessment,action:d.action,review_on:d.reviewOn,
         experiment_id:d.experimentId,settings_at_decision:d.settings}));
     const experiments=(state.experiments||[]).slice().sort((a,b)=>Date.parse(a.started)-Date.parse(b.started)).map(e=>({
-      id:e.id,title:e.title,description:e.description,started:e.started,status:e.status,start:e.start,
-      ...(e.status==='done'?{ended:e.ended,end:e.end,notes:e.notes}:{} )
+      ...e
     }));
     const current=history.filter(x=>x.status==='current');
     const configurations=current.filter(x=>x.kind==='configuration').map(x=>({

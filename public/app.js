@@ -23,6 +23,8 @@ const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:
 let reviewPeriod='week';let editingDecision=null;let memoryPreview=null;let memoryImportDraft='';let tempDay=null;let tempPreview=null;let tempImportDraft='';let tempVisible=new Set(['bedroom','salon','kitchen','bigbath','smallbath','hall']);let historyLimit=120;let engoLimit=120;let editingGas=null;let editingBoiler=null;let editingEngo=null;let engoImportDraft='';let pendingEngo=null;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
 let boardMessage='', lastGasId=null, haSnapshot=null, airChoice=new Set(),airOpening='',airEdit=null;
 let coSending=false,coStatus='',gasQueued=false,gasSending=false;
+let editingExperiment=null,journalMessage='',journalDraft=false,journalRequested=false,journalRunning=false;
+let displayedJournal=new Map();
 let haBathrooms=null,bathDays=7;
 let haUnlocked=false,haSyncLabel='Nie połączono jeszcze prywatnej historii HA.';
 function load(){return DataStore.load(seed)}
@@ -39,6 +41,7 @@ function stat(rid){if(!Setti.room(rid)&&Setti.lastRoom(rid))return ['Dane nieakt
 function changeLog(label,detail){state.events.unshift({id:Date.now()+'-'+Math.random().toString(36).slice(2,6),at:now(),label,detail});}
 function toast(msg){let p=document.getElementById('toast');if(!p){p=document.createElement('div');p.id='toast';p.style='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#103f39;color:white;padding:12px 18px;border-radius:12px;box-shadow:0 12px 25px #0003;z-index:99;font-size:13px;max-width:92%;text-align:center';document.body.appendChild(p)}p.textContent=msg;p.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>p.style.display='none',3600)}
 function setPage(p,r){
+ if(page!==p){journalDraft=false;editingExperiment=null;}
  page=p;if(r)currentRoom=r;render();scrollTo({top:0,behavior:'instant'});
  const heading=document.getElementById('view').querySelector?.('h2');
  if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}
@@ -275,7 +278,7 @@ function renderGasSync(){
  return header+body+'<p class="hint">Odczyty w archiwum: '+n+(s.remoteAt?' · pobrano '+day(s.remoteAt):'')+'. '+note+'</p>'+controls+'</section>';
 }
 function renderGasWhenIdle(){
- if(['gas-quick','co-quick','boiler-quick','air'].includes(page))return;
+ if(['gas-quick','co-quick','boiler-quick','air'].includes(page)||journalDraft||editingExperiment||editingDecision)return;
  const a=document.activeElement;
  if(!a||!['INPUT','TEXTAREA','SELECT'].includes(a.tagName))render();
 }
@@ -367,7 +370,11 @@ ${r.id==='smallbath'?`<div class="hr"></div><b>GE1 · konwektor elektryczny</b><
 <section class="card"><div class="group-heading"><h3>Drzwi</h3><span class="pill">Wpływ na wymianę ciepła</span></div>${r.doors.map(id=>`<div class="item"><label for="door-${id}">${esc(DOORS[id].name)}</label><select id="door-${id}" data-change="door" data-id="${id}">${Object.entries(DOORSTATUS).map(([val,name])=>`<option value="${val}" ${state.doors[id]===val?'selected':''}>${name}</option>`).join('')}</select></div>`).join('')}<p class="hint">Stan jednych drzwi jest wspólny dla obu sąsiednich pomieszczeń. Nie zasłaniaj kratek wentylacyjnych.</p></section>
 <section class="card"><div class="group-heading"><h3>Historia wpisanych ręcznie temperatur</h3><span class="pill">${st.readings.length} pomiarów</span></div>${chart(st.readings)}${st.readings.length?`<div class="table-scroll" style="margin-top:13px"><table class="table"><thead><tr><th>Data</th><th>Temperatura</th><th>Wilgotność</th></tr></thead><tbody>${st.readings.slice(-6).reverse().map(x=>`<tr><td>${day(x.at)}</td><td>${T(x.temp)}</td><td>${x.humidity===null?'—':fmt(x.humidity,0)+'%'}</td></tr>`).join('')}</tbody></table></div>`:''}</section></div></div>`}
 function chart(readings){let a=readings.slice(-25);if(a.length<2)return '<div class="empty">Wykres pojawi się po zapisaniu co najmniej dwóch pomiarów.</div>';let W=620,H=210,m={l:35,r:20,t:20,b:35};let vals=a.map(x=>x.temp),min=Math.min(...vals)-.4,max=Math.max(...vals)+.4;let X=i=>m.l+(W-m.l-m.r)*i/(a.length-1),Y=v=>m.t+(H-m.t-m.b)*(max-v)/(max-min);let poly=a.map((x,i)=>`${X(i).toFixed(1)},${Y(x.temp).toFixed(1)}`).join(' ');return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Wykres temperatury z ${a.length} ostatnich pomiarów"><line x1="${m.l}" x2="${W-m.r}" y1="${Y(min)}" y2="${Y(min)}" stroke="#ccdccc"/><line x1="${m.l}" x2="${W-m.r}" y1="${Y(max)}" y2="${Y(max)}" stroke="#ccdccc"/><text x="5" y="${Y(max)+4}" fill="#688072" font-size="12">${fmt(max)}°</text><text x="5" y="${Y(min)+4}" fill="#688072" font-size="12">${fmt(min)}°</text><polyline points="${poly}" fill="none" stroke="#147b69" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>${a.map((x,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(x.temp).toFixed(1)}" r="4" fill="#147b69"><title>${day(x.at)}: ${T(x.temp)}</title></circle>`).join('')}<text x="${m.l}" y="${H-8}" fill="#688072" font-size="11">${day(a[0].at)}</text><text x="${W-m.r}" y="${H-8}" text-anchor="end" fill="#688072" font-size="11">${day(a.at(-1).at)}</text></svg>`}
-function renderExperiments(){let active=state.experiments.find(x=>x.status==='active');let finished=state.experiments.filter(x=>x.status==='done');return `${sec('Eksperymenty','Jedna świadoma zmiana, obserwacja efektu i porównanie wyników.')}<div class="banner warn"><span>⚗️</span><span><b>Podczas jednej próby zmieniaj tylko jeden element.</b> Warunki zewnętrzne też mogą wpływać na pomiary. Nie traktuj różnicy temperatury jako bezpośredniego pomiaru zużycia gazu.</span></div>${active?`<section class="card" style="border-color:#96c8b6;margin-bottom:18px"><div class="group-heading"><h3>Trwa: ${esc(active.title)}</h3><span class="pill ok">Aktywny</span></div><p class="small muted">Rozpoczęty: ${day(active.started)}</p><p style="margin-top:9px">${esc(active.description||'')}</p><div class="note" style="margin-top:13px">Na początku próby: kocioł ${fmt(active.start.boiler,0)}°C, ENGO ${T(active.start.engo)}, położenie ENGO: ${esc(active.start.engoPlace)}.</div><div class="form-grid" style="margin-top:15px"><div class="wide"><label for="finishNotes">Wnioski / komfort / różnice</label><textarea id="finishNotes" placeholder="Co zauważyłeś po 24–48 godzinach? Jakie były temperatury w pomieszczeniach?"></textarea></div></div><div class="actions" style="margin-top:12px"><button class="action" data-action="finish-exp" data-id="${esc(active.id)}">Zakończ próbę</button></div></section>`:`<section class="card" style="margin-bottom:18px"><h3>Rozpocznij nowy eksperyment</h3><p class="subtitle" style="margin-bottom:16px">Przed zmianą aplikacja zapisze migawkę wszystkich ustawień.</p><div class="form-grid"><div class="wide"><label for="expTitle">Nazwa eksperymentu</label><input id="expTitle" value="Przeniesienie termostatu ENGO" maxlength="100" placeholder="np. Położenie ENGO"></div><div class="wide"><label for="expDescription">Co dokładnie zmieniasz?</label><textarea id="expDescription" placeholder="Opisz jedną zmianę. Pozostałe nastawy pozostaw bez zmian.">Zmiana wyłącznie położenia ENGO. Bez zmiany temperatury zadanej kotła, ENGO i głowic. Porównanie odczytów T1 i T6 po 24–48 godzinach.</textarea></div></div><div class="actions" style="margin-top:13px"><button class="action" data-action="start-exp">Rozpocznij i zapisz ustawienia początkowe</button></div></section>`}<section class="card"><div class="group-heading"><h3>Wcześniejsze eksperymenty</h3><span class="pill">${finished.length}</span></div>${finished.length?finished.map(x=>`<div class="item"><b>${esc(x.title)}</b><div class="desc">${day(x.started)} → ${day(x.ended)}</div>${x.notes?`<p style="font-size:13px;margin-top:8px">${esc(x.notes)}</p>`:''}<div class="note" style="margin-top:9px">ENGO ${T(x.start.engo)} → ${T(x.end.engo)} · Kocioł ${fmt(x.start.boiler,0)}°C → ${fmt(x.end.boiler,0)}°C · Położenie ENGO: ${esc(x.start.engoPlace)} → ${esc(x.end.engoPlace)}</div></div>`).join(''):'<div class="empty">Nie ma jeszcze zakończonych eksperymentów.</div>'}</section>`}
+function renderExperiments(){return JournalView.render(state,editingExperiment,journalMessage)}
+function renderJournalReview(){
+ return JournalView.syncCard(state,journalMessage)+
+  ReviewView.render(state,reviewPeriod,editingDecision,MemoryKit.augment(HeatingReview.build(state,reviewPeriod),state));
+}
 function renderHistory(){let ev=state.events.slice(0,historyLimit);return `${sec('Historia zmian','Wszystkie zapisane nastawy i pomiary — żebyś wiedział, co naprawdę zmieniono.') }<div class="actions" style="margin-bottom:17px"><button class="action light" data-action="export-json">Eksportuj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button></div><section class="card"><div class="group-heading"><h3>Dziennik</h3><span class="pill">${state.events.length} wpisów</span></div>${ev.length?`<div class="timeline">${ev.map(x=>`<div class="event"><span class="event-marker"></span><div><strong>${esc(x.label)}</strong><div class="muted small">${esc(x.detail)}</div><small>${day(x.at)}</small></div></div>`).join('')}</div>${state.events.length>historyLimit?'<button class="action ghost" data-action="more-history">Pokaż starsze wpisy</button>':''}`:'<div class="empty">Historia będzie się uzupełniać przy zapisywaniu celów, głowic, drzwi i pomiarów.</div>'}</section>`}
 function renderMap(){return `${sec('Mapa mieszkania','Prywatny plan przechowywany wyłącznie na tym urządzeniu.')}<div class="banner info">Publiczna aplikacja nie zawiera planu, wymiarów ani adresu. Możesz wczytać własną mapę SVG, PNG lub JPEG. Trafi tylko do lokalnego zapisu i Twojej kopii JSON.</div><section class="card">${state.privateMap?`<img class="map" alt="Twoja prywatna mapa" src="${esc(state.privateMap)}">`:'<div class="empty">Nie wczytano prywatnej mapy.</div>'}<div class="actions" style="margin-top:15px"><button class="action ghost" data-action="map-import">Wczytaj prywatną mapę</button>${state.privateMap?'<button class="action ghost" data-action="map-download">Pobierz mapę</button>':''}</div></section>`}
 function boilerSyncSettings(){
@@ -440,6 +447,12 @@ async function sendCo(row,confirmLatest=false){
 }
 function renderSettings(){let g=state.global;return `${sec('Ustawienia wspólne','Zadane temperatury kotła i ENGO mają wpływ na całe mieszkanie.')}<div class="grid cols2"><section class="card"><h3>BRÖTJE · kocioł</h3><p class="subtitle" style="margin-bottom:15px">Zadana temperatura wody na zasilaniu. Odczyt bieżący na wyświetlaczu może być inny.</p><label for="boilerSet">Temperatura zadana kotła (°C)</label>${tempInput('boilerSet',g.boiler,25,85,1)}<p class="hint">Wpisz wartość odczytaną z ręcznej nastawy CO. Zapis aktualizuje wyłącznie informację.</p><div class="actions" style="margin-top:14px"><button class="action" data-action="set-boiler">Zapisz nastawę kotła</button></div>${boilerSyncSettings()}</section><section class="card"><h3>ENGO Smart · sypialnia</h3><p class="subtitle" style="margin-bottom:15px">Termostat wyznacza zapotrzebowanie na ogrzewanie dla całego mieszkania.</p><div class="form-grid"><div><label for="engoSet">Temperatura zadana (°C)</label>${tempInput('engoSet',g.engo,10,30,'.5')}</div><div><label for="engoCurrent">Aktualny odczyt ENGO (°C)</label>${tempInput('engoCurrent',g.engoCurrent,0,45,'.1')}</div><div class="wide"><label for="engoPlace">Położenie termostatu</label><input id="engoPlace" value="${esc(g.engoPlace)}" maxlength="220"></div></div><div class="actions" style="margin-top:14px"><button class="action" data-action="set-engo">Zapisz ustawienia ENGO</button></div><p class="hint">Po przeniesieniu termostatu wpisz nowe miejsce. Aplikacja zachowa zmianę w dzienniku.</p></section></div><section class="card" style="margin-top:16px"><div class="group-heading"><h3>Twoje dane i kopie zapasowe</h3><span class="pill">bez konta</span></div><p class="muted" style="font-size:13px;margin-bottom:17px">Dane są przechowywane lokalnie w tej przeglądarce na tym urządzeniu. Aktualizacja pod tym samym adresem zachowuje dane. Wyczyszczenie Safari, usunięcie aplikacji lub zmiana urządzenia mogą je usunąć. Regularnie zapisuj JSON w Plikach / iCloud. Przenosząc dane ze starej wersji lub między Safari a aplikacją z ekranu początkowego, użyj eksportu i importu JSON.</p><div class="actions filecontrols"><button class="action light" data-action="export-json">Pobierz kopię JSON</button><button class="action ghost" data-action="import-json">Wczytaj kopię JSON</button><button class="action ghost" data-action="export-csv">Pobierz pomiary CSV</button><button class="action ghost" data-action="recover">Przywróć poprzedni zapis</button><button class="action ghost" data-action="persist">Chroń zapis na urządzeniu</button><button class="action danger" data-action="reset">Wyczyść dane</button></div><div class="hr"></div><p class="footer-note">Aplikacja odczytuje publiczny plik z pomiarami Setti+, ale nie łączy się bezpośrednio z urządzeniami ani nie wysyła poleceń. Gdy pomiary są nieaktualne, możesz je nadal wpisać ręcznie.</p></section>`}
 function render(){
+ if(page==='experiments'||page==='review'){
+  const kind=page==='review'?'decision':'experiment';
+  displayedJournal=new Map(state[JournalModel.collection[kind]].map(row=>
+   [row.id,JSON.stringify([JournalSync.headId(state,kind,row.id),row])]));
+  journalDraft=false;
+ }
  renderNav();
  const screens={
   home:()=>renderHome(),dashboard:()=>renderHome(true),rooms:()=>HeatingViews.rooms(boardModel()),
@@ -450,7 +463,7 @@ function render(){
   air:()=>HeatingViews.air(state,airChoice,airOpening,airEdit),
   room:renderRoom,heads:renderHeads,boiler:renderBoiler,'engo-cycles':renderEngo,
   temperatures:()=>TemperatureView.render(state,tempDay,tempVisible,tempPreview,tempImportDraft),
-  review:()=>ReviewView.render(state,reviewPeriod,editingDecision,MemoryKit.augment(HeatingReview.build(state,reviewPeriod),state)),
+  review:renderJournalReview,
   memory:()=>MemoryView.render(state,memoryPreview,memoryImportDraft),insights:renderInsights,legacy:renderHomeLegacy,
   experiments:renderExperiments,history:renderHistory,map:renderMap,settings:renderSettings,
   connections:()=>sec('Dane i połączenia','Źródła oraz synchronizacja.')+renderGasSync()+haSyncPanel()+settiBanner()+boilerSyncSettings()
@@ -615,6 +628,9 @@ if(ac==='review-copy'){
  navigator.clipboard.writeText(content).then(()=>toast('Skopiowano podsumowanie raportu.')).catch(()=>toast('Nie udało się skopiować. Pobierz plik JSON.'));
  return;
 }
+if(ac.startsWith('journal-'))return handleJournal(ac,btn.dataset.id);
+if(['plan-exp','start-exp','activate-exp','finish-exp','exp-edit','exp-save','exp-cancel'].includes(ac))
+ return handleExperiment(ac,btn.dataset.id);
 if(ac==='review-edit'){
  const id=btn.dataset.id;
  if(!(state.decisionLog||[]).some(d=>d.id===id))return toast('Nie odnaleziono oceny.');
@@ -624,11 +640,12 @@ if(ac==='review-cancel'){editingDecision=null;return render()}
 if(ac==='review-delete'){
  const id=btn.dataset.id,idx=(state.decisionLog||[]).findIndex(d=>d.id===id);
  if(idx<0)return toast('Nie odnaleziono oceny.');
- if(!confirm('Usunąć tę ocenę i decyzję z dziennika? Najpierw warto pobrać kopię JSON.'))return;
+ if(!checkJournalForm('decision',state.decisionLog[idx]))return;
+ if(!confirm('Zarchiwizować tę ocenę i decyzję? W prywatnym dzienniku pozostanie jej historia.'))return;
  const entry=state.decisionLog[idx];
  state.decisionLog.splice(idx,1);
  changeLog('Usunięto ocenę ogrzewania',day(entry.at)+' · '+entry.choice);
- save();editingDecision=null;toast('Usunięto ocenę.');return render();
+ saveJournal('decision',entry,'archive');editingDecision=null;return render();
 }
 if(ac==='review-save'){
  const choice=document.getElementById('reviewChoice').value;
@@ -643,6 +660,7 @@ if(ac==='review-save'){
  if(experimentId&&!state.experiments.some(e=>e.id===experimentId))return toast('Nie znaleziono eksperymentu.');
  const existing=editingDecision?(state.decisionLog||[]).find(d=>d.id===editingDecision):null;
  if(editingDecision&&!existing)return toast('Nie znaleziono edytowanej oceny.');
+ if(existing&&!checkJournalForm('decision',existing))return;
  const b=HeatingReview.bounds(reviewPeriod);
  const entry={id:existing?.id||'ocena-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),
    at:existing?.at||now(),periodStart:existing?.periodStart||new Date(b.start).toISOString(),
@@ -653,7 +671,7 @@ if(ac==='review-save'){
  if(existing)state.decisionLog[state.decisionLog.findIndex(d=>d.id===existing.id)]=entry;
  else state.decisionLog.push(entry);
  changeLog(existing?'Poprawiono ocenę ogrzewania':'Ocena ogrzewania i decyzja',ReviewView.OPTIONS[choice]+' · '+assessment.slice(0,160));
- save();editingDecision=null;toast('Zapisano ocenę i decyzję.');return render();
+ saveJournal('decision',entry);editingDecision=null;return render();
 }
 
 if(ac==='temp-file')return document.getElementById('tempFile').click();
@@ -911,15 +929,163 @@ if(ac==='add-engo-history'){
  state.heatingEvents.push({id:'e-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),at:at.toISOString(),engo:v.value,note});
  changeLog('Historyczna zmiana ENGO',day(at.toISOString())+' · '+T(v.value)+' · '+note);save();toast('Zapisano historię ENGO.');return render();
 }
-if(ac==='start-exp'){if(state.experiments.some(x=>x.status==='active'))return toast('Zakończ poprzedni eksperyment.');let title=document.getElementById('expTitle').value.trim().slice(0,100),description=document.getElementById('expDescription').value.trim().slice(0,1500);if(!title)return toast('Nadaj nazwę eksperymentowi.');let x={id:Date.now().toString(36),status:'active',title,description,started:now(),start:snapshot(),notes:null};state.experiments.unshift(x);changeLog('Rozpoczęto eksperyment',title);save();toast('Rozpoczęto eksperyment. Ustawienia początkowe zapisane.');return render()}
-if(ac==='finish-exp'){let x=state.experiments.find(x=>x.id===btn.dataset.id&&x.status==='active');if(!x)return;x.end=snapshot();x.ended=now();x.notes=document.getElementById('finishNotes').value.trim().slice(0,3000);x.status='done';changeLog('Zakończono eksperyment',x.title+(x.notes?' · '+x.notes:''));save();toast('Zakończono eksperyment i zapisano migawkę końcową.');return render()}
 if(ac==='more-history'){historyLimit+=120;return render()}
 if(ac==='persist'){navigator.storage?.persist?.().then(ok=>toast(ok?'Przeglądarka przyznała trwały zapis. Nadal twórz kopie JSON.':'Przeglądarka nie przyznała ochrony. Zapisuj kopie JSON.')).catch(()=>toast('Ochrona zapisu niedostępna. Zapisz kopię JSON.'));return}
-if(ac==='recover'){if(confirm('Przywrócić poprzedni lokalny zapis? Bieżące dane zostaną zastąpione.')){GasSync.pause(true);state=DataStore.recover();setPage('home');refreshBoiler();toast('Przywrócono poprzedni zapis. Wysyłanie gazu wstrzymane do ponownej decyzji.')}return}
+if(ac==='recover'){if(confirm('Przywrócić poprzedni lokalny zapis? Bieżące dane zostaną zastąpione.')){GasSync.pause(true);state=DataStore.recover(incoming=>JournalSync.afterRestore(incoming,state));setPage('home');refreshBoiler();toast('Przywrócono poprzedni zapis. Wysyłanie gazu wstrzymane do ponownej decyzji.')}return}
 if(ac==='map-import')return document.getElementById('mapFile').click();
 if(ac==='map-download'){const mime=state.privateMap.split(';')[0].slice(5);const bytes=Uint8Array.from(atob(state.privateMap.split(',')[1]),c=>c.charCodeAt(0));return downloadBlob('moja-prywatna-mapa.'+(mime==='image/svg+xml'?'svg':mime==='image/png'?'png':'jpg'),new Blob([bytes],{type:mime}))}
 if(ac==='export-json')return exportJson();if(ac==='export-csv')return exportCsv();if(ac==='import-json')return document.getElementById('importFile').click();
-if(ac==='reset'){if(confirm('Czy na pewno skasować wszystkie lokalne nastawy, pomiary i eksperymenty? Najpierw pobierz kopię JSON.')){GasSync.pause(true);state=seed();save();setPage('home');toast('Wyczyszczono dane lokalne. Prywatne archiwum bez zmian.')}}}
+if(ac==='reset'){if(confirm('Czy na pewno skasować wszystkie lokalne nastawy, pomiary i eksperymenty? Najpierw pobierz kopię JSON.')){GasSync.pause(true);state=JournalSync.afterRestore(seed(),state);save();setPage('home');toast('Wyczyszczono dane lokalne. Prywatne archiwum bez zmian.')}}}
+
+function commitJournal(next){
+ state=DataStore.save(next);
+ renderGasWhenIdle();
+}
+async function refreshJournal(force=false){
+ if(typeof HeatingPreview!=='undefined')return;
+ journalRequested=true;
+ if(journalRunning)return;
+ journalRunning=true;
+ try {
+  while(journalRequested){
+   journalRequested=false;
+   await JournalSync.init();
+   if(JournalSync.status().connected&&navigator.onLine===false){
+    journalMessage='Brak internetu. Zapis lokalny jest dostępny.';
+    break;
+   }
+   if(!JournalSync.status().connected)break;
+   try{
+    const updated=await JournalSync.sync(()=>state,commitJournal);
+    if(updated)journalMessage=JournalSync.messages.synced;
+   }catch(error){
+    journalMessage=error.message;
+    if(force)toast(journalMessage);
+    break;
+   }
+  }
+ }finally{
+  journalRunning=false;
+  if(['experiments','review'].includes(page))renderGasWhenIdle();
+ }
+}
+function saveJournal(kind,entry,operation='upsert'){
+ const queued=JournalSync.enqueue(state,kind,entry,operation);
+ save();
+ toast(JournalSync.messages.local);
+ if(queued)refreshJournal();
+}
+function checkJournalForm(kind,item){
+ const old=displayedJournal.get(item.id);
+ if(old&&old!==JSON.stringify([JournalSync.headId(state,kind,item.id),item])){
+  toast('Wersja zmieniła się podczas edycji. Zachowaj wpisany tekst i otwórz aktualny wpis.');
+  return false;
+ }
+ return true;
+}
+function handleJournal(action,key){
+ const reportError=error=>{journalMessage=error.message;toast(error.message);};
+ if(action==='journal-connect'){
+  const field=document.getElementById('journalToken'),token=field.value;
+  field.value='';
+  return JournalSync.connect(token,()=>state,commitJournal).then(()=>{
+   journalMessage=JournalSync.messages.synced;render();refreshJournal();
+  }).catch(reportError);
+ }
+ if(action==='journal-disconnect'){
+  return JournalSync.disconnect(()=>state,commitJournal).then(()=>{
+   journalMessage='Klucz usunięto z tego urządzenia.';render();
+  }).catch(reportError);
+ }
+ if(action==='journal-refresh')return refreshJournal(true);
+ if(action==='journal-held'){
+  if(confirm('Sprawdzić odnalezione zapisy z kopii i spróbować zsynchronizować je z archiwum?')&&JournalSync.recoverHeld(state)){
+   save();refreshJournal();return render();
+  }
+  return;
+ }
+ if(action==='journal-migrate'){
+  const candidate=JournalSync.candidates(state).find(({kind,item})=>kind+'|'+item.id===key);
+  if(!candidate||candidate.duplicate)return toast('Sprawdź odpowiednik tego wpisu w archiwum.');
+  if(!confirm('Dołączyć ten zapis z urządzenia do prywatnego dziennika?'))return;
+  saveJournal(candidate.kind,candidate.item);return render();
+ }
+ if(action==='journal-remote'||action==='journal-local'){
+  const keep=action==='journal-local';
+  const prompt=keep?'Dopisać lokalną wersję jako kolejną korektę w archiwum?':
+   'Przyjąć wersję z archiwum? Lokalna wersja oczekująca przestanie być wysyłana.';
+  if(confirm(prompt)&&JournalSync.resolve(state,key,keep)){
+   save();render();refreshJournal();
+  }
+ }
+}
+function handleExperiment(action,id){
+ const current=state.experiments.find(row=>row.id===id);
+ if(action==='exp-cancel'){editingExperiment=null;return render();}
+ if(action==='exp-edit'&&current){
+  editingExperiment=id;render();
+  document.getElementById('expTitle').focus();
+  return;
+ }
+ if(current&&!checkJournalForm('experiment',current))return;
+ const starts=action==='start-exp'||action==='activate-exp';
+ if(starts&&state.experiments.some(row=>row.status==='active'))return toast('Zakończ poprzedni eksperyment.');
+ if(action==='activate-exp'&&current?.status!=='planned'||action==='finish-exp'&&current?.status!=='active'||
+    action==='exp-save'&&!current)return;
+ const field=(key,limit)=>document.getElementById(key)?.value?.trim().slice(0,limit)??'';
+ let next=current?{...current}:{id:recordId('eksperyment'),status:'planned',
+  started:null,ended:null,start:null,end:null,notes:''};
+ if(['exp-save','plan-exp','start-exp'].includes(action)){
+  const title=field('expTitle',100);
+  if(!title)return toast('Nadaj nazwę eksperymentowi.');
+  const parameter=field('expParameter',120),before=field('expBefore',120),after=field('expAfter',120);
+  if(!parameter&&(before||after))return toast('Podaj nazwę zmienianego parametru.');
+  const typed=(value,previous)=>value===''?null:String(previous)===value?previous:value;
+  next={...next,title,description:field('expDescription',1500),hypothesis:field('expHypothesis',1000),
+   change:parameter?{parameter,before:typed(before,current?.change?.before),after:typed(after,current?.change?.after)}:null,
+   constants:field('expConstants',1000),reference:field('expReference',1000),metrics:field('expMetrics',500)};
+  if(current?.started)next.started=physicalTime('expEditStarted',current.started);
+  if(current?.ended){
+   next.ended=physicalTime('expEditEnded',current.ended);
+   Object.assign(next,{notes:field('expEditNotes',3000),results:field('expResults',1800),
+    conclusion:field('expConclusion',1800),decision:field('expDecision',1500)});
+  }
+ }
+ if(starts){
+  next.status='active';next.started=now();next.start=snapshot();
+  next.gasStart=journalGas(next.started);
+  const startedAt=Date.parse(next.started);
+  const weather=Insights.near(state.weather?.hourly.filter(row=>row.at*1000<=startedAt),startedAt);
+  next.weather=weather?{at:new Date(weather.at*1000).toISOString(),c:weather.temp,source:'Model Open-Meteo'}:null;
+ }
+ if(action==='finish-exp'){
+  next.status='done';next.ended=now();next.end=snapshot();next.notes=field('finishNotes',3000);
+  next.gasEnd=journalGas(next.ended,next.gasStart?.meter);
+ }
+ JournalModel.local('experiment',next);
+ if(current)state.experiments[state.experiments.indexOf(current)]=next;
+ else state.experiments.unshift(next);
+ const label=starts?'Rozpoczęto eksperyment':action==='finish-exp'?'Zakończono eksperyment':
+  current?'Poprawiono eksperyment':'Zaplanowano eksperyment';
+ changeLog(label,next.title);
+ saveJournal('experiment',next);
+ editingExperiment=null;return render();
+}
+function physicalTime(field,value){
+ const text=document.getElementById(field)?.value;
+ if(!text||text===HeatingBoard.local(value,true))return value;
+ const time=HeatingBoard.parseLocal(text);
+ if(!Number.isFinite(time)||time>Date.now())throw Error('Sprawdź rzeczywisty czas próby w czasie polskim.');
+ return new Date(time).toISOString();
+}
+function journalGas(at,meter){
+ const view=gasViewState(),time=Date.parse(at);
+ const candidates=Insights.readings(view).filter(row=>row.at<=time);
+ const selected=meter??candidates.at(-1)?.meter;
+ const row=selected&&HeatingBoard.precedingGas(view,selected,time+1);
+ // Keep the measurement timestamp. A previous reading is never interpolated.
+ return row?{at:new Date(row.at).toISOString(),m3:row.gas,meter:row.meter}:null;
+}
 
 function analysisSources(){
  const st=Setti.status(),hs=Heads.status();
@@ -943,6 +1109,7 @@ function exportCsv(){let out=[['data','pomieszczenie','czujnik','temperatura_C',
 function guarded(fn){return (...args)=>{try{return fn(...args)}catch(error){state=DataStore.current(seed);document.getElementById('storageAlert').hidden=false;document.getElementById('storageAlert').textContent=error.message;toast(error.message)}}}
 document.addEventListener('click',guarded(handleClick));
 document.addEventListener('input',e=>{
+ if(['experiments','review'].includes(page)&&/^(exp|finish|review|journalToken)/.test(e.target?.id||''))journalDraft=true;
  if(['gasValue','gasAt','gasMeter'].includes(e.target?.id))updateGasPreview();
  if(['boilerAt','boilerAc001','boilerAc005','boilerAc006'].includes(e.target?.id))updateCounterPreview();
  if(e.target?.id==='engoBulk'){engoImportDraft=e.target.value;pendingEngo=null}if(e.target?.id==='tempBulk'){tempImportDraft=e.target.value;tempPreview=null}if(e.target?.id==='memoryBulk'){memoryImportDraft=e.target.value;memoryPreview=null}});
@@ -995,7 +1162,7 @@ document.getElementById('engoFile').addEventListener('change',async e=>{
  finally{e.target.value=''}
 });
 
-document.getElementById('importFile').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('Kopia jest za duża (limit 20 MB).');let p=DataStore.validate(JSON.parse(await f.text()));if(confirm('Wczytać kopię i zastąpić bieżące dane? Poprzedni poprawny zapis pozostanie lokalną kopią odzyskiwania.')){GasSync.pause(true);DataStore.replace(p);state=p;setPage('home');document.getElementById('storageAlert').hidden=true;toast('Wczytano kopię JSON.')}}catch(ex){alert('Nie udało się wczytać kopii: '+ex.message)}finally{e.target.value=''}});
+document.getElementById('importFile').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('Kopia jest za duża (limit 20 MB).');let p=DataStore.validate(JSON.parse(await f.text()));if(confirm('Wczytać kopię i zastąpić bieżące dane? Poprzedni poprawny zapis pozostanie lokalną kopią odzyskiwania.')){GasSync.pause(true);state=DataStore.replace(JournalSync.afterRestore(p,state));setPage('home');document.getElementById('storageAlert').hidden=true;toast('Wczytano kopię JSON.')}}catch(ex){alert('Nie udało się wczytać kopii: '+ex.message)}finally{e.target.value=''}});
 document.getElementById('mapFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>2*1024*1024)throw Error('Mapa może mieć najwyżej 2 MB.');const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(f)});const next=DataStore.validate({...state,privateMap:data});DataStore.save(next);state=next;render();toast('Prywatna mapa zapisana lokalnie.')}catch(ex){alert('Nie udało się zapisać mapy: '+ex.message)}finally{e.target.value=''}});
 async function syncSetti(force=false){
  const ok=typeof fetch==='function'&&navigator.onLine!==false?await Setti.refresh(fetch):false;
@@ -1039,14 +1206,14 @@ async function syncHa(force=false,pass=null){
 }
 window.addEventListener('load',()=>{
  if(typeof HeatingPreview!=='undefined'){HeatingPreview.start();return;}
- syncWeather();syncSetti();syncHeads();syncHa();gasSyncOnLoad();refreshBoiler();if(typeof window.setInterval==='function')window.setInterval(()=>{refreshBoiler();syncSetti();syncHeads();syncHa();if(GasSync.isConnected()){if(GasSync.status().role==='write'&&GasSync.status().active)maybeSyncGas();else GasSync.refresh().then(renderGasWhenIdle).catch(()=>{})}},5*60*1000)});
-window.addEventListener('pageshow',()=>{if(typeof HeatingPreview==='undefined')syncWeather();});
-document.addEventListener('visibilitychange',()=>{if(typeof HeatingPreview==='undefined'&&document.visibilityState==='visible'){syncWeather();refreshBoiler();syncHa();}});
+ syncWeather();syncSetti();syncHeads();syncHa();gasSyncOnLoad();refreshBoiler();refreshJournal();if(typeof window.setInterval==='function')window.setInterval(()=>{refreshBoiler();syncSetti();syncHeads();syncHa();refreshJournal();if(GasSync.isConnected()){if(GasSync.status().role==='write'&&GasSync.status().active)maybeSyncGas();else GasSync.refresh().then(renderGasWhenIdle).catch(()=>{})}},5*60*1000)});
+window.addEventListener('pageshow',()=>{if(typeof HeatingPreview==='undefined'){syncWeather();refreshJournal();}});
+document.addEventListener('visibilitychange',()=>{if(typeof HeatingPreview==='undefined'&&document.visibilityState==='visible'){syncWeather();refreshBoiler();syncHa();refreshJournal();}});
 if(typeof window.setInterval==='function')window.setInterval(()=>{
  const active=(state.ventilation||[]).find(row=>!row.ended);
  if(active)document.querySelectorAll('[data-air-clock]').forEach(node=>{node.textContent=HeatingBoard.elapsed(Date.now()-Date.parse(active.started));});
 },1000);
-window.addEventListener('online',()=>{if(typeof HeatingPreview==='undefined'){syncWeather();refreshBoiler();}maybeSyncGas();});
+window.addEventListener('online',()=>{if(typeof HeatingPreview==='undefined'){syncWeather();refreshBoiler();refreshJournal();}maybeSyncGas();});
 window.addEventListener('storage',e=>{if(DataStore.isKey(e.key)){document.getElementById('storageAlert').hidden=false;document.getElementById('storageAlert').textContent='Dane zmieniono w innej karcie. Odśwież aplikację przed kolejnym zapisem.'}});
 
 render();

@@ -61,7 +61,7 @@ async function refresh() {
 const types = {html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',
   png:'image/png',webmanifest:'application/manifest+json'};
 const assets = new Set([
-  'index.html','app.js','storage.js','insights.js','engo.js','temperatures.js',
+  'index.html','app.js','storage.js','journal-model.js','journal-sync.js','journal-view.js','insights.js','engo.js','temperatures.js',
   'temperature-view.js','research.js','memory.js','memory-view.js','review.js','review-view.js',
   'setti.js','heads.js','dehumidifiers.js','ha-sync.js','gas-sync.js','boiler-sync.js','heating-board.js',
   'heating-views.js','review-fixture.js','sw.js','manifest.webmanifest','icons/icon192.png','icons/icon512.png'
