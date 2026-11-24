@@ -1054,8 +1054,9 @@ function handleExperiment(action,id){
  if(starts){
   next.status='active';next.started=now();next.start=snapshot();
   next.gasStart=journalGas(next.started);
-  const weather=Insights.near(state.weather?.hourly,Date.parse(next.started));
-  next.weather=weather?{at:new Date(weather.at*1000).toISOString(),c:weather.temp,source:'Historia pogody'}:null;
+  const startedAt=Date.parse(next.started);
+  const weather=Insights.near(state.weather?.hourly.filter(row=>row.at*1000<=startedAt),startedAt);
+  next.weather=weather?{at:new Date(weather.at*1000).toISOString(),c:weather.temp,source:'Model Open-Meteo'}:null;
  }
  if(action==='finish-exp'){
   next.status='done';next.ended=now();next.end=snapshot();next.notes=field('finishNotes',3000);

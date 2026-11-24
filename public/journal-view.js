@@ -22,6 +22,17 @@ const JournalView=(()=>{
     [row.record.title,row.record.notes,row.record.results,row.record.conclusion,row.record.decision].filter(Boolean).join(' · '):
     [row.record.assessment,row.record.action].filter(Boolean).join(' · '))+'</p>':'')+'</li>').join('')+'</ul></details>';
  }
+ function versionDetails(label,row,at){
+  if(!row)return '<p class="hint">'+label+' · Zarchiwizowany</p>';
+  const detail=row.title?[row.description,row.hypothesis,row.change&&[
+   row.change.parameter,row.change.before??'—','→',row.change.after??'—'].join(' '),
+   row.constants,row.metrics,row.reference,row.notes,row.results,row.conclusion,row.decision]:
+   [row.assessment,row.action,row.reviewOn&&'Ponowna ocena '+row.reviewOn];
+  const period=row.started?[when(row.started),row.ended&&when(row.ended)].filter(Boolean).join(' → '):'';
+  return '<details><summary>'+label+(at?' · '+escape(when(at)):'')+'</summary>'+
+   (period?'<p class="hint">'+escape(period)+'</p>':'')+
+   detail.filter(Boolean).map(value=>'<p>'+escape(value)+'</p>').join('')+'</details>';
+ }
  function syncCard(state,message,withMigration=false){
   const journal=JournalSync.meta(state),connection=JournalSync.status(),m=JournalSync.messages;
   const status=journal.conflicts.length?m.conflict:journal.pending.length?m.pending:
@@ -29,11 +40,13 @@ const JournalView=(()=>{
   const conflicts=journal.conflicts.map(key=>{
    const remote=journal.heads.find(event=>JournalModel.key(event)===key);
    const [kind,id]=key.split('|'),local=state[JournalModel.collection[kind]].find(item=>item.id===id);
-   const title=value=>value?.title||value?.assessment||'Wpis dziennika';
-   const remoteLabel=remote?.op==='archive'?'Zarchiwizowany':remote?title(remote.record):'Oczekuje na powiązany wpis albo na zakończenie innej próby';
-   return '<div class="item"><b>'+escape(title(local??remote?.record))+'</b>'+
-    '<p class="hint">Wersja lokalna · '+escape(local?title(local):'Zarchiwizowany')+'</p>'+
-    '<p class="hint">Wersja w archiwum · '+escape(remoteLabel)+'</p>'+
+   const queued=journal.pending.filter(event=>JournalModel.key(event)===key).at(-1);
+   const draft=local??queued?.record;
+   const decision=draft?.assessment??remote?.record?.assessment;
+   return '<div class="item"><b>'+escape(draft?.title??remote?.record?.title??decision?.slice(0,100)??'Wpis dziennika')+'</b>'+
+    versionDetails('Wersja lokalna',draft,queued?.at)+
+    (remote?versionDetails('Wersja w archiwum',remote.record,remote.at):
+     '<p class="hint">Sprawdź powiązany eksperyment lub zakończ rozpoczętą próbę.</p>')+
     '<div class="actions">'+(remote?button('Przyjmij wersję z archiwum','journal-remote',key):'')+
     (journal.enabled?button('Zachowaj moją wersję','journal-local',key):'')+'</div></div>';
   }).join('');
