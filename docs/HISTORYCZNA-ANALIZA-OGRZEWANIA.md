@@ -60,3 +60,22 @@ python3 -B scripts/heating_report.py \
 Daty końcowe są wyłączne. Raport zestawia 14–20 i 21–27 listopada. Jeśli pierwszy okres ma zbyt słabe pokrycie, sprawdź dodatkowo krótsze okna o porównywalnej pogodzie i znanych nastawach. Oceń pokrycie wszystkich pokoi, wiarygodność celów komfortu oraz oba rzeczywiste końce okien gazowych. Zapisz w dzienniku decyzji także wynik nierozstrzygnięty. Dla raportu sporządzanego w trakcie doby użyj jawnego `--as-of` i tej samej rewizji źródeł.
 
 Testy historycznej analizy i zapisów uruchamiamy poleceniem `python3 -B -m unittest discover -s tests -p '*_test.py'`. Testy korzystają z danych syntetycznych i imitacji odpowiedzi GitHuba.
+
+## Rewizje godzinowej pogody ICON-EU
+
+1. Godzina modelu jest przedziałem UTC od znacznika próbki do kolejnej pełnej godziny. Doba raportu ma granice północy w Europe/Warsaw. Eksporter żąda godzin GMT w sekundach epoki i sprawdza jednostki przed zapisem. Późny początek albo wczesny koniec raportu ogranicza uwzględniony czas. [Dokumentacja Open-Meteo Historical Forecast API](https://open-meteo.com/en/docs/historical-forecast-api).
+2. Nowa partia z pogodą zawiera `weather_fetched_at`, czas odebrania odpowiedzi zapisany w UTC. Rozbieżne wartości jednego modelu wybiera się według najnowszego poprawnego pobrania. Temperatura musi być skończoną liczbą w °C w zakresie od −90 do 65 i mieć znacznik pełnej godziny mieszczący się w granicach partii.
+3. Starsze partie mają granice obserwacji `since` i `until`. Do kolejności ich publikacji służy pierwsze dodanie niezmienionego pliku w historii pierwszego rodzica prywatnego Git. Jest to udokumentowana kolejność publikacji, przybliżenie kolejności pobrań. Sprzeczne wartości dodane w tym samym zapisie zostają nierozstrzygnięte. Jeśli nowe pobranie ma się rozstrzygnąć względem starszej wartości opublikowanej później niż to pobranie, rozbieżna godzina także pozostaje nierozstrzygnięta.
+4. Gdy zgodne wartości powtórzono w kilku partiach, godzina wchodzi do obliczeń raz. Przy różnych wartościach i braku metadanych rozbieżna godzina pozostaje nieznana. Dla każdego wyboru raport JSON wskazuje partię, dostępną datę pobrania lub pierwszej publikacji i metodę. Godziny z rewizjami mają komplet poprawnych kandydatów. Nieprawidłowe wiersze, rzeczywiste braki i nierozstrzygnięte godziny są widoczne w audycie. Konflikty pomiarów HA i pomocnicza seria Met.no zachowują dotychczasowe reguły.
+
+Indeks pierwszych publikacji wygeneruj z pełnego prywatnego checkoutu wskazującego przypiętą rewizję źródeł. Katalog wyjściowy musi należeć do prywatnego archiwum.
+
+```sh
+python3 -B scripts/heating_weather.py \
+  --archive "$PRYWATNY_CHECKOUT" \
+  --output "$PRYWATNY_CHECKOUT/analityka/v1/pogoda-pochodzenie-v1.json"
+```
+
+W indeksie są wyłącznie informacje o partiach wersji 1 i ich pierwszym pojawieniu się w prywatnym Git. Przed uruchomieniem nowego kodu harmonogramu indeks musi objąć starsze partie zapisane do chwili przełączenia. Raport wczytuje go z katalogu prywatnych danych kontekstowych. Nowe partie zapisują czas pobrania we własnym pliku, więc nie trzeba co przebieg odtwarzać indeksu. Pliki przed wdrożeniem i wcześniejsze zestawienia pozostają częścią historii. Komenda raportu wymaga pustej ścieżki plików wynikowych w nowym katalogu rewizji.
+
+`Archive.weather_at` łączy znacznik zdarzenia z godziną UTC modelu, zwraca pochodzenie próbki i przesunięcie od początku godziny. Brak godziny pozostaje brakiem. Zestawienia średnich dla cykli ENGO i gazu tną przedziały pogody według rzeczywistych granic i podają liczbę obserwowanych sekund. Gaz w raporcie jest zaliczany według końcowego odczytu i pochodzi z pełnych okien tego samego gazomierza. Porównanie okien gazu i m³/stopniodzień wymagają pełnego pokrycia pogodą. Stopniodni są nadal liczone z bazą 21,5°C i dzielone przez 24 godziny, także przy zmianie czasu.

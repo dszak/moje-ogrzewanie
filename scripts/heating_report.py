@@ -11,12 +11,12 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from heating_capture import DATA_PATH, HEAD_ROOMS, ROOMS, WARSAW, WEATHER, encode, midnight, read_json, stamp, utc
+from heating_weather import HOUR, ORIGINS_PATH, RULE, read_origins, resolve, weather_candidates
 
 HDD_BASE = 21.5  # Same reference as public/insights.js.
 WEATHER_BINS = (0, 5, 10, 15, 20)
 CO_CONFIRMATIONS = "analityka/v1/potwierdzenia-co.json"
 ROOM_NAMES = ("Sypialnia", "Salon", "Kuchnia", "Duża łazienka", "Mała łazienka", "Przedpokój")
-HOUR = 3600
 
 
 def union(windows):
@@ -184,6 +184,9 @@ class Archive:
         coverage = []
         declaration_rows = {}
         self.batch_windows = {}
+        origins = read_origins(context / ORIGINS_PATH)
+        model_rows = defaultdict(list)
+        self.weather_rejected = []
         for path in sorted((root / DATA_PATH).glob("*.json")):
             data = read_json(path)
             if data["version"] != 1:
@@ -198,13 +201,20 @@ class Archive:
                 if old is None or run[2] < old[2]:
                     self.runs[key] = run
             for series, rows in data["events"].items():
+                if series == WEATHER:
+                    fetched = data.get("weather_fetched_at")
+                    points, rejected = weather_candidates(rows, path.name,
+                        fetched, origins.get(path.name), start, end)
+                    for at, choices in points.items():
+                        model_rows[at].extend(choices)
+                    self.weather_rejected.extend(rejected)
+                    continue
                 for event_at, value, *meta in rows:
                     at = stamp(event_at)
                     record = (value, *meta)
                     old = self.rows[series].setdefault(at, record)
                     if old != record:
-                        # Revised weather forecasts and conflicting HA reads are retained
-                        # in the batches. A disputed timestamp is excluded from calculations.
+                        # Unresolved conflicts in real observations stay outside calculations.
                         self.rows[series][at] = (None, *((None,) * len(meta)))
                     if series == "boiler.co" and value is not None and meta[0]:
                         declared = stamp(meta[0])
@@ -214,6 +224,11 @@ class Archive:
             raise ValueError("Brak partii archiwum")
         self.coverage = union(coverage)
         self.until = self.coverage[-1][1]
+        self.weather_decisions = {}
+        for at, candidates in sorted(model_rows.items()):
+            picked, method = resolve(candidates)
+            self.weather_decisions[at] = (picked, method, candidates)
+            self.rows[WEATHER][at] = (picked["value"] if picked is not None else None,)
         self.windows = intervals_for_runs(self.runs, self.coverage)
         self.rows["boiler.declarations"] = {a: (v,) for a, v in declaration_rows.items()}
         card = context / "karta/karta-instalacji.json"
@@ -263,6 +278,36 @@ class Archive:
 
     def events(self, key):
         return sorted((at, *row) for at, row in self.rows[key].items())
+
+    def weather_at(self, at):
+        """Model hour covering the event timestamp. Missing hours stay missing."""
+        hour = at // HOUR * HOUR
+        picked, method, _ = self.weather_decisions.get(hour, (None, None, None))
+        if picked is None or at >= self.until:
+            return None
+        return {"source": WEATHER, "hour_start": utc(hour), "resolution_s": HOUR,
+                "seconds_from_hour_start": at - hour, "method": method, **picked}
+
+    def weather_audit(self, start, end):
+        hours = range(int(start) // HOUR * HOUR, math.ceil(end / HOUR) * HOUR, HOUR)
+        selected = {}
+        revisions = {}
+        missing = []
+        for at in hours:
+            picked, method, choices = self.weather_decisions.get(at, (None, "absent", []))
+            if picked is None:
+                missing.append(utc(at))
+            else:
+                selected[utc(at)] = {"method": method, **picked}
+            if len({r["value"] for r in choices}) > 1:
+                revisions[utc(at)] = {"method": method, "candidates": choices}
+        relevant_batches = {name for name, (a, b) in self.batch_windows.items() if a < end and start < b}
+        return {"source": WEATHER, "rule": RULE, "hourly_resolution_s": HOUR,
+                "expected_hours": len(hours), "selected": selected, "revisions": revisions,
+                "absent_hours": [at for at in missing if at not in revisions],
+                "unresolved_hours": [at for at in missing if at in revisions],
+                "rejected_rows": [row for row in self.weather_rejected
+                    if row["batch"] in relevant_batches]}
 
     def build_series(self):
         clean = {}
@@ -315,16 +360,20 @@ def statistics(series, duration):
     }
 
 
+def full_demand_intervals(series, start, end, status):
+    # A full ON or OFF interval is bracketed by contiguous opposite states.
+    return [(a, b) for (_, pb, p), (a, b, value), (na, _, n)
+            in zip(series, series[1:], series[2:])
+            if value == status and p != status and n != status
+            and pb == a and na == b and start <= a < b <= end]
+
+
 def demand_statistics(series, start, end):
     by_status = {}
     observed = clip(series, start, end)
     coverage = seconds(observed)
-    # A full ON or OFF interval must be bracketed by contiguous opposite states.
     for status in ("on", "off"):
-        intervals = [(a, b) for (pa, pb, p), (a, b, value), (na, nb, n)
-                     in zip(series, series[1:], series[2:])
-                     if value == status and p != status and n != status
-                     and pb == a and na == b and start <= a < b <= end]
+        intervals = full_demand_intervals(series, start, end, status)
         active = seconds([row for row in observed if row[2] == status])
         by_status[status] = {"seconds": active, "share": active / coverage if coverage else None,
                              "complete_intervals": len(intervals),
@@ -370,11 +419,15 @@ def weather(series, start, end, hourly=False):
     return stats
 
 
+def covered_completely(stats):
+    return math.isclose(stats["missing_s"], 0, rel_tol=0, abs_tol=1e-6)
+
+
 def gas_row(window, series):
     start, end, volume, meter = window
     w = weather(series, start, end)
     degree_days = w["hdd_21_5"]
-    full_weather = w["missing_s"] < 1
+    full_weather = covered_completely(w)
     return {"start": utc(start), "end": utc(end), "seconds": end - start, "m3": round(volume, 5),
             "meter": meter, "m3_24h": volume * 86400 / (end - start),
             "m3_per_hdd": volume / degree_days if full_weather and degree_days else None,
@@ -525,7 +578,7 @@ def markdown(report):
         lines.append("| " + " | ".join([day["date"], *values,
                      f"{num(day['apartment_equal']['mean'])} / {num(day['apartment_area_weighted']['mean'])}"]) + " |")
     lines.extend(["", "## Gaz między rzeczywistymi odczytami", "",
-                  "Gaz obejmuje CO i CWU. Pokazano całe przedziały, które przecinają okres raportu.", "",
+                  "Gaz obejmuje CO i CWU. Pokazano całe przedziały, których końcowy odczyt przypada w zakresie raportu.", "",
                   "| Początek | Koniec | Długość | m³ | m³/24 h | Pogoda °C | m³/stopniodzień |",
                   "|---|---|---:|---:|---:|---:|---:|"])
     for row in report["gas_intervals"]:
@@ -533,7 +586,16 @@ def markdown(report):
                      f"{num(row['m3'], 3)} | {num(row['m3_24h'], 3)} | {num(row['weather']['mean'])} | "
                      f"{num(row['m3_per_hdd'], 3)} |")
     whole = report["period"]
-    lines.extend(["", "## Pokrycie głowic", "",
+    audit = report["weather_provenance"]
+    lines.extend(["", "## Pochodzenie modelu pogody", "",
+                  f"- Wybrane godziny {len(audit['selected'])}/{audit['expected_hours']}. "
+                  f"Różniące się wersje dla {len(audit['revisions'])} godzin. "
+                  f"Brak źródła dla {len(audit['absent_hours'])} godzin, brak rozstrzygnięcia dla "
+                  f"{len(audit['unresolved_hours'])} godzin.",
+                  "- Każda wybrana godzina ma wskazaną partię i dostępny czas pozyskania lub pierwszej publikacji. "
+                  "Szczegóły są zapisane w raporcie JSON.",
+                  f"- JSON zawiera pogodę i pokrycie dla {len(report['engo_cycle_weather'])} pełnych cykli żądania ENGO.",
+                  "", "## Pokrycie głowic", "",
                   "| Głowica | Temperatura | Nastawa | Korekta | Tryb |",
                   "|---|---:|---:|---:|---:|"])
     for head, row in whole["heads"].items():
@@ -572,10 +634,14 @@ def report(archive, start_day, end_day, against=None, as_of=None):
     result = {
         "version": 1, "period": weekly, "days": days, "matched_days": compare(days),
         "archive_end": utc(archive.until), "comfort_reference_at": getattr(archive, "targets_at", None),
+        "weather_provenance": archive.weather_audit(start, stop),
         "source_batches": [name for name, (a, _) in archive.batch_windows.items()
                            if a < stop or (against and a < midnight(against[1]))],
+        "engo_cycle_weather": [{"start": utc(a), "end": utc(b),
+                                "weather": weather(archive.series[WEATHER], a, b)}
+                               for a, b in full_demand_intervals(archive.series["engo.demand"], start, stop, "on")],
         "gas_intervals": [gas_row(w, archive.series[WEATHER]) for w in archive.gas
-                          if w[0] < stop and start < w[1] <= (as_of if as_of is not None else archive.until)],
+                          if w[0] < stop and start < w[1] <= stop],
     }
     if against:
         a, b = map(midnight, against)
@@ -583,6 +649,7 @@ def report(archive, start_day, end_day, against=None, as_of=None):
             raise ValueError("Porównywany okres musi się kończyć przed ostatnią granicą eksportu")
         other = period(archive, a, b)
         result["comparison_period"] = other
+        result["comparison_weather_provenance"] = archive.weather_audit(a, b)
         result["matched_periods"] = compare([other], against=weekly)
         result["matched_gas"] = compare_gas(archive, (start, stop), (a, b))
     return result
@@ -597,7 +664,8 @@ def compare_gas(archive, left, right):
             continue
         first, second = gas_row(a, archive.series[WEATHER]), gas_row(b, archive.series[WEATHER])
         w, v = first["weather"], second["weather"]
-        if w["missing_s"] > 1 or v["missing_s"] > 1 or abs(first["seconds"] / second["seconds"] - 1) > 0.10:
+        if (not covered_completely(w) or not covered_completely(v)
+                or abs(first["seconds"] / second["seconds"] - 1) > 0.10):
             continue
         if abs(w["mean"] - v["mean"]) > 2 or sum(abs(x-y) for x, y in zip(w["bins"], v["bins"])) / 2 > 0.30:
             continue
@@ -630,8 +698,12 @@ def main():
     data = report(Archive(args.archive, args.context_archive), args.start, args.end, args.against,
                   stamp(args.as_of) if args.as_of else None)
     args.output.mkdir(parents=True, exist_ok=True)
-    (args.output / "raport.json").write_text(encode(data), encoding="utf-8")
-    (args.output / "raport.md").write_text(markdown(data), encoding="utf-8")
+    paths = [args.output / name for name in ("raport.json", "raport.md")]
+    if any(path.exists() for path in paths):
+        parser.error("Wskaż osobny katalog rewizji. Raport już istnieje.")
+    for path, content in zip(paths, (encode(data), markdown(data))):
+        with path.open("x", encoding="utf-8") as stream:
+            stream.write(content)
 
 
 if __name__ == "__main__":

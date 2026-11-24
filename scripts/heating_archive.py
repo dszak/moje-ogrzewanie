@@ -19,6 +19,7 @@ from heating_capture import (
     encode, keychain, midnight, read_json, request_json, stamp, utc,
 )
 from heating_report import CO_CONFIRMATIONS, Archive, report
+from heating_weather import ORIGINS_PATH
 
 BRANCH = "codex/historical-heating-data"
 API = "https://api.github.com/repos/"
@@ -39,9 +40,15 @@ def check_batch(path):
     if path.stat().st_size > 2_000_000:
         raise ValueError("Partia przekracza dozwolony rozmiar")
     batch = read_json(path)
-    if (set(batch) != {"version", "since", "until", "recorder_runs", "events"}
+    required = {"version", "since", "until", "recorder_runs", "events"}
+    if (set(batch) - {"weather_fetched_at"} != required
             or batch["version"] != 1 or not set(batch["events"]) <= SERIES):
         raise ValueError("Nieobsługiwana zawartość partii")
+    if "weather_fetched_at" in batch:
+        fetched = batch["weather_fetched_at"]
+        if (not batch["events"].get(WEATHER) or not isinstance(fetched, str)
+                or stamp(fetched) < stamp(batch["until"])):
+            raise ValueError("Nieprawidłowy czas pobrania modelu pogody")
     raw = encode(batch)
     digest = hashlib.sha256(raw.encode()).hexdigest()[:20]
     if name != f"{utc(stamp(batch['until']))[:10]}-{digest}.json":
@@ -167,11 +174,11 @@ class PrivateArchive:
         self.preflight()
         revisions = {}
         ref = self.ref("heads/main")
-        for name in (*CONTEXT_FILES, snapshot, CO_CONFIRMATIONS):
+        for name in (*CONTEXT_FILES, snapshot, CO_CONFIRMATIONS, ORIGINS_PATH):
             try:
                 data = self.api(f"/contents/{name}?ref={ref}")
             except HTTPError as error:
-                if name == CO_CONFIRMATIONS and error.code == 404:
+                if name in (CO_CONFIRMATIONS, ORIGINS_PATH) and error.code == 404:
                     continue
                 raise
             if data["encoding"] != "base64":

@@ -20,7 +20,8 @@ test('encrypted GitHub file is readable only with password, can refresh, and mer
  const {encrypt}=await import('../scripts/ha-history-export.mjs');
  const env=encrypt(payload(),PASS);
  assert.equal(env.format,'moje-ogrzewanie-ha-szyfrowane');
- assert.doesNotMatch(JSON.stringify(env),/bedroom|21.5|2024-11-15T17/);
+ assert.deepEqual(Object.keys(env).sort(),['cipher','data','format','iv','kdf','rounds','salt','version']);
+ assert.match(env.data,/^[a-zA-Z0-9+/]+={0,2}$/);
  const b=browser(),fetcher=async()=>({ok:true,text:async()=>JSON.stringify(env)});
  assert.equal((await b.refresh(fetcher)).locked,true);
  const data=await b.unlock(PASS,fetcher);

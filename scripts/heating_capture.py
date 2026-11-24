@@ -202,6 +202,11 @@ def capture_ha(base, token, start, stop, entities, demand_sources):
     return by_series, runs
 
 
+def weather_temperature(value):
+    # Accept numeric model output only. In particular, bool and strings are not temperatures.
+    return value if type(value) in (int, float) and -90 <= value <= 65 else None
+
+
 def capture_weather(start, stop, coordinates):
     latitude = numeric(coordinates["latitude"], -90, 90)
     longitude = numeric(coordinates["longitude"], -180, 180)
@@ -212,8 +217,13 @@ def capture_weather(start, stop, coordinates):
                            start_date=utc(start)[:10], end_date=utc(stop)[:10]))
     result = request_json("https://historical-forecast-api.open-meteo.com/v1/forecast?" + query)
     hourly = result["hourly"]
+    units = result["hourly_units"]
+    if (result["utc_offset_seconds"] != 0 or units["time"] != "unixtime"
+            or units["temperature_2m"] != "°C" or len(hourly["time"]) != len(hourly["temperature_2m"])):
+        raise ValueError("Nieprawidłowa oś UTC lub jednostki modelu pogody")
     return [[utc(at), value] for at, value in zip(hourly["time"], hourly["temperature_2m"])
-            if value is not None and start - 3600 < at < stop]
+            if type(at) is int and at % 3600 == 0 and start - 3600 < at < stop
+            and weather_temperature(value) is not None]
 
 
 def capture_trv(path, start, stop):
@@ -272,8 +282,10 @@ def collect(root, start, stop, config):
             by_series.update(capture_trv(Path(trv_log), start, stop))
         except OSError:
             print("Pasywny dziennik głowic niedostępny. Zachowano dane HA.", file=sys.stderr)
+    weather_fetched_at = None
     try:
         by_series[WEATHER] = capture_weather(start, stop, config["weather"])
+        weather_fetched_at = utc(datetime.now(UTC).timestamp())
     except (OSError, ValueError, KeyError):
         print("Model pogody niedostępny. Zachowano dane lokalne.", file=sys.stderr)
     paths = []
@@ -287,9 +299,11 @@ def collect(root, start, stop, config):
                   for key, rows in by_series.items()}
         day_runs = [run for run in runs if stamp(run[1]) < end
                     and (run[2] is None or stamp(run[2]) >= day)]
-        path = write_batch(root, dict(version=1, since=utc(day), until=utc(end),
-                           recorder_runs=day_runs, events={k: v for k, v in events.items() if v}))
-        paths.append(path)
+        batch = dict(version=1, since=utc(day), until=utc(end),
+                     recorder_runs=day_runs, events={k: v for k, v in events.items() if v})
+        if WEATHER in batch["events"]:
+            batch["weather_fetched_at"] = weather_fetched_at
+        paths.append(write_batch(root, batch))
         day = end
     return paths, {key: max(rows, key=lambda row: stamp(row[0]))[0]
                    for key, rows in by_series.items() if rows}
