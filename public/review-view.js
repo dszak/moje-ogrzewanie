@@ -4,6 +4,7 @@ const ReviewView=(()=>{
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const OPTIONS={keep:'Pozostawić ustawienia',observe:'Zebrać więcej danych',experiment:'Przeprowadzić eksperyment'};
  function render(state,period,editId,report){
+   const setting=value=>Number.isFinite(value)?esc(value)+'°C':'—';
    const decisions=(state.decisionLog||[]).slice().sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
    const edit=editId?decisions.find(d=>d.id===editId):null;
    const current=report||HeatingReview.build(state,period);
@@ -35,7 +36,7 @@ const ReviewView=(()=>{
     ' Rozważymy stabilność temperatur, możliwą bezwładność cieplną i zużycie gazu z uwzględnieniem pogody.</p>'+
     '<div class="note" style="margin-top:12px">Nie wyznaczamy sprawności palnika na podstawie samych cykli ENGO. Przedział bez odczytów gazomierza nie jest „zerowym zużyciem”.</div></section>';
    out+='<section class="card" style="margin-bottom:16px"><h3>3. DZIAŁAĆ — zapisz wynik oceny</h3>'+
-    '<p class="hint">Po naszej analizie wklej tutaj najważniejsze wnioski i ustalony następny krok. Zmiany kotła i ENGO wymagają Twojej decyzji — ta aplikacja niczego nie steruje.</p>'+
+    '<p class="hint">Zapisz wnioski i uzgodniony następny krok. Przy połączonym dzienniku pojawią się tu również decyzje zatwierdzone w rozmowie.</p>'+
     '<div class="form-grid">'+
     '<div class="wide"><label for="reviewChoice">Decyzja</label><select id="reviewChoice">'+
       Object.entries(OPTIONS).map(([id,label])=>'<option value="'+id+'" '+((edit?.choice||'observe')===id?'selected':'')+'>'+label+'</option>').join('')+
@@ -54,9 +55,10 @@ const ReviewView=(()=>{
        '<p>'+esc(d.assessment)+'</p>'+
        (d.action?'<p><b>Działanie:</b> '+esc(d.action)+'</p>':'')+
        (d.reviewOn?'<p class="hint">Ponowna ocena: '+esc(d.reviewOn)+'</p>':'')+
-       '<p class="hint">Ustawienia przy decyzji: ENGO '+d.settings.engo+'°C · kocioł '+d.settings.boiler+'°C</p>'+
+       '<p class="hint">Ustawienia przy decyzji: ENGO '+setting(d.settings.engo)+' · kocioł '+setting(d.settings.boiler)+'</p>'+
+       (typeof JournalView==='undefined'?'':JournalView.revisions('decision',d.id))+
        '<div class="actions"><button class="action ghost" data-action="review-edit" data-id="'+esc(d.id)+'">Edytuj</button>'+
-       '<button class="action danger" data-action="review-delete" data-id="'+esc(d.id)+'">Usuń</button></div></article>').join(''):
+       '<button class="action danger" data-action="review-delete" data-id="'+esc(d.id)+'">Archiwizuj</button></div></article>').join(''):
        '<p class="hint">Nie ma jeszcze ocen. Pierwsza pojawi się tu po zapisaniu wspólnej decyzji.</p>')+'</section>';
    return out;
  }

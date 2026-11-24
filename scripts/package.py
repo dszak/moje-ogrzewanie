@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib, shutil
 root=Path(__file__).resolve().parents[1]
-files=['index.html','app.js','heating-board.js','heating-views.js','storage.js','insights.js','engo.js','temperatures.js','temperature-view.js','research.js','memory.js','memory-view.js','review.js','review-view.js','setti.js','heads.js','dehumidifiers.js','ha-sync.js','gas-sync.js','boiler-sync.js','sw.js','manifest.webmanifest','.nojekyll','icons/icon192.png','icons/icon512.png']
+files=['index.html','app.js','heating-board.js','heating-views.js','storage.js','journal-model.js','journal-sync.js','journal-view.js','insights.js','engo.js','temperatures.js','temperature-view.js','research.js','memory.js','memory-view.js','review.js','review-view.js','setti.js','heads.js','dehumidifiers.js','ha-sync.js','gas-sync.js','boiler-sync.js','sw.js','manifest.webmanifest','.nojekyll','icons/icon192.png','icons/icon512.png']
 out=root/'dist'
 if out.exists(): shutil.rmtree(out)
 out.mkdir()

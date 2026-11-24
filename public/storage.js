@@ -22,7 +22,22 @@ const DataStore = (() => {
     obj(p.rooms);roomIds.forEach(k=>{const r=obj(p.rooms[k]);number(r.target,10,30);arr(r.readings).forEach(m=>{obj(m);date(m.at);number(m.temp,-10,45,false);number(m.humidity,0,100);str(m.note,200)})});
     radiators(p.radiators);doors(p.doors);
     arr(p.events).forEach(e=>{obj(e);str(e.id,100);date(e.at);str(e.label,300);str(e.detail,10000)});
-    let active=0;arr(p.experiments).forEach(e=>{obj(e);str(e.id,100);str(e.title,100);str(e.description,1500);date(e.started);snapshot(e.start);if(e.status==='active'){active++}else if(e.status==='done'){date(e.ended);snapshot(e.end);str(e.notes,3000)}else fail()});if(active>1)fail();
+    let active=0;const experimentIds=new Set();
+    arr(p.experiments).forEach(e=>{
+      obj(e);str(e.id,100);str(e.title,100);str(e.description,1500);
+      if(experimentIds.has(e.id))fail();experimentIds.add(e.id);
+      if(e.status==='planned'){
+        if(e.started!==null||e.ended!==null)fail();
+      }else{
+        date(e.started);if(e.start!==null)snapshot(e.start);
+        if(e.status==='active')active++;
+        else if(e.status==='done'){date(e.ended);if(e.end!==null)snapshot(e.end);str(e.notes,3000)}
+        else fail();
+      }
+      if(e.change||e.weather||e.gasStart||e.gasEnd||e.status==='planned')JournalModel.local('experiment',e);
+    });
+    if(active>1)fail();
+    if(p.journal!==undefined)p.journal=JournalSync.validateMeta(p.journal);
     // Early v1 files may not have observations yet; never replace existing arrays.
     if(p.conditions===undefined)p.conditions=[];
     arr(p.conditions).forEach(c=>{obj(c);date(c.at);number(c.outdoor,-45,50);number(c.gas,0,100000000);if(!['unknown','sun','clouds','mixed'].includes(c.sky))fail();if(c.setti!==undefined)setti(c.setti)});
@@ -108,7 +123,7 @@ const DataStore = (() => {
             new Date(d.reviewOn+'T12:00:00Z').toISOString().slice(0,10)!==d.reviewOn)fail();
       }
       if(d.experimentId!==null)str(d.experimentId,100);
-      obj(d.settings);number(d.settings.boiler,25,85,false);number(d.settings.engo,10,30,false);
+      obj(d.settings);number(d.settings.boiler,25,85);number(d.settings.engo,10,30);
     });
     // The v1.8 project card is optional for old backups and remains device-private.
     if(p.projectMemory===undefined)p.projectMemory={overview:'',installation:'',sensors:'',comfort:'',constraints:'',currentQuestion:'',updatedAt:null};
@@ -165,6 +180,6 @@ const DataStore = (() => {
     return p;
   }
   function current(seed){try{return baseline?validate(JSON.parse(baseline)):seed()}catch(e){return seed()}}
-  function recover(){const raw=localStorage.getItem(BACKUP);if(!raw)throw Error('Brak poprzedniego zapisu. Wczytaj kopię JSON.');const p=validate(JSON.parse(raw));save(p,true);return p}
+  function recover(transform=p=>p){const raw=localStorage.getItem(BACKUP);if(!raw)throw Error('Brak poprzedniego zapisu. Wczytaj kopię JSON.');return save(transform(validate(JSON.parse(raw))),true)}
   return {load,save,validate,current,recover,replace:p=>save(p,true),isKey:k=>k===KEY,get warning(){return warning}};
 })();
