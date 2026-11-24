@@ -6,6 +6,7 @@ const {webcrypto}=require('node:crypto');
 const PASS='wlasne bardzo dlugie haslo do synchronizacji 2026';
 function browser(){
  const context=vm.createContext({Date,Set,Map,Uint8Array,TextEncoder,TextDecoder,atob,crypto:webcrypto});
+ vm.runInContext(fs.readFileSync('public/dehumidifiers.js','utf8'),context);
  vm.runInContext(fs.readFileSync('public/ha-sync.js','utf8'),context);
  return vm.runInContext('HaSync',context);
 }
@@ -112,4 +113,43 @@ test('a restored old ENGO state cannot collide with a new source event',async()=
  const combined=combine(prior,result);
  assert.equal(combined.engo.length,2);
  assert.deepEqual(combined.engo_readings,prior.engo_readings);
+});
+
+test('bathroom exporter keeps the two outlets separate and rejects reusing an entity',async()=>{
+ const {bathroomMapping,bathroomReading,mergeBathrooms}=await import('../scripts/bathroom-telemetry.mjs');
+ const entities={'bath.dehumidifier.relay':'binary_sensor.small','bath.bigbath.dehumidifier.relay':'binary_sensor.big',
+  'bath.bigbath.dehumidifier.power_w':'sensor.big_w','room.smallbath.rh':'sensor.rh_small'};
+ const mapping=bathroomMapping({entities});
+ const at='2024-11-15T17:00:00.000Z',observed='2024-11-15T16:59:30.000Z';
+ const data={
+  'binary_sensor.small':{state:'off',last_updated:at,attributes:{observed_at:observed}},
+  'binary_sensor.big':{state:'on',last_updated:at,attributes:{observed_at:observed}},
+  'sensor.big_w':{state:'0.123',last_updated:at,attributes:{unit_of_measurement:'kW',device_class:'power',observed_at:observed}},
+  'sensor.rh_small':{state:'64',last_updated:at,attributes:{unit_of_measurement:'%',device_class:'humidity'}}
+ };
+ const result=mergeBathrooms({},mapping,[],data,Date.parse(at));
+ assert.deepEqual(result.smallbath.latest.relay,{at:observed,value:'off'});
+ assert.deepEqual(result.bigbath.latest.relay,{at:observed,value:'on'});
+ assert.equal(result.bigbath.latest.power.value,123);
+ assert.equal(result.bigbath.history.power.length,1);
+ assert.equal(result.smallbath.latest.humidity.value,64);
+ assert.equal(result.smallbath.latest.power,undefined);
+ assert.deepEqual(bathroomReading('power',{...data['sensor.big_w'],state:'unavailable'}),{at,value:null});
+ assert.equal(bathroomReading('power',{...data['sensor.big_w'],attributes:{unit_of_measurement:'kWh'}}).value,null);
+ assert.equal(bathroomReading('energy',{...data['sensor.big_w'],attributes:{unit_of_measurement:'kWh',device_class:'energy'}}).value,null);
+ assert.throws(()=>bathroomMapping({entities:{...entities,'bath.bigbath.dehumidifier.relay':'binary_sensor.small'}}),/Niejednoznaczne/);
+});
+
+test('invalid optional bathroom data never hides pre-existing HA snapshots or history',()=>{
+ const b=browser(),p=payload();
+ const at=p.generated_at;
+ p.dashboard={bath:{relay:{at,value:'off'},power:{at,value:0}}};
+ p.bathrooms={bigbath:{latest:{power:{at,value:120}},history:{power:[{at,value:120}]}}};
+ const correct=b.validate(p);
+ assert.equal(correct.bathrooms.bigbath.latest.power.value,120);
+ p.bathrooms.bigbath.history.power.push({at,value:121});
+ const invalid=b.validate(p);
+ assert.equal(invalid.bathroomError,true);
+ assert.equal(invalid.dashboard.bath.power.value,0);
+ assert.equal(invalid.engo.length,2);
 });

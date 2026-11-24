@@ -33,8 +33,9 @@ HA_SERIES |= {f"trv.{head}.{field}" for head in HEAD_ROOMS
 BATH_SWITCHES = {
     "bath.convector.enabled", "bath.convector.element", "bath.dehumidifier.relay",
     "bath.convector.available", "bath.dehumidifier.available",
+    "bath.bigbath.dehumidifier.relay", "bath.bigbath.dehumidifier.available",
 }
-BATH_METERS = {f"bath.{device}.{field}" for device in ("convector", "dehumidifier")
+BATH_METERS = {f"bath.{device}.{field}" for device in ("convector", "dehumidifier", "bigbath.dehumidifier")
                for field in ("power_w", "energy_day_kwh", "energy_total_kwh")}
 BATH_SERIES = BATH_SWITCHES | BATH_METERS | {
     "bath.convector.temp", "bath.convector.target", "bath.convector.mode",

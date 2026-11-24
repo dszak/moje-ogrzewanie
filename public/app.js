@@ -23,6 +23,7 @@ const seed=()=>({version:1,global:{boiler:55,engo:22,engoCurrent:null,engoPlace:
 let reviewPeriod='week';let editingDecision=null;let memoryPreview=null;let memoryImportDraft='';let tempDay=null;let tempPreview=null;let tempImportDraft='';let tempVisible=new Set(['bedroom','salon','kitchen','bigbath','smallbath','hall']);let historyLimit=120;let engoLimit=120;let editingGas=null;let editingBoiler=null;let editingEngo=null;let engoImportDraft='';let pendingEngo=null;let state=load();let page='home';let currentRoom='bedroom';let filterRoom='all';let toastTimer;
 let boardMessage='', lastGasId=null, haSnapshot=null, airChoice=new Set(),airOpening='',airEdit=null;
 let coSending=false,coStatus='',gasQueued=false,gasSending=false;
+let haBathrooms=null,bathDays=7;
 let haUnlocked=false,haSyncLabel='Nie połączono jeszcze prywatnej historii HA.';
 function load(){return DataStore.load(seed)}
 function save(){state=DataStore.save(state);const el=document.getElementById('storageAlert');el.hidden=!DataStore.warning;if(DataStore.warning)el.textContent=DataStore.warning}
@@ -123,7 +124,7 @@ function boardModel(){
    display:live||stale||last(room.id),label:live?'Setti+ automatycznie':stale?'Setti+ · nieaktualne · Nieaktualny pomiar z':last(room.id)?'Wpis ręczny':'Brak pomiaru'};
  });
  const snapshot=haSnapshot||(typeof HeatingPreview!=='undefined'?HeatingPreview.devicePlaceholder:null);
- return HeatingBoard.model(state,gasViewState(),{rooms,roomsAt:status.at,snapshot,
+ return HeatingBoard.model(state,gasViewState(),{rooms,roomsAt:status.at,snapshot,bathroomTelemetry:haBathrooms,
   weather:Insights.near(state.weather?.hourly,Date.now())});
 }
 function renderHome(full=false){
@@ -352,7 +353,8 @@ const sources=`<section class="card"><h3>Czujnik pokojowy ${r.sensor}</h3><div c
  <div><span>Przy głowicy</span><strong>${T(h?.temperature)}</strong></div><div><span>Nastawa</span><strong>${T(h?.target_temperature)}</strong></div>
  <div><span>Kalibracja</span><strong>${T(h?.calibration)}</strong></div><div><span>Tryb</span><strong>${h?esc(h.mode_raw):'—'}</strong></div></div>
  <p class="hint">Setti+ · ${esc(headsStatus.label)}${headsStatus.at?' · '+day(headsStatus.at):''}</p></section>`}).join('')}
- ${r.id==='smallbath'?HeatingViews.bath(haSnapshot,Date.now()):''}`;
+ ${r.id==='smallbath'?HeatingViews.bath(haSnapshot,Date.now()):''}
+ ${Object.hasOwn(Dehumidifiers.rooms,r.id)?HeatingViews.dehumidifier(r.id,haBathrooms,haSnapshot,Setti.room(r.id)||Setti.lastRoom(r.id),Date.now()):''}`;
 return `<button class="back" data-action="page" data-page="rooms">Wróć do pomieszczeń</button>${sec(r.id==='hall'?'Korytarz':r.name,r.desc)}
 <div class="board-grid room-instruments">${sources}</div>${HeatingViews.comfort(state,r.id)}
 <div class="actions"><button class="action light" data-action="page" data-page="temperatures">Historia automatyczna</button></div><div class="grid cols2">
@@ -442,6 +444,7 @@ function render(){
  const screens={
   home:()=>renderHome(),dashboard:()=>renderHome(true),rooms:()=>HeatingViews.rooms(boardModel()),
   analysis:HeatingViews.analysis,more:HeatingViews.more,
+  dehumidifiers:()=>HeatingViews.dehumidifierAnalysis(haBathrooms,bathDays),
   'gas-quick':()=>HeatingViews.gasForm(true),'co-quick':()=>HeatingViews.coForm(state,coStatus),
   'boiler-quick':()=>HeatingViews.boilerForm(boilerEntries(),null,true),
   air:()=>HeatingViews.air(state,airChoice,airOpening,airEdit),
@@ -698,7 +701,7 @@ if(ac==='ha-unlock'){
 if(ac==='ha-refresh')return syncHa(true);
 if(ac==='ha-forget'){
  if(!confirm('Zapomnieć klucz szyfrowania na tym iPhonie? Historia już zapisana w aplikacji pozostanie bez zmian.'))return;
- HaSync.forget().then(()=>{haSnapshot=null;haUnlocked=false;haSyncLabel='Klucz odłączony. Dotychczasowa historia pozostała bez zmian.';render()});
+ HaSync.forget().then(()=>{haSnapshot=null;haBathrooms=null;haUnlocked=false;haSyncLabel='Klucz odłączony. Dotychczasowa historia pozostała bez zmian.';render()});
  return;
 }
 if(ac==='file-engo')return document.getElementById('engoFile').click();
@@ -951,6 +954,11 @@ document.addEventListener('change',guarded(e=>{let el=e.target;if(['gasMeter','g
   return;
  }
  if(el.dataset.change==='air-opening'){airOpening=HeatingBoard.openings.includes(el.value)?el.value:'';return;}
+ if(el.dataset.change==='dehumidifier-days'){
+  const days=Number(el.value);
+  if([1,7,14].includes(days)){bathDays=days;render();}
+  return;
+ }
  if(el.dataset.change==='review-period'){reviewPeriod=el.value;return render()}if(el.dataset.change==='temp-day'){tempDay=el.value;return render()}if(el.dataset.change==='door'){let id=el.dataset.id,old=state.doors[id];if(old!==el.value){state.doors[id]=el.value;changeLog('Drzwi: '+DOORS[id].name,`${DOORSTATUS[old]} → ${DOORSTATUS[el.value]}`);save();toast('Zapisano położenie drzwi.') }}if(el.dataset.change==='electric'){let old=state.global.electric;let next=el.value||null;state.global.electric=next;if(old!==next){changeLog('Grzejnik elektryczny GE1',`${old||'nie zapisano'} → ${next||'nie zapisano'}`);save();toast('Zapisano stan konwektora.')}}}));
 
 
@@ -1013,12 +1021,13 @@ async function syncHa(force=false,pass=null){
   }else{
    haUnlocked=true;
    if(payload.dashboard)haSnapshot=payload.dashboard;
+   if(payload.bathrooms)haBathrooms=payload.bathrooms;
    const merged=HaSync.merge(payload,state.engoCycles||[],state.temperatureHistory||[]);
    if(merged.addedEngo||merged.addedTemps){
     const next=DataStore.validate({...state,engoCycles:merged.engos,temperatureHistory:merged.temps});
     DataStore.save(next);state=next;
    }
-   haSyncLabel=(payload.dashboardError?'Migawka urządzeń jest nieprawidłowa. ':'')+'Odczyt HA z '+day(payload.generatedAt)+' · nowe ENGO: '+merged.addedEngo+
+   haSyncLabel=(payload.dashboardError?'Migawka urządzeń jest nieprawidłowa. ':'')+(payload.bathroomError?'Historia osuszaczy jest niedostępna. ':'')+'Odczyt HA z '+day(payload.generatedAt)+' · nowe ENGO: '+merged.addedEngo+
     ', temperatury: '+merged.addedTemps+'. Wszystkie dane zachowane lokalnie.';
    if(force)toast('Synchronizacja zakończona. Nowe ENGO: '+merged.addedEngo+', temperatury: '+merged.addedTemps+'.');
   }

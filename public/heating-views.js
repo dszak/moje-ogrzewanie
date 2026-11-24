@@ -88,7 +88,9 @@ const HeatingViews = (() => {
        <div class="board-grid">${engo(model,full)}${temperatures(model)}${gasSummary(model,full)}${boiler(model,full)}</div>
        <h3>Pomieszczenia</h3><div class="board-room-list featured-rooms">${featured}</div>
        <div class="board-room-list">${other}</div>
-       ${full?'<h3>Mała łazienka · urządzenia dodatkowe</h3><div class="board-grid">'+bath(model.snapshot,model.now)+'</div>':''}
+       ${full?'<h3>Urządzenia w łazienkach</h3><div class="board-grid">'+bath(model.snapshot,model.now,false)+
+         Object.keys(Dehumidifiers.rooms).map(id=>dehumidifier(id,model.bathroomTelemetry,model.snapshot,
+          byId.get(id)?.label.startsWith('Setti+')?byId.get(id).display:null,model.now)).join('')+'</div>':''}
        <p class="small muted"><strong>Dobrze gospodarować powierzonym mi dobrem.</strong> ${button('Pamięć projektu','memory')}</p>`;
   }
 
@@ -108,6 +110,7 @@ const HeatingViews = (() => {
     return menu('Analizy','Wyniki, porównania i dziennik.',[
       ['Pełna tablica ogrzewania','Temperatury, gaz, ENGO i kocioł','dashboard'],
       ['Wykresy temperatur','Porównania pokoi i cykle ENGO','temperatures'],
+      ['Osuszacze Equation','Wilgotność, zasilanie i energia obu łazienek','dehumidifiers'],
       ['Gaz i pogoda','Odczyty, porównania, korekty i import ORLEN','insights'],
       ['Cykle ENGO','Zdarzenia, statystyki i import','engo-cycles'],
       ['Eksperymenty','Aktywna próba, wyniki i wnioski','experiments'],
@@ -231,9 +234,96 @@ const HeatingViews = (() => {
     };
     return `<section class="card"><h3>Konwektor SCH700</h3>${source('Home Assistant · telemetria odczytowa')}
       <div class="board-metrics">${field('Stan włączenia','enabled')}${field('Temperatura zadana','target','°C')}
-      ${field('Temperatura przy konwektorze','measured','°C')}${field('Tryb mocy','mode')}</div><p class="hint">Stan włączenia i praca elementu grzejnego to odrębne informacje.</p></section>
-      <section class="card"><h3>Gniazdko osuszacza</h3>${source('Home Assistant · telemetria odczytowa')}
-      <div class="board-metrics">${field('Stan przekaźnika','relay')}${field('Moc chwilowa','power',' W')}</div><p class="hint">Stan przekaźnika nie potwierdza pracy sprężarki.</p></section>`;
+      ${field('Temperatura przy konwektorze','measured','°C')}${field('Tryb mocy','mode')}</div><p class="hint">Stan włączenia i praca elementu grzejnego to odrębne informacje.</p></section>`;
+
   }
-  return {dashboard,rooms,analysis,more,gasForm,gasSummary,boilerForm,coForm,air,comfort,bath,counterValue,gainLabel};
+  function dehumidifier(roomId, snapshot, legacy, roomReading, nowMs, historyLink=true) {
+    const room=Dehumidifiers.rooms[roomId];
+    const live=snapshot?.[roomId]?.latest||{};
+    const old=roomId==='smallbath'?legacy?.bath:{};
+    const fallback=roomReading?{
+      temperature:{value:roomReading.temp,at:roomReading.at},humidity:{value:roomReading.humidity,at:roomReading.at}
+    }:{};
+    const field=(label,key,unit='')=>{
+      const assigned=Object.hasOwn(live,key);
+      const row=assigned?live[key]:(fallback[key]||old?.[key]);
+      const value=row?.value;
+      const formatted=typeof value==='number'?fmt(value)+unit:
+        ['on','off'].includes(value)?value.toUpperCase():'Brak danych';
+      const time=row?.at?timestamp(row.at):null;
+      const quality=value===null||value===undefined?'Brak wiarygodnego odczytu':
+        HeatingBoard.fresh(row.at,nowMs)?'Aktualny':'Nieaktualny';
+      return metric(label,formatted,quality+(time?' · '+time:'')+
+        (value!==null&&value!==undefined&&!assigned&&fallback[key]?' · Setti+':''));
+    };
+    return `<section class="card" aria-label="Osuszacz Equation · ${room.name}"><h3>Osuszacz Equation</h3>
+      <p class="hint">${room.model}</p><div class="board-metrics">
+      ${field('Wilgotność pomieszczenia','humidity','%')}${field('Temperatura pomieszczenia','temperature','°C')}
+      ${field('Zasilanie gniazdka','relay')}${field('Moc pobierana z gniazdka','power',' W')}</div>
+      <p class="hint">Stan przekaźnika i pobór mocy opisują zasilanie. Praca sprężarki nie jest mierzona.</p>
+      ${historyLink?button('Historia i analizy osuszaczy','dehumidifiers'):''}</section>`;
+  }
+
+  function graph(label,rows,series,analysis,steps,bounds,color) {
+    const visible=rows.filter(x=>x.value!==null&&Date.parse(x.at)>=analysis.start&&Date.parse(x.at)<=analysis.end);
+    if(!visible.length)return '<p class="hint">Brak pomiarów w tym okresie.</p>';
+    const [bottom,top]=bounds, W=540,H=130;
+    const x=t=>36+(t-analysis.start)/(analysis.end-analysis.start)*(W-48);
+    const y=v=>11+(top-v)/(top-bottom)*(H-30);
+    const lines=steps.map(s=>'<path d="M '+x(s.from)+' '+y(s.a)+' L '+x(s.to)+' '+y(s.b)+'" fill="none" stroke="'+color+'" stroke-width="2"/>');
+    const points=visible.map(p=>'<circle cx="'+x(Date.parse(p.at))+'" cy="'+y(p.value)+'" r="2.2" fill="'+color+'"><title>'+
+      esc(timestamp(p.at)+' · '+fmt(p.value)+' '+series)+'</title></circle>');
+    const shade=analysis.relay.filter(p=>p.a==='on').map(p=>'<rect x="'+x(p.from)+'" y="5" width="'+
+      (x(p.to)-x(p.from))+'" height="'+(H-22)+'" fill="#dcecdf"/>');
+    return '<svg class="bath-chart" role="img" aria-label="'+esc(label)+'" viewBox="0 0 '+W+' '+H+'">'+shade.join('')+
+      '<text x="5" y="15" font-size="12">'+top+'</text><text x="5" y="'+(H-16)+'" font-size="12">'+bottom+'</text>'+
+      lines.join('')+points.join('')+'</svg>';
+  }
+
+  function dehumidifierAnalysis(snapshot, days, nowMs=Date.now()){
+    const choice=`<label for="dehumidifierDays">Okres</label><select id="dehumidifierDays" data-change="dehumidifier-days">
+      ${[[1,'24 godziny'],[7,'7 dni'],[14,'14 dni']].map(([value,name])=>
+        `<option value="${value}"${value===days?' selected':''}>${name}</option>`).join('')}</select>`;
+    const reports=Object.entries(Dehumidifiers.rooms).map(([id,room])=>{
+      const history=snapshot?.[id]?.history||{};
+      const a=Dehumidifiers.analyze(history,days,nowMs);
+      const peak=a.power.reduce((n,r)=>Date.parse(r.at)>=a.start?Math.max(n,r.value??0):n,50);
+      const g=(label,field,rows,max,color,limit)=>{
+        const connected=Dehumidifiers.pairs(rows,limit,a.start,a.end);
+        return '<h4>'+label+'</h4>'+graph(label+' · '+room.name,rows,field,a,connected,[0,max],color);
+      };
+      const elapsed=ms=>ms===0?'0 min':HeatingBoard.elapsed(ms).replace('<','&lt;');
+      const energy=a.energy?fmt(a.energy.value,3)+' kWh · '+(a.energy.estimated?'szacunek z mocy':'z licznika')+
+         ' · pokrycie '+elapsed(a.energy.ms):'Brak podstaw do obliczenia';
+      const windows=a.relay.reduce((out,span)=>{
+        if(span.a!=='on')return out;
+        const last=out.at(-1);
+        if(last&&last.to===span.from)last.to=span.to;
+        else out.push({from:span.from,to:span.to});
+        return out;
+      },[]);
+      return `<section class="card"><h3>${room.name} · Equation ${room.model}</h3>
+       <p class="hint">${timestamp(a.start)} – ${timestamp(a.end)} · zielone tło oznacza zasilanie w obserwowanych przedziałach.</p>
+       <div class="board-metrics">${metric('Czas zasilania',a.knownMs?elapsed(a.onMs):'Brak danych',
+       a.knownMs?'Obserwacja '+elapsed(a.knownMs)+' · brak danych '+elapsed(a.end-a.start-a.knownMs):'Brak potwierdzonego przedziału')}
+       ${metric('Energia elektryczna',energy)}</div>
+       ${g('Wilgotność pomieszczenia','% RH',a.humidity,100,'#176f6a',Dehumidifiers.humidityGap)}
+       ${g('Moc pobierana z gniazdka','W',a.power,Math.ceil(peak/50)*50,'#8e5827',Dehumidifiers.gap)}
+       <details class="bath-history-list"><summary>Okresy ON/OFF</summary>
+       ${windows.length?'<ul>'+windows.slice(-20).reverse().map(p=>'<li>ON · '+esc(interval({start:p.from,end:p.to}))+'</li>').join('')+'</ul>':''}
+       ${(history.relay||[]).length?'<ul>'+(history.relay||[]).filter(p=>Date.parse(p.at)>=a.start)
+        .filter((p,i,rows)=>!i||p.value!==rows[i-1].value).slice(-25).reverse().map(p=>'<li>'+
+         (p.value?.toUpperCase()||'Brak danych')+' · '+esc(timestamp(p.at))+'</li>').join('')+'</ul>':'<p>Brak historii gniazdka.</p>'}</details>
+       <h4>Wilgotność przed i po włączeniu</h4>
+       ${a.drops.length?'<ul>'+a.drops.slice(-8).reverse().map(x=>'<li>'+esc(timestamp(x.at))+' · '+
+        fmt(x.before.value)+'% ('+esc(timestamp(x.before.at))+') → '+fmt(x.after.value)+'% ('+esc(timestamp(x.after.at))+
+        ') · różnica '+fmt(x.change)+' p.p.</li>').join('')+'</ul>':'<p>Brak porównywalnej pary pomiarów w tym okresie.</p>'}
+       </section>`;
+    });
+    return back('Wróć do analiz','analysis')+sec('Osuszacze Equation','Odczyty Home Assistant z prywatnego archiwum.')+
+      choice+'<p class="hint">Przerwy w pomiarach pozostają widoczne. Porównanie wilgotności opisuje zmianę od odczytu sprzed włączenia do odczytu 30–60 minut później podczas obserwowanego zasilania.</p>'+
+      '<div class="grid cols2">'+reports.join('')+'</div>';
+  }
+
+  return {dashboard,rooms,analysis,more,gasForm,gasSummary,boilerForm,coForm,air,comfort,bath,dehumidifier,dehumidifierAnalysis,counterValue,gainLabel};
 })();
