@@ -97,7 +97,7 @@ test('fresh public Setti measurements display without overwriting manual reading
   const rooms={};
   for(const id of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])rooms[id]={temperature:21.6,humidity:51};
   const payload={version:1,last_sync:new Date().toISOString(),rooms};
-  await b.run('Setti.refresh(async()=>({ok:true,json:async()=>('+JSON.stringify(payload)+')}))');
+  await b.run('Setti.accept('+JSON.stringify(payload)+')');
   b.run("setPage('home')");
   assert.match(b.element('view').innerHTML,/Setti\+ automatycznie/);
   assert.equal(b.run('latestReading("bedroom").temp'),21.6);
@@ -121,7 +121,7 @@ test('historical ORLEN entries and stale sensor readings do not acquire current 
   const rooms={};
   for(const id of ['bedroom','salon','kitchen','bigbath','smallbath','hall'])rooms[id]={temperature:21.6,humidity:51};
   const payload={version:1,last_sync:new Date(Date.now()-30*60000).toISOString(),rooms};
-  await b.run('Setti.refresh(async()=>({ok:true,json:async()=>('+JSON.stringify(payload)+')}))');
+  await b.run('Setti.accept('+JSON.stringify(payload)+')');
   b.element('gasAt').value='2026-05-01T12:00';
   b.element('gasMeter').value='new';
   b.element('gasSource').value='orlen';
@@ -182,7 +182,7 @@ test('head screen shows eight validated readings without changing local data or 
   const heads={};
   for(let i=1;i<=8;i++)heads['g'+i]={temperature:21+i/10,target_temperature:22,calibration:-1,mode_raw:'standy'};
   const payload={version:1,last_sync:when,heads};
-  await b.run('Heads.refresh(async()=>({ok:true,json:async()=>('+JSON.stringify(payload)+')}))');
+  await b.run('Heads.accept('+JSON.stringify(payload)+')');
   const before=b.data.get(KEY);
   b.run("setPage('heads')");
   const view=b.element('view').innerHTML;
@@ -278,7 +278,7 @@ test('stale Setti readings show last automatic values and time, not the older ma
  const before=b.data.get(KEY);
  const rooms=Object.fromEntries(['bedroom','salon','kitchen','bigbath','smallbath','hall'].map(id=>[id,{temperature:21.6,humidity:49}]));
  const data={version:1,last_sync:new Date(Date.now()-50*60000).toISOString(),rooms};
- await b.run('Setti.refresh(async()=>({ok:true,json:async()=>('+JSON.stringify(data)+')}))');
+ await b.run('Setti.accept('+JSON.stringify(data)+')');
  assert.equal(b.run('Setti.room("bedroom")'),null);
  assert.equal(b.run('Setti.snapshot()'),null);
  assert.equal(b.run('latestReading("bedroom").temp'),21.6);

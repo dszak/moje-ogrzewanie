@@ -117,8 +117,6 @@ const HeatingPreview = (() => {
         }
         return response({schema_version:1,readings:archive.readings});
       }
-      if(url.pathname.endsWith('/pomiary.json'))return response(roomSnapshot(at));
-      if(url.pathname.endsWith('/glowice.json'))return response(headSnapshot(at));
       if(url.hostname===location.hostname&&url.origin===location.origin)return originalFetch(input,options);
       return response({},403);
     };
@@ -130,7 +128,8 @@ const HeatingPreview = (() => {
       }))};
       save();
     }
-    await Promise.all([Setti.refresh(window.fetch),Heads.refresh(window.fetch)]);
+    Setti.accept(roomSnapshot(at));
+    Heads.accept(headSnapshot(at));
     render();
     readDevices();
     window.setInterval(readDevices,30000);

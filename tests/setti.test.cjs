@@ -15,10 +15,10 @@ function payload(when = new Date().toISOString()) {
   }
   return {version: 1, last_sync: when, rooms};
 }
-test('public Setti data are validated and accepted only while fresh', async () => {
+test('decrypted Setti data are validated and accepted only while fresh', async () => {
   const run = instance();
   const good = payload();
-  assert.equal(await run(`Setti.refresh(async()=>({ok:true,json:async()=>(${JSON.stringify(good)})}))`), true);
+  run(`Setti.accept(${JSON.stringify(good)})`);
   assert.equal(run('Setti.room("bedroom").temp'), 21.5);
   assert.equal(run('Object.keys(Setti.snapshot().rooms).length'), 6);
   assert.equal(run('Setti.status().ok'), true);
@@ -27,7 +27,7 @@ test('public Setti data are validated and accepted only while fresh', async () =
 test('stale readings are not presented as current', async () => {
   const run = instance();
   const old = payload(new Date(Date.now()-30*60*1000).toISOString());
-  assert.equal(await run(`Setti.refresh(async()=>({ok:true,json:async()=>(${JSON.stringify(old)})}))`), false);
+  run(`Setti.accept(${JSON.stringify(old)})`);
   assert.equal(run('Setti.snapshot()'), null);
   assert.equal(run('Setti.room("salon")'), null);
   assert.equal(run('Setti.status().ok'), false);
@@ -35,11 +35,11 @@ test('stale readings are not presented as current', async () => {
   assert.equal(run('Setti.lastRoom("salon").at'), old.last_sync);
   assert.equal(run('Setti.snapshot()'), null, 'stale values never become a live snapshot');
 });
-test('invalid and failed public responses cannot create false measurements', async () => {
+test('invalid readings cannot create false measurements', async () => {
   const run = instance();
   const bad = payload();
   bad.rooms.kitchen.temperature = '21.5';
-  assert.equal(await run(`Setti.refresh(async()=>({ok:true,json:async()=>(${JSON.stringify(bad)})}))`), false);
+  assert.throws(()=>run(`Setti.accept(${JSON.stringify(bad)})`));
   assert.equal(run('Setti.snapshot()'), null);
-  assert.equal(await run('Setti.refresh(async()=>{throw Error("offline")})'), false);
+
 });

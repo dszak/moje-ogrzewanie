@@ -68,12 +68,12 @@ function renderHeads(){
   <div class="panel-readings"><div><span>Temperatura pokojowa</span><strong>${actual?T(actual.temp):'—'}</strong></div><div><span>Wilgotność</span><strong>${actual&&typeof actual.humidity==='number'?fmt(actual.humidity,0)+'%':'—'}</strong></div><div><span>Twój cel</span><strong>${T(state.rooms[r.id].target)}</strong></div></div>
   ${r.rads.length?`<div class="panel-heads">${r.rads.map(id=>{
    const h=snap?.heads[id.toLowerCase()];
-   return `<div class="panel-head"><b>${id}</b><span>Przy głowicy: <strong>${h?T(h.temperature):'—'}</strong></span><span>Nastawa: <strong>${h?T(h.target_temperature):'—'}</strong></span>${h?`<small>Kalibracja: ${fmt(h.calibration)}°C · Tryb: ${esc(h.mode_raw)} ${hs.ok?'':'· dane nieaktualne'}</small>`:'<small>Brak odczytu z GitHub</small>'}</div>`;
+   return `<div class="panel-head"><b>${id}</b><span>Przy głowicy: <strong>${h?T(h.temperature):'—'}</strong></span><span>Nastawa: <strong>${h?T(h.target_temperature):'—'}</strong></span>${h?`<small>Kalibracja: ${fmt(h.calibration)}°C · Tryb: ${esc(h.mode_raw)} ${hs.ok?'':'· dane nieaktualne'}</small>`:'<small>Brak odczytu z prywatnej migawki</small>'}</div>`;
   }).join('')}</div>`:'<p class="hint">Przedpokój nie ma grzejnika.</p>'}</section>`;
  }).join('');
  return `${sec('Panel ogrzewania','Sześć pomieszczeń: temperatura, wilgotność, zadane wartości i osiem głowic. Bez wykresów i bez sterowania urządzeniami.')}
  <div class="banner ${hs.ok&&ss.ok?'info':'warn'}"><span>🌡️</span><span><b>Czujniki: ${esc(ss.label)}</b> · Głowice: ${esc(hs.label)}. <button class="text-link" data-action="refresh-setti">Odśwież czujniki</button> · <button class="text-link" data-action="refresh-heads">Odśwież głowice</button></span></div>${engo}${rooms}
- <p class="hint">Pomiary czujników i głowic pobierane są tylko do odczytu z GitHub. Po 20 minutach od synchronizacji traktujemy je jako nieaktualne. Temperatura przy głowicy nie jest temperaturą całego pokoju. Dane ENGO i kotła pozostają ręczne.</p>`;
+ <p class="hint">Pomiary czujników i głowic pochodzą z zaszyfrowanej migawki SETTI+. Po 20 minutach od synchronizacji traktujemy je jako nieaktualne. Temperatura przy głowicy nie jest temperaturą całego pokoju. Dane ENGO i kotła pozostają ręczne.</p>`;
 }
 function renderGasSetti(s){if(!s)return '—';return `<details><summary>6 pomiarów</summary><div class="hint">Synchronizacja: ${day(s.last_sync)} (niekoniecznie czas fizycznego pomiaru)</div><ul>${ROOMS.map(r=>`<li>${esc(r.name)}: ${T(s.rooms[r.id].temperature)} · ${fmt(s.rooms[r.id].humidity,0)}%</li>`).join('')}</ul></details>`}
 function renderGasHistoryCard(r){
@@ -170,7 +170,7 @@ function renderBoiler(){
 function haSyncPanel(){
   return '<section class="card" style="margin-bottom:16px"><div class="group-heading"><h3>Historia automatyczna — Home Assistant</h3><span class="pill">szyfrowana · tylko odczyt</span></div>'+
    '<p class="hint">'+esc(haSyncLabel)+'</p>'+
-   '<p class="hint">Szczegółowa historia jest przesyłana jako zaszyfrowany plik przez dotychczasowy GitHub. Hasło nie jest wysyłane do GitHub ani Home Assistant. Ta funkcja niczym nie steruje.</p>'+
+   '<p class="hint">Ten klucz odblokowuje historię HA i bieżące pomiary SETTI+. Hasło nie jest wysyłane do GitHub ani Home Assistant. Ta funkcja niczym nie steruje.</p>'+
    (!haUnlocked?'<div style="margin:12px 0"><label for="haPass">Hasło prywatnego archiwum</label><input id="haPass" type="password" autocomplete="off" placeholder="Hasło ustawione w eksporterze" maxlength="300"></div>':'')+
    '<div class="actions" style="margin-top:13px">'+
    (!haUnlocked?'<button class="action" data-action="ha-unlock">Połącz prywatną historię</button>':'<button class="action" data-action="ha-refresh">Synchronizuj teraz</button>')+
@@ -736,7 +736,7 @@ if(ac==='ha-unlock'){
 if(ac==='ha-refresh')return syncHa(true);
 if(ac==='ha-forget'){
  if(!confirm('Zapomnieć klucz szyfrowania na tym iPhonie? Historia już zapisana w aplikacji pozostanie bez zmian.'))return;
- HaSync.forget().then(()=>{haSnapshot=null;haBathrooms=null;haUnlocked=false;haSyncLabel='Klucz odłączony. Dotychczasowa historia pozostała bez zmian.';render()});
+ Setti.clear();Heads.clear();HaSync.forget().then(()=>{haSnapshot=null;haBathrooms=null;haUnlocked=false;haSyncLabel='Klucz odłączony. Dotychczasowa historia pozostała bez zmian.';render()});
  return;
 }
 if(ac==='file-engo')return document.getElementById('engoFile').click();
@@ -887,7 +887,7 @@ if(ac==='gas-disconnect'){
 
 if(ac==='refresh-weather')return syncWeather(true);
 if(ac==='refresh-setti')return syncSetti(true);
-if(ac==='refresh-heads')return syncHeads(true);
+if(ac==='refresh-heads')return syncSetti(true);
 if(ac==='open-room')return setPage('room',btn.dataset.room);
 if(ac==='save-target'){let rid=btn.dataset.room,n=numInput('target',10,30);if(!n.ok)return;let old=state.rooms[rid].target;if(changed(old,n.value)){state.rooms[rid].target=n.value;changeLog('Cel: '+RM[rid].name,`${T(old)} → ${T(n.value)}`);save()}toast('Zapisano temperaturę docelową.');return render()}
 if(ac==='save-radiators'){let rid=btn.dataset.room,updates=[];for(let k of RM[rid].rads){let n=numInput('rad-'+k,5,35);if(!n.ok)return;updates.push([k,n.value])}let desc=[];for(let [k,v] of updates){let old=state.radiators[k];if(changed(old,v)){state.radiators[k]=v;desc.push(`${k}: ${T(old)} → ${T(v)}`)}}if(desc.length){changeLog('Głowice: '+RM[rid].name,desc.join(' · '));save()}toast('Zapisano nastawy głowic.');return render()}
@@ -1182,14 +1182,13 @@ document.getElementById('engoFile').addEventListener('change',async e=>{
 document.getElementById('importFile').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{if(f.size>20*1024*1024)throw Error('Kopia jest za duża (limit 20 MB).');let p=DataStore.validate(JSON.parse(await f.text()));if(confirm('Wczytać kopię i zastąpić bieżące dane? Poprzedni poprawny zapis pozostanie lokalną kopią odzyskiwania.')){GasSync.pause(true);state=DataStore.replace(JournalSync.afterRestore(p,state));setPage('home');document.getElementById('storageAlert').hidden=true;toast('Wczytano kopię JSON.')}}catch(ex){alert('Nie udało się wczytać kopii: '+ex.message)}finally{e.target.value=''}});
 document.getElementById('mapFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>2*1024*1024)throw Error('Mapa może mieć najwyżej 2 MB.');const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(f)});const next=DataStore.validate({...state,privateMap:data});DataStore.save(next);state=next;render();toast('Prywatna mapa zapisana lokalnie.')}catch(ex){alert('Nie udało się zapisać mapy: '+ex.message)}finally{e.target.value=''}});
 async function syncSetti(force=false){
- const ok=typeof fetch==='function'&&navigator.onLine!==false?await Setti.refresh(fetch):false;
+ try{
+  const result=await HaSync.refreshSetti(fetch);
+  if(force)toast(result.locked?'Otwórz „Dane i połączenia” i połącz prywatną historię HA.':result.fresh?'Pobrano pomiary SETTI+.':'Pomiary SETTI+ są nieaktualne.');
+ }catch(_){
+  if(force)toast('Nie pobrano prywatnej migawki SETTI+. Sprawdź połączenie i klucz archiwum.');
+ }
  renderGasWhenIdle();
- if(force)toast(ok?'Pobrano aktualne pomiary Setti+.':'Brak aktualnych pomiarów Setti+. Możesz nadal zapisywać ręcznie.');
-}
-async function syncHeads(force=false){
- const ok=typeof fetch==='function'&&navigator.onLine!==false?await Heads.refresh(fetch):false;
- renderGasWhenIdle();
- if(force)toast(ok?'Pobrano aktualne dane głowic.':'Nie uzyskano aktualnych danych głowic. Ostatni zapis jest oznaczony czasem synchronizacji.');
 }
 async function syncHa(force=false,pass=null){
  if(typeof fetch!=='function'||navigator.onLine===false){
@@ -1204,6 +1203,7 @@ async function syncHa(force=false,pass=null){
    if(force)toast('Najpierw wpisz hasło prywatnego archiwum.');
   }else{
    haUnlocked=true;
+   if(pass!==null)await syncSetti();
    if(payload.dashboard)haSnapshot=payload.dashboard;
    if(payload.bathrooms)haBathrooms=payload.bathrooms;
    const merged=HaSync.merge(payload,state.engoCycles||[],state.temperatureHistory||[]);
@@ -1223,9 +1223,9 @@ async function syncHa(force=false,pass=null){
 }
 window.addEventListener('load',()=>{
  if(typeof HeatingPreview!=='undefined'){HeatingPreview.start();return;}
- syncWeather();syncSetti();syncHeads();syncHa();gasSyncOnLoad();refreshBoiler();refreshJournal();if(typeof window.setInterval==='function')window.setInterval(()=>{refreshBoiler();syncSetti();syncHeads();syncHa();refreshJournal();if(GasSync.isConnected()){if(GasSync.status().role==='write'&&GasSync.status().active)maybeSyncGas();else GasSync.refresh().then(renderGasWhenIdle).catch(()=>{})}},5*60*1000)});
+ syncWeather();syncSetti();syncHa();gasSyncOnLoad();refreshBoiler();refreshJournal();if(typeof window.setInterval==='function')window.setInterval(()=>{refreshBoiler();syncSetti();syncHa();refreshJournal();if(GasSync.isConnected()){if(GasSync.status().role==='write'&&GasSync.status().active)maybeSyncGas();else GasSync.refresh().then(renderGasWhenIdle).catch(()=>{})}},5*60*1000)});
 window.addEventListener('pageshow',()=>{if(typeof HeatingPreview==='undefined'){syncWeather();refreshJournal();}});
-document.addEventListener('visibilitychange',()=>{if(typeof HeatingPreview==='undefined'&&document.visibilityState==='visible'){syncWeather();refreshBoiler();syncHa();refreshJournal();}});
+document.addEventListener('visibilitychange',()=>{if(typeof HeatingPreview==='undefined'&&document.visibilityState==='visible'){syncWeather();refreshBoiler();syncSetti();syncHa();refreshJournal();}});
 if(typeof window.setInterval==='function')window.setInterval(()=>{
  const active=(state.ventilation||[]).find(row=>!row.ended);
  if(active)document.querySelectorAll('[data-air-clock]').forEach(node=>{node.textContent=HeatingBoard.elapsed(Date.now()-Date.parse(active.started));});
