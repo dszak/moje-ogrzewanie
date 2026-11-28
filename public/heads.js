@@ -1,7 +1,6 @@
 'use strict';
-// Public read-only radiator head readings. No Tuya credentials, no device control.
+// Decrypted read-only radiator head readings. No Tuya credentials, no device control.
 const Heads = (() => {
-  const URL = 'https://raw.githubusercontent.com/dszak/moje-ogrzewanie/setti-data/glowice.json';
   const IDS = Array.from({length: 8}, (_, i) => 'g' + (i + 1));
   const MAX_AGE_MS = 20 * 60 * 1000;
   let latest = null;
@@ -54,19 +53,13 @@ const Heads = (() => {
     return {ok: false, label: 'Brak odczytów głowic', at: null};
   }
 
-  async function refresh(fetcher, nowMs = Date.now()) {
-    try {
-      if (typeof fetcher !== 'function') return false;
-      const response = await fetcher(URL + '?t=' + nowMs, {cache: 'no-store'});
-      if (!response || !response.ok) throw Error('Nie udało się pobrać danych głowic');
-      const data = parse(await response.json());
-      latest = data;
-      return isFresh(data, nowMs);
-    } catch (_) {
-      // Never replace the last valid snapshot with a failed or invalid response.
-      return false;
+  function accept(data) {
+    const parsed = parse(data);
+    if (latest && Date.parse(parsed.last_sync) < Date.parse(latest.last_sync)) {
+      throw Error('Otrzymano starszą migawkę.');
     }
+    latest = parsed;
   }
-
-  return {parse, isFresh, lastSnapshot, head, status, refresh};
+  function clear() { latest = null; }
+  return {parse, isFresh, lastSnapshot, head, status, accept, clear};
 })();
