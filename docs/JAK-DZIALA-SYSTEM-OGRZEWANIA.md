@@ -1,201 +1,50 @@
-# Architektura systemu „Moje Ogrzewanie” — jak to działa
+# Architektura systemu „Moje Ogrzewanie”
 
-> **Stan opisany na 20 listopada 2026 r.** Dokument przedstawia działające elementy oraz ograniczenia i zadania do sprawdzenia. Nie zawiera adresu mieszkania, prywatnego adresu HA, kluczy, tokenów ani danych pomiarowych. Jest opisem operacyjnym, nie instrukcją zmiany zabezpieczeń kotła.
->
-> **Zasady nadrzędne:** [najważniejsze zasady projektu](NAJWAZNIEJSZE-ZASADY-PROJEKTU.md) · [baza wiedzy technicznej](BAZA-WIEDZY-TECHNICZNEJ.md) · [zasady analitycznego archiwum](ARCHIWUM-ANALITYCZNE-PROJEKT.md).
->
-> Cel: **dobrze gospodarować powierzonym dobrem**, w cyklu **WIDZIEĆ → OCENIĆ → DZIAŁAĆ → UCZYĆ SIĘ**. Technologia służy bezpieczeństwu, komfortowi, prawdziwym pomiarom i rozsądnym kosztom.
+Opis ról i połączeń według stanu z 28 listopada 2026 r. Szczegóły uruchomionej instalacji, wersje, mapowanie urządzeń i rejestr kopii właściciel prowadzi w prywatnym inwentarzu. [Nadrzędne zasady projektu](NAJWAZNIEJSZE-ZASADY-PROJEKTU.md).
 
-## 1. Najważniejsze rozróżnienie: sterowanie a obserwacja
+## Ogrzewanie, monitoring i dostęp
 
-**Samo ogrzewanie nie jest sterowane przez MacBooka, Home Assistant, GitHub ani autorską aplikację „Moje Ogrzewanie”.** Sterownik pokojowy ENGO E901WiFi i jego odbiornik przekazują kotłowi BRÖTJE żądanie grzania przez styk przekaźnikowy; lokalne działanie tej pary jest odrębne od pobierania danych do analiz.
-
-- **Sterowanie:** regulator ENGO, odbiornik przy kotle, kocioł BRÖTJE QWHC 20/24; ponadto niezależne głowice termostatyczne Setti+ regulujące dopływ ciepła do grzejników.
-- **Zdalna obsługa:** aplikacja ENGO Smart / Tuya Smart korzysta z usług producenta, aby umożliwiać odczyt i zmianę nastaw z telefonu.
-- **Monitorowanie i analiza:** Tuya/Setti+, Home Assistant, MacBook, GitHub i aplikacja „Moje Ogrzewanie” przetwarzają obserwacje. Ich przerwa w działaniu **nie powinna sama w sobie wyłączać lokalnego sterowania ogrzewaniem**, ale może pozbawić system zdalnego sterowania lub rejestrowania historii.
-
-Sygnał ENGO **ON/OFF oznacza zapotrzebowanie na ciepło**, a nie potwierdzone włączenie/wyłączenie palnika, modulację ani dokładny czas zużywania gazu.
-
-## 2. Mapa przepływu danych
-
-```text
-  MIESZKANIE — URZĄDZENIA FIZYCZNE
-  ENGO E901WiFi (regulator) ---> odbiornik NO/COM ---> kocioł BRÖTJE
-  8 głowic Setti+ TRV001 <----> bramka ZigBee / system Setti+
-  6 osobnych czujników temperatury i wilgotności
-
-                | dane/zdarzenia urządzeń
-                v
-  USŁUGI I INTEGRACJE
-  ENGO Smart / Tuya Smart (obsługa urządzeń na iPhonie)
-  Tuya Developer Platform (API, usługi IoT Core / zdarzenia)
-  Setti+ / integracje lokalne i chmurowe, m.in. MQTT
-                |
-                v
-  MACBOOK AIR — PRACUJĄCA MASZYNA WIRTUALNA
-  Home Assistant: zbiera historię zmian temperatur oraz żądania ENGO
-                |
-                +---- zadanie „ha-history” (szyfrowanie na Macu)
-                |             |
-                |             v
-                |       GitHub: repozytorium moje-ogrzewanie
-                |       gałąź setti-data, ha-historia.enc.json
-                |             |
-                |             v
-                |       iPhone: aplikacja „Moje Ogrzewanie”
-                |       odszyfrowuje historię na urządzeniu
-                |
-                +---- zadanie „private-analytics” (odszyfrowanie
-                              na Macu + pliki analityczne z iCloud)
-                              |
-                              v
-                       GitHub: prywatne repozytorium
-                       moje-ogrzewanie-archiwum
-                              |
-                              v
-                       ChatGPT: odczyt na żądanie
-
-  ODRĘBNY TOR — TYLKO RĘCZNE ODCZYTY GAZOMIERZA
-  iPhone (PWA, wpis do lokalnego DataStore)
-                |
-                | po osobnym potwierdzeniu, HTTPS + Bearer WRITE
-                v
-  Cloudflare Worker: moje-ogrzewanie-gaz-sync
-                | sekret PAT GitHub tylko na serwerze
-                v
-  PRYWATNY GitHub: sync/gazomierz-v1.json
-                |
-                +----> TV Bro / Sony Bravia: GET + Bearer READ
-                |
-                +----> ChatGPT: odczyt poprzez uprawnione GitHub
+```mermaid
+flowchart LR
+    ENGO["Regulator ENGO"] --> RX["Odbiornik przy kotle"]
+    RX --> Boiler["Kocioł i instalacja CO"]
+    ENGO -. "zdarzenia przez Tuya Pulsar" .-> ENGOBridge["ENGO Bridge w HAOS"]
+    Devices["Czujniki i głowice SETTI+"] --> SETTI["SETTI+ Bridge na macOS"]
+    ENGOBridge --> MQTT["Mosquitto MQTT"]
+    SETTI --> MQTT
+    MQTT --> HA["Home Assistant w UTM"]
+    HA --> Recorder["Recorder"]
+    HA --> TV["Panel HA przez lokalne proxy i Tailscale Serve"]
+    MQTT --> Snapshot["Publikator zaszyfrowanej migawki SETTI+"]
+    Recorder --> Export["Eksporter historii przez API HA"]
+    Snapshot --> Data["GitHub: zaszyfrowane dane"]
+    Export --> Data
+    Data --> PWA["PWA z GitHub Pages"]
+    Data --> Analysis["Lokalne przetwarzanie analityczne"]
+    Analysis --> Archive["Prywatne archiwum GitHub"]
+    PWA <-->|"gaz i dziennik"| Worker["Cloudflare Worker"]
+    Worker <--> Archive
+    Archive -. "kopie awaryjne" .-> iCloud["Zaszyfrowane kopie w iCloud"]
 ```
 
-**Nowy tor dostępu do panelu HA na telewizorze (wdrożony i przetestowany 20.11.2026):** Sony Bravia (TV Bro + Tailscale) → prywatne HTTPS Tailscale Serve na MacBooku → lokalny Python proxy `127.0.0.1:8123` → Home Assistant OS we współdzielonej sieci UTM (HTTP, port 80). To **bezpośredni interfejs HA**, nie aplikacja GitHub Pages i nie tor synchronizacji gazomierza. Szczegóły: [wdrożenie Home Assistant na Sony Bravia](HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md). Pełne adresy i instrukcja odtworzenia są wyłącznie w prywatnym archiwum.
+| Warstwa | Rola i zależności |
+| --- | --- |
+| Ogrzewanie lokalne | Regulator i odbiornik przekazują żądanie ciepła do kotła niezależnie od telefonów, HA, MacBooka i usług publikacji. Głowice wykonują swoje lokalne nastawy. Zachowanie dodatkowych scen i urządzeń zależy od ich własnej konfiguracji. |
+| MacBook, UTM i HA | Na MacBooku działają osobne usługi użytkownika i maszyna HAOS ARM64 w UTM. Mosquitto odbiera telemetrię, HA tworzy encje i widoki, a Recorder zapisuje historię zmian ich stanów. Zatrzymanie hosta może spowodować lukę w monitoringu i publikacji. |
+| ENGO Bridge | Produkcyjna wersja 0.2.0 działa w trybie monitoringu. Tuya Pulsar dostarcza zdarzenia, mostek zapisuje je do własnej SQLite i publikuje stan oraz statystyki przez MQTT. Diagnostyka REST jest domyślnie wyłączona. ENGO ON/OFF oznacza żądanie ciepła. Do ustalenia pracy palnika potrzebny jest odrębny pomiar. |
+| SETTI+ Bridge | Mostek macOS zbiera dane urządzeń i podaje je do MQTT. Cykle pomiarowe oraz osobny odczyt urządzeń pomocniczych mają własne harmonogramy. Czasy źródłowe grup opisują synchronizację. Recorder może zapisać zmianę później. |
+| Szyfrowane pliki | Publikator SETTI+ czeka na kompletny cykl MQTT. Eksporter historii HA scala poprzedni eksport z nową historią. Każdy publikuje własny szyfrogram w gałęzi danych GitHub. Pliki to `setti-live.enc.json` i `ha-historia.enc.json`. PWA odszyfrowuje je na urządzeniu użytkownika. Ten tor jest jednokierunkowy i służy do odczytu. |
+| GitHub Pages i PWA | Workflow na `main` sprawdza kod i pakuje zasoby. PWA ponownie odczytuje zaszyfrowane dane przy uruchomieniu, okresowo i na żądanie. Po przekroczeniu progu 20 minut oznacza migawkę SETTI+ jako nieaktualną. Zachowuje ręczne dane i umożliwia kopię JSON. |
+| Cloudflare i archiwum | Worker obsługuje niezależne interfejsy `/v1/gas` i `/v1/journal`, rozdziela klucze odczytu i zapisu, a dane utrwala w prywatnym GitHubie. Repozytorium przechowuje też analizy z odrębnych zadań MacBooka. Poświadczenia i poprawny origin są potrzebne w trasach Workera. |
+| Bravia i Tailscale | TV Bro otwiera panel HA przez prywatne Tailscale Serve i lokalne proxy hosta. Konto panelu ma ograniczone uprawnienia. Przerwanie prywatnego dostępu z TV wpływa na widok, a czujniki i HA mogą dalej działać w sieci lokalnej. |
+| iCloud | Zaszyfrowane kopie awaryjne poza hostem zawierają dane potrzebne do odbudowy. Klucze odzyskiwania przechowuje się osobno. Materiały źródłowe w iCloud i zaszyfrowane pakiety awaryjne pełnią odrębne role. |
 
-**Uwaga:** pliki `pomiary.json` (sześć czujników) i `glowice.json` (osiem głowic) są także udostępniane w gałęzi `setti-data`. Autorska aplikacja pobiera je bezpośrednio do panelu bieżącego stanu. Dokładną drogę każdego źródła do HA trzeba ustalać na podstawie jego faktycznej konfiguracji — nie zakładać, że wszystkie urządzenia używają tego samego protokołu lub Tuya Developer API.
+## Jak zawęzić awarię
 
-## 3. Elementy i ich role
+- **Brak bieżących danych w HA.** Sprawdź dostępność HA, brokera i właściwego mostka. Porównaj czas źródłowy z historią Recorder. Przywracaj wyłącznie warstwę, która przestała działać.
+- **HA pokazuje dane, PWA jest nieaktualna.** Sprawdź osobno aktualność zaszyfrowanej migawki i eksportu historii, potem odszyfrowanie po stronie klienta. Wiek danych licz od znacznika źródłowego. Nowy commit może zawierać starszy odczyt.
+- **Bravia straciła obraz.** Sprawdź HA przez lokalny dostęp, a następnie proxy, Tailscale Serve i konto panelu TV.
+- **Gaz lub dziennik czeka na synchronizację.** Zabezpiecz niewysłane zmiany. Sprawdź właściwą trasę Workera, rolę klucza, prywatne archiwum i działanie klienta. Kanały synchronizacji są niezależne od zapisu w Recorder.
+- **Podstawowe ogrzewanie nie reaguje.** Sprawdzenie stanu lokalnego regulatora i odbiornika należy do ścieżki serwisowej instalacji. Monitoringu i eksportu używaj jako źródeł informacji.
 
-| Element | Rola | Wpływ na ogrzewanie |
-| --- | --- | --- |
-| **BRÖTJE QWHC 20/24** | Kocioł kondensacyjny, c.o. i c.w.u. | Fizycznie dostarcza ciepło |
-| **ENGO E901WiFi + odbiornik** | Mierzy temperaturę w pomieszczeniu sterującym i zgłasza żądanie c.o. | Lokalny tor sterowania kotłem |
-| **ENGO Smart / Tuya Smart na iPhonie** | Zdalna obsługa regulatora | Zmiana nastaw przez właściwą usługę producenta |
-| **Osiem głowic Setti+ TRV001** | Regulacja grzejników, własne temperatury/nastawy | Lokalny dopływ ciepła do poszczególnych grzejników |
-| **Sześć czujników Setti+** | Temperatura/wilgotność w pomieszczeniach | Obserwacja, osobno od pomiaru przy głowicy |
-| **Bramka ZigBee** | Łączność urządzeń Setti+ | Zależność komunikacji i funkcji inteligentnych |
-| **Tuya Developer Platform** | Projekt programistyczny `Moje Ogrzewanie ENGO`; API/usługi zdarzeń | Krytyczne dla tych integracji, które z niego korzystają, nie dla lokalnego przekaźnika kotła |
-| **Home Assistant w VM na MacBooku** | Kolektor i historia stanów/temperatur | Bezpośrednio nie steruje kotłem w tym projekcie |
-| **GitHub, gałąź `setti-data`** | Publiczne migawki czujników/głowic, **zaszyfrowana** historia HA | Dystrybucja odczytów |
-| **Autorska aplikacja iPhone (PWA)** | Panel, wykresy, gaz, pogoda, decyzje i eksperymenty; dobrowolny zapis samych odczytów gazu do prywatnego archiwum | Dziennik i transfer danych, **nie steruje kotłem** |
-| **Cloudflare Worker (gas sync)** | Oddzielna bramka HTTPS dla odczytów gazu, weryfikacja kluczy, zapis do prywatnego GitHuba | Brak sterowania urządzeniami |
-| **Sony Bravia / TV Bro** | Dwa odrębne widoki: autorska PWA z gazem oraz panel Home Assistant przez Tailscale Serve i HTTPS | PWA tylko prezentuje gaz; konto HA bez administratora nadal może obsługiwać udostępnione encje |
-| **Prywatne repozytorium GitHub** | Analizy, historia, karta instalacji, rozliczenia i decyzje | Archiwum danych dla uprawnionego odczytu |
-| **ChatGPT z połączeniem GitHub** | Analiza archiwum na polecenie użytkownika | Nie jest samodzielnym sterownikiem ani monitoringiem alarmowym |
-
-## 4. Dwa różne znaczenia nazwy „Tuya”
-
-**Aplikacja Tuya Smart / ENGO Smart** to interfejs użytkownika do urządzeń. Przez nią można sprawdzać stany i wykonywać obsługiwane przez sprzęt zmiany nastaw. To inna funkcja niż nasze archiwum.
-
-**Tuya Developer Platform** to panel programisty obsługujący dostęp integracyjny (API/IoT Core, wiadomości o zdarzeniach). „Wiadomości” oznaczają komunikaty techniczne, nie SMS-y.
-
-W projekcie `Moje Ogrzewanie ENGO` złożono **17 listopada 2026 r.** wniosek o **sześciomiesięczne przedłużenie**. Wg ówczesnych ustaleń dostępna usługa ma termin **16 grudnia 2026 r.** Do czasu decyzji nie zakładać przedłużenia. Utrata uprawnień do usługi mogłaby przerwać zależną od niej część monitoringu/API. **Nie jest równoznaczna z wyłączeniem fizycznego ogrzewania.** Konkretne zależności i skutki sprawdzić w konfiguracji integracji.
-
-## 5. MacBook, Home Assistant i synchronizacja co 30 minut
-
-Home Assistant działa w maszynie wirtualnej na MacBooku. Zapisuje zdarzenia stanu ENGO oraz zmian temperatury z sześciu czujników; przechowywanie historii i jej kompletność zależą od działania VM, usług i połączeń.
-
-Na MacBooku działają dwa oddzielne zadania użytkownika macOS (`launchd`):
-
-1. `pl.moje-ogrzewanie.ha-history` — odczytuje historię HA, scala z poprzednim eksportem, **szyfruje AES-256-GCM przed publikacją** pliku `ha-historia.enc.json` do gałęzi `setti-data`. Hasło nie trafia do repozytorium.
-2. `pl.moje-ogrzewanie.private-analytics` — czyta zaszyfrowany eksport, **odszyfrowuje go lokalnie** i łączy z wybranymi JSON/JSONL z archiwum iCloud, następnie synchronizuje je do prywatnego repozytorium. Nie przesyła źródłowych PDF ani tokenów.
-
-Zadania mają interwał **1800 s (około 30 min)**. Drugi proces został uruchomiony i pozytywnie zweryfikowany 18 listopada 2026 r.: 13 plików, następny przebieg bez zmian i bez błędów.
-
-**Ważne ograniczenia:**
-- MacBook musi być włączony, VM/HA uruchomione, a usługi dostępne, aby bieżąca historia była zbierana. **Nie wystarczy tylko włączony ekran ani sama sesja macOS**.
-- Uśpienie, zamknięcie maszyny wirtualnej, brak internetu lub wygaśnięcie uprawnień mogą opóźnić synchronizację albo utworzyć nieodtwarzalne luki.
-- Zaplanowane zadania użytkownika mogą nie działać, gdy użytkownik jest wylogowany. **20.11.2026 przetestowano jeden pełny restart MacBooka:** UTM/HA uruchomiły się automatycznie, a panel HA działał na Sony Bravia przez Tailscale/launchd. **To nie jest jeszcze potwierdzenie**, że oba niezależne zadania eksportu/synchronizacji danych poprawnie wykonały przebieg po restarcie; ich logi i świeżość danych należy sprawdzić osobno.
-- Exporter HA posiada obecnie limit **25 000 zmian temperatur** i **40 000 zdarzeń ENGO**; osiągnięcie limitu ma kończyć eksport błędem zamiast cicho usuwać dane. Potrzebny będzie plan rozszerzenia archiwizacji przed osiągnięciem limitu.
-- Samo zadanie private-analytics **nie pobiera aktualnej historii bezpośrednio z HA**: korzysta z ostatniego opublikowanego zaszyfrowanego eksportu. Jeżeli wcześniejszy eksport przestanie działać, drugie zadanie może nadal poprawnie wykonywać synchronizację **starych danych**. Należy kontrolować znaczniki świeżości.
-
-## 6. GitHub i aplikacja na iPhonie
-
-**Publiczne repozytorium `dszak/moje-ogrzewanie`:**
-- `main`: kod i dokumentacja aplikacji, publikacja przez GitHub Pages;
-- `setti-data`: `pomiary.json`, `glowice.json`, `ha-historia.enc.json`;
-- odczyty Setti+ / głowic z tej gałęzi są **publicznymi migawkami technicznymi**, a historia HA jest zaszyfrowana — nie należy mylić obu form ochrony.
-
-**Aplikacja „Moje Ogrzewanie” na iPhonie (PWA, wersja 1.9.0):**
-- pobiera migawki temperatury/wilgotności i głowic przy otwarciu, co ok. 5 minut oraz na żądanie; po 20 minutach oznacza je jako nieaktualne;
-- pobiera zaszyfrowane archiwum HA, odszyfrowuje je na iPhonie i przedstawia historię ENGO/temperatur;
-- pokazuje pogodę z Open-Meteo i umożliwia ręczne prowadzenie historii gazu, odczytów kotła, decyzji i eksperymentów;
-- **nie steruje kotłem ani głowicami**; po odrębnym potwierdzeniu **wysyła jedynie odczyty gazomierza** przez Cloudflare Worker do prywatnego repozytorium. Nie wysyła automatycznie wszystkich innych prywatnych danych;
-- miejscowa pamięć aplikacji wymaga własnych kopii bezpieczeństwa JSON, szczególnie przed czyszczeniem danych przeglądarki lub reinstalacją.
-
-**Prywatne repozytorium `dszak/moje-ogrzewanie-archiwum`:**
-- zawiera uporządkowane pliki JSON/JSONL: kartę instalacji, historię i eksperymenty, rozliczenia ORLEN, partycje historii HA, indeks `meta/index.json` **oraz niezależny dziennik gazomierza `sync/gazomierz-v1.json`**; ten dziennik nie jest jeszcze ujęty w indeksie HA/iCloud;
-- **dane w tym repozytorium są jawne dla uprawnionych odbiorców, nie są szyfrowane end-to-end**; repozytorium musi pozostać prywatne, a dostęp powinien być ograniczany i okresowo kontrolowany;
-- ChatGPT może czytać zawartość przez podłączoną usługę GitHub **na żądanie**. Nie ma ciągłego wglądu w system ani automatycznego odczytu w tle.
-
-**Prywatny gazomierz — stan 20.11.2026:** [instrukcja uruchomionej synchronizacji](PRYWATNA-SYNCHRONIZACJA-GAZU.md). iPhone przechowuje zapis lokalnie i przesyła odczyty, gdy aplikacja jest otwarta i ma internet; TV Bro pobiera je kluczem tylko do odczytu. Zapisano i niezależnie zweryfikowano **12 odczytów (12 zdarzeń)**, a na TV obliczono **11 interwałów**. Czytelne porównania nie są dowodem oszczędności gazu bez kontroli pogody i c.w.u. Dostęp ChatGPT przez połączenie GitHub jest **na żądanie**, a nie w tle.
-
-**iCloud Drive** stanowi odrębne miejsce przechowywania oryginałów PDF i prywatnych materiałów źródłowych. Aktualizacja pliku JSON w iCloud może trafić do GitHub podczas kolejnej synchronizacji; dodanie nowej faktury PDF **nie oznacza automatycznego odczytu jej treści**.
-
-## 7. Co przestaje działać w przypadku awarii?
-
-| Zdarzenie | Ogrzewanie | Monitoring / historia |
-| --- | --- | --- |
-| MacBook wyłączony albo HA zatrzymany | Lokalny regulator i kocioł powinny działać niezależnie | Brak bieżącego zapisu HA, możliwe luki |
-| MacBook uśpiony | Ogrzewanie nadal sterowane lokalnie | Eksport i synchronizacja czekają na wznowienie |
-| Brak internetu | Lokalny tor ENGO–odbiornik–kocioł pozostaje odrębny | Zdalne API, aplikacje i GitHub mogą nie odświeżać danych |
-| Wygaśnięcie Tuya IoT Core | Nie powinno wyłączać lokalnego sterowania | Ryzyko przerwania funkcji integracyjnych zależnych od Tuya |
-| Błąd prywatnej synchronizacji | Bez wpływu na kocioł | ChatGPT może widzieć starą wersję archiwum; przy błędzie synchronizacji gazu lokalny wpis na iPhonie pozostaje, a przesłanie trzeba ponowić |
-| GitHub niedostępny | Bez wpływu na lokalny regulator | iPhone może nie pobrać świeżych danych; przechowane wcześniej lokalnie dane pozostają |
-
-## 8. Zasady analizy i bezpieczeństwo
-
-1. Oddzielić **odczyty przy głowicy**, **odczyty czujnika pokojowego**, **temperaturę zadaną**, **żądanie ENGO** oraz **rzeczywistą pracę palnika**.
-2. Doby obliczać dla `Europe/Warsaw`; partycje historii HA w repozytorium są według dat UTC.
-3. Zużycie gazu na liczniku obejmuje **c.o. i c.w.u.**; odróżniać rachunki, przedpłaty, saldo i rzeczywiste zużycie.
-4. Porównywać eksperymenty z uwzględnieniem pogody, komfortu, przerw w danych i zmiany licznika.
-5. Hasła, PAT GitHub, token HA i hasło szyfrowania pozostają w zabezpieczonych magazynach (Mac / Cloudflare / Hasła Apple, zgodnie z rolą) — **nigdy w publicznej dokumentacji, kodzie ani rozmowie**. Klucze iPhone/TV mają różne uprawnienia. Repozytorium z odczytami gazu musi pozostać prywatne.
-6. Nie przypisywać ChatGPT automatycznego sterowania, alertowania ani ciągłego monitoringu. Wnioski wymagają przeczytania aktualnych źródeł i określenia niepewności.
-
-## 9. Decyzja zakresowa — energia elektryczna a ogrzewanie (18.11.2026)
-
-**Decyzja:** nie uruchamiać obecnie odrębnego systemu monitorowania całkowitego zużycia energii elektrycznej ani integracji TAURON AMIplus. Priorytetem pozostają **komfort cieplny, gaz, praca kotła, ENGO, głowice, temperatury i rzetelne porównania kosztów**. Rachunki za energię elektryczną są według oceny użytkownika na akceptowalnym poziomie, dlatego dodatkowe inwestycje i obsługa pomiarów prądu nie mają obecnie uzasadnionego priorytetu. Niezależnie od tego eLicznik TAURON nie jest aktualnie dostępny dla tego punktu poboru, a brak wyznaczonej daty wymiany licznika oznacza jedynie termin graniczny do końca 2030 r., nie datę konkretnej instalacji.
-
-**Zależność, którą należy uwzględniać w analizie:** w sezonie grzewczym kocioł zużywa nie tylko gaz, lecz także **energię elektryczną** do zasilania elementów takich jak pompa obiegowa i elektronika sterująca (a zależnie od fazy pracy również inne elementy urządzenia). Użytkownik obserwuje wyższe rachunki za prąd w okresie ogrzewania niż poza sezonem. Jest to obserwacja, **nie potwierdzony pomiarem udział kotła** w całej różnicy rachunków.
-
-**Wniosek warunkowy:** zmniejszenie rzeczywistego zapotrzebowania na ciepło i czasu działania pompy/urządzeń kotła **może dodatkowo ograniczyć zużycie prądu**. Nie wolno jednak zakładać, że każdy spadek zużycia gazu oznacza proporcjonalny lub nawet pewny spadek zużycia energii elektrycznej. Przykładowo niższa temperatura zasilania może zmniejszyć spalanie gazu, a jednocześnie wydłużyć czas pracy pompy. Rzeczywisty efekt elektryczny wymaga osobnego pomiaru; bez niego traktujemy go jako możliwą **korzyść uboczną**, nie wyliczoną oszczędność.
-
-**Praktyczne następstwo:** optymalizujemy przede wszystkim ogrzewanie gazowe przy zachowaniu komfortu i bezpieczeństwa. Nie kupujemy dodatkowych liczników prądu tylko w celu potwierdzenia tej hipotezy. Decyzję można przejrzeć ponownie, jeśli rachunki znacząco wzrosną, zmieni się sposób ogrzewania lub monitoring stanie się dostępny bez istotnych kosztów.
-
-## 10. Stan wdrożenia i kolejne prace
-
-**Potwierdzone 18.11.2026:** dostęp MacBooka do prywatnego repozytorium, jednorazowa synchronizacja 13 plików, powtarzalne wykonanie `launchd` bez błędów, odczyt indeksu i przykładowych plików przez ChatGPT z połączeniem GitHub.
-
-**Potwierdzone 19/20.11.2026:** wdrożony Worker i klucze ról iPhone/TV, odpowiedź bez autoryzacji `401`, odczyt kluczem `200`, przekazanie i odczyt **12 prywatnych odczytów gazu**, prezentacja na Sony Bravia (TV Bro) oraz odczyt pliku gazu przez uprawnione połączenie GitHub. Nie stwierdzono, że działa bez ograniczeń w tle po zamknięciu iOS.
-
-**Potwierdzone 20.11.2026 — nowa ścieżka TV/HA:** w UTM działa Home Assistant, a na MacBooku lokalny Python proxy uruchamiany przez użytkownika `launchd` (`pl.mojeogrzewanie.ha-proxy`). Tailscale Serve udostępnia panel w prywatnym HTTPS; na TV działa osobne konto `tv-wsalonie`. Po zaplanowanym wyłączeniu HA i restarcie MacBooka maszyna UTM oraz panel TV wznowiły pracę automatycznie. Rozpoznano błąd `400` po stronie niezaufanego proxy i poprawiono konfigurację HA dla jednego zaufanego IP. Na TV usunięto dopisane parametry autoryzacji z adresu zakładki. Zob. [pełną historię wdrożenia](HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md).
-
-**Do sprawdzenia / poprawienia:**
-- zachowanie po **uśpieniu** MacBooka i przerwach łączności, odporność UTM/Tailscale/HA na awarie oraz logi i świeżość **obu odrębnych agentów eksportu** po restarcie;
-- kontrola świeżości danych `source_latest_observed_at` i powiadamianie o przerwach, nie tylko o błędach polecenia;
-- rzeczywista zależność ścieżek ENGO i Setti+ od IoT Core / API / MQTT przed terminem 16.12.2026;
-- przetestowanie **13. rzeczywistego odczytu gazu** i jego automatycznego pojawienia się na TV; praca po restarcie/przerwie offline, przegląd zabezpieczeń Workera i utrzymania wersji backendu; osobno: aktualizacja nowych dokumentów ORLEN i **pozostałych** prywatnych wpisów iPhone'a;
-- obsługa dłuższej historii i limitów eksportu HA.
-
-## 11. Gdzie szukać danych i dokumentów?
-
-- [Główna strona projektu i kod aplikacji](../README.md)
-- [Zasady nadrzędne](NAJWAZNIEJSZE-ZASADY-PROJEKTU.md)
-- [Baza wiedzy technicznej](BAZA-WIEDZY-TECHNICZNEJ.md)
-- [Założenia archiwum analitycznego](ARCHIWUM-ANALITYCZNE-PROJEKT.md)
-- [Prywatna synchronizacja gazomierza — instrukcja i potwierdzone testy](PRYWATNA-SYNCHRONIZACJA-GAZU.md)
-- [Home Assistant na Sony Bravia przez Tailscale — wdrożenie, HTTPS i autostart po restarcie](HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md)
-- [Repozytorium prywatnego archiwum](https://github.com/dszak/moje-ogrzewanie-archiwum) — wymaga odpowiednich uprawnień
-- [Panel Tuya Developer](https://iot.tuya.com/) — konto programistyczne, dostęp do usług i status przedłużenia
-
-**Zasada aktualizacji:** zmiana architektury (urządzenie, usługa, harmonogram, skrypt, repozytorium, bezpieczeństwo) wymaga aktualizacji tego dokumentu i daty stanu. Samo dodanie nowej dokumentacji nie zmienia działania urządzeń ani automatyzacji.
+Dane pomiarowe, poświadczenia, mapowania instalacji i kopie produkcyjnej konfiguracji przechowuj w prywatnych zasobach. [Plan kopii i odtwarzania](PLAN-ODTWARZANIA-I-KOPII-ZAPASOWYCH.md).
