@@ -1,7 +1,6 @@
 'use strict';
-// Public, read-only Setti+ measurements. Never send credentials from the browser.
+// Decrypted, read-only Setti+ measurements. Never send credentials from the browser.
 const Setti = (() => {
-  const URL = 'https://raw.githubusercontent.com/dszak/moje-ogrzewanie/setti-data/pomiary.json';
   const ROOM_IDS = ['bedroom', 'salon', 'kitchen', 'bigbath', 'smallbath', 'hall'];
   const MAX_AGE_MS = 20 * 60 * 1000;
   let latest = null;
@@ -55,18 +54,13 @@ const Setti = (() => {
     return {ok: false, label: 'Brak automatycznych pomiarów', at: null};
   }
 
-  async function refresh(fetcher, nowMs = Date.now()) {
-    try {
-      if (typeof fetcher !== 'function') return false;
-      const response = await fetcher(URL + '?t=' + nowMs, {cache: 'no-store'});
-      if (!response || !response.ok) throw Error('Nie udało się pobrać pomiarów');
-      latest = parse(await response.json());
-      return isFresh(latest, nowMs);
-    } catch (_) {
-      // Never overwrite a fresh previous reading with a failed network response.
-      return false;
+  function accept(data) {
+    const parsed = parse(data);
+    if (latest && Date.parse(parsed.last_sync) < Date.parse(latest.last_sync)) {
+      throw Error('Otrzymano starszą migawkę.');
     }
+    latest = parsed;
   }
-
-  return {parse, isFresh, snapshot, room, lastRoom, status, refresh};
+  function clear() { latest = null; }
+  return {parse, isFresh, snapshot, room, lastRoom, status, accept, clear};
 })();

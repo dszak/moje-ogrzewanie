@@ -6,7 +6,8 @@ const HaSync=(()=>{
   const DB='moje-ogrzewanie-ha-key-v1',STORE='keys',KEY_ID='history';
   const ROOM_IDS=new Set(['bedroom','salon','kitchen','bigbath','smallbath','hall']);
   const atRe=/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/;
-  let liveKey=null;
+  const snapshotUrl=URL.replace('ha-historia.enc.json','setti-live.enc.json');
+  let liveKey=null, generation=0;
   function fail(message){throw Error(message)}
   function bytes(base64){
     if(typeof base64!=='string'||!base64.length||!/^[A-Za-z0-9+/]*={0,2}$/.test(base64))fail('Nieprawidłowy kod szyfrowania.');
@@ -46,6 +47,7 @@ const HaSync=(()=>{
     }catch(_){/* Private browsing may not persist CryptoKey; memory remains. */}
   }
   async function forget(){
+    generation++;
     liveKey=null;
     try{
       const db=await openDb();
@@ -67,21 +69,21 @@ const HaSync=(()=>{
       fail('Nieprawidłowy rozmiar archiwum.');
     return {salt,iv,data};
   }
-  async function readEnvelope(fetcher){
+  async function readEnvelope(fetcher,url=URL,maxBytes=30*1024*1024){
     if(typeof fetcher!=='function')fail('Brak połączenia sieciowego.');
-    const response=await fetcher(URL+'?t='+Date.now(),{cache:'no-store'});
+    const response=await fetcher(url+'?t='+Date.now(),{cache:'no-store',credentials:'omit',redirect:'error'});
     if(!response||!response.ok)fail('Brak zaszyfrowanej historii HA. Eksporter nie został jeszcze uruchomiony.');
     const text=await response.text();
-    if(text.length>30*1024*1024)fail('Archiwum jest za duże.');
+    if(text.length>maxBytes)fail('Archiwum jest za duże.');
     return JSON.parse(text);
   }
-  async function decrypt(obj,key){
+  async function decrypt(obj,key,validator=validate){
     const {iv,data}=envelope(obj);
     let plaintext;
     try{plaintext=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data)}
     catch(_){fail('Nie można odszyfrować historii. Sprawdź hasło lub zgodność klucza.')}
     const payload=JSON.parse(new TextDecoder().decode(plaintext));
-    return validate(payload);
+    return validator(payload);
   }
   async function derive(pass,salt){
     if(typeof pass!=='string'||pass.length<16)fail('Hasło do historii powinno mieć co najmniej 16 znaków.');
@@ -101,6 +103,30 @@ const HaSync=(()=>{
     const key=await storedKey();
     if(!key)return {locked:true};
     return decrypt(await readEnvelope(fetcher),key);
+  }
+  async function refreshSetti(fetcher){
+    const started=generation;
+    const key=await storedKey();
+    if(!key)return {locked:true};
+    const env=await readEnvelope(fetcher,snapshotUrl,32768);
+    const pair=await decrypt(env,key,data=>{
+      if(data?.format!=='moje-ogrzewanie-setti-live'||data.version!==1||data.keySalt!==env.salt)
+        fail('Nieprawidłowy typ migawki SETTI+.');
+      const rooms=Setti.parse(data.rooms),heads=Heads.parse(data.heads);
+      for(const group of [rooms,heads]){
+        if(!atRe.test(group.last_sync)||Date.parse(group.last_sync)>Date.now()+60000)
+          fail('Nieprawidłowy czas źródłowy SETTI+.');
+      }
+      return {rooms,heads};
+    });
+    if(started!==generation)return {locked:true};
+    for(const [module,group] of [[Setti,pair.rooms],[Heads,pair.heads]]){
+      if(Date.parse(group.last_sync)<Date.parse(module.status().at))
+        fail('Otrzymano starszą migawkę SETTI+.');
+    }
+    Setti.accept(pair.rooms);
+    Heads.accept(pair.heads);
+    return {locked:false,fresh:Setti.status().ok&&Heads.status().ok};
   }
   function timestamp(at){
     if(typeof at!=='string'||!atRe.test(at))fail('Archiwum zawiera czas bez strefy.');
@@ -185,5 +211,5 @@ const HaSync=(()=>{
     temps.sort((a,b)=>Date.parse(a.at)-Date.parse(b.at)||a.room.localeCompare(b.room));
     return {engos,temps,addedEngo,addedTemps,skippedEngo,skippedTemps};
   }
-  return {validate,merge,envelope,unlock,refresh,forget};
+  return {validate,merge,envelope,unlock,refresh,refreshSetti,forget};
 })();
