@@ -32,7 +32,7 @@ Przeszło **113 testów Node i 35 testów Pythona**, w tym testy synchronizacji 
 
 ## Jak działa cały system?
 
-**[Architektura „Moje Ogrzewanie” — ENGO, Setti+, Tuya, Home Assistant, MacBook, GitHub, iPhone i ChatGPT](docs/JAK-DZIALA-SYSTEM-OGRZEWANIA.md)** — aktualny schemat przepływu danych, automatyzacji, ograniczeń i postępowania przy awariach (stan 20.11.2026).
+**[Architektura „Moje Ogrzewanie” — ENGO, Setti+, Tuya, Home Assistant, MacBook, GitHub, iPhone i ChatGPT](docs/JAK-DZIALA-SYSTEM-OGRZEWANIA.md)** — mapa sterowania lokalnego, monitoringu i synchronizacji. [Plan kopii i odtwarzania](docs/PLAN-ODTWARZANIA-I-KOPII-ZAPASOWYCH.md).
 
 **Nowy etap 20.11.2026:** [Home Assistant na Sony Bravia przez Tailscale HTTPS — krok po kroku, potwierdzone po restarcie](docs/HOME-ASSISTANT-SONY-BRAVIA-TAILSCALE-2026-11-20.md). Panel HA na TV jest **odrębny** od prezentacji odczytów gazu w PWA/TV Bro. UTM, lokalny proxy zarządzany przez `launchd` oraz Tailscale uruchomiły się bez ręcznej obsługi po restarcie MacBooka. Bez publicznego Funnel i bez portów routera. Adresy i procedura odtworzenia są tylko w prywatnym archiwum.
 
